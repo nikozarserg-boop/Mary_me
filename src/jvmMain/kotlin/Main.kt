@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
+import org.jetbrains.compose.resources.painterResource
+import org.example.mary_me.generated.resources.Res
+import org.example.mary_me.generated.resources.icon
 
 @Composable
 fun App() {
@@ -34,7 +36,7 @@ fun main() = application {
         onCloseRequest = { exitApplication() },
         state = windowState,
         title = "MaryMe",
-        icon = painterResource("icons/icon.png")
+        icon = painterResource(Res.drawable.icon)
     ) {
         App()
     }
