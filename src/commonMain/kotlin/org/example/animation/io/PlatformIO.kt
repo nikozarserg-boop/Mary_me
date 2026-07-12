@@ -10,4 +10,11 @@ interface PlatformFileHandler {
     fun openFile(extension: String): ByteArray?
     fun saveToPath(path: String, data: ByteArray): Boolean
     fun readFromPath(path: String): ByteArray?
+    
+    // Новые функции для безопасности и удобства
+    fun getDocumentsDirectory(): String
+    fun getCacheDirectory(): String
+    fun openInExplorer(path: String)
+    fun fileExists(path: String): Boolean
+    fun deleteFile(path: String): Boolean
 }

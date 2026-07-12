@@ -1,6 +1,7 @@
 package org.example.animation.model
 
 import androidx.compose.ui.geometry.Offset
+import kotlinx.datetime.Clock
 
 /**
  * Представляет один штрих/рисунок на холсте
@@ -83,7 +84,11 @@ class AnimationProject(
     var canvasWidth: Int = 800,
     var canvasHeight: Int = 600,
     var fps: Int = 24,
-    var backgroundColor: ULong = 0xFFFFFFFFuL // белый
+    var backgroundColor: ULong = 0xFFFFFFFFuL, // белый
+    var workingTimeMs: Long = 0,
+    var dpi: Int = 72,
+    var createdTimestamp: Long = Clock.System.now().toEpochMilliseconds(),
+    var lastModifiedTimestamp: Long = Clock.System.now().toEpochMilliseconds()
 ) {
     fun copy(): AnimationProject {
         val newProject = AnimationProject(
@@ -92,7 +97,11 @@ class AnimationProject(
             canvasWidth = canvasWidth,
             canvasHeight = canvasHeight,
             fps = fps,
-            backgroundColor = backgroundColor
+            backgroundColor = backgroundColor,
+            workingTimeMs = workingTimeMs,
+            dpi = dpi,
+            createdTimestamp = createdTimestamp,
+            lastModifiedTimestamp = lastModifiedTimestamp
         )
         return newProject
     }
@@ -112,7 +121,6 @@ class AnimationProject(
 
     fun addLayer(name: String = "Слой ${layers.size + 1}"): LayerData {
         val layer = LayerData(name = name)
-        // Заполняем кадрами до текущего количества
         for (i in 0 until totalFrames) {
             layer.frames.add(FrameData())
         }

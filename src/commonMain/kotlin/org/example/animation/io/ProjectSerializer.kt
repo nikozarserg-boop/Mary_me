@@ -16,6 +16,10 @@ object ProjectSerializer {
         sb.appendLine("  \"canvasHeight\": ${project.canvasHeight},")
         sb.appendLine("  \"fps\": ${project.fps},")
         sb.appendLine("  \"backgroundColor\": \"${colorToHex(project.backgroundColor)}\",")
+        sb.appendLine("  \"workingTimeMs\": ${project.workingTimeMs},")
+        sb.appendLine("  \"dpi\": ${project.dpi},")
+        sb.appendLine("  \"createdTimestamp\": ${project.createdTimestamp},")
+        sb.appendLine("  \"lastModifiedTimestamp\": ${project.lastModifiedTimestamp},")
         sb.appendLine("  \"layers\": [")
         for ((layerIdx, layer) in project.layers.withIndex()) {
             sb.appendLine("    {")
@@ -71,9 +75,13 @@ object ProjectSerializer {
             project.name = extractString(clean, "name") ?: "Новый проект"
             project.canvasWidth = extractInt(clean, "canvasWidth") ?: 800
             project.canvasHeight = extractInt(clean, "canvasHeight") ?: 600
-            project.fps = extractInt(clean, "fps") ?: 12
+            project.fps = extractInt(clean, "fps") ?: 24
             val bgHex = extractString(clean, "backgroundColor") ?: "FFFFFFFF"
             project.backgroundColor = hexToColor(bgHex)
+            project.workingTimeMs = extractLong(clean, "workingTimeMs") ?: 0
+            project.dpi = extractInt(clean, "dpi") ?: 72
+            project.createdTimestamp = extractLong(clean, "createdTimestamp") ?: 0
+            project.lastModifiedTimestamp = extractLong(clean, "lastModifiedTimestamp") ?: 0
 
             val layersArray = extractArray(clean, "layers") ?: return project.apply { layers.add(LayerData("Слой 1")) }
             val layerObjects = splitTopLevel(layersArray, '{', '}')
@@ -144,6 +152,11 @@ object ProjectSerializer {
     private fun extractInt(json: String, key: String): Int? {
         val regex = "\"$key\"\\s*:\\s*(-?\\d+)".toRegex()
         return regex.find(json)?.groupValues?.getOrNull(1)?.toIntOrNull()
+    }
+
+    private fun extractLong(json: String, key: String): Long? {
+        val regex = "\"$key\"\\s*:\\s*(-?\\d+)".toRegex()
+        return regex.find(json)?.groupValues?.getOrNull(1)?.toLongOrNull()
     }
 
     private fun extractFloat(json: String, key: String): Float? {

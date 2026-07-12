@@ -3,155 +3,172 @@ package org.example.animation.ui.components
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.model.ToolType
+import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.EditorColors
 import org.example.animation.ui.theme.EditorIcons
+import org.example.animation.ui.theme.EditorShapes
 
-/**
- * Панель инструментов с тултипами при наведении
- */
 @Composable
-fun ToolsPanel(
-    engine: AnimationEngine,
-    modifier: Modifier = Modifier
-) {
+fun ToolsPanel(engine: AnimationEngine) {
     val currentTool by engine.currentTool.collectAsState()
-    val brushSize by engine.brushSize.collectAsState()
-    val onionSkinEnabled by engine.onionSkinEnabled.collectAsState()
     val canUndo by engine.canUndo.collectAsState()
     val canRedo by engine.canRedo.collectAsState()
 
-    Surface(
-        modifier = modifier.width(48.dp),
-        color = EditorColors.panelBackground,
-        elevation = 2.dp
+    Column(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(52.dp)
+            .background(EditorColors.panelBackground)
+            .border(1.dp, EditorColors.dividerColor)
+            .padding(vertical = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxHeight()
-                .padding(4.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            // РИСОВАНИЕ
-            ToolBtn(EditorIcons.iconPen, "Перо (P)", currentTool == ToolType.PEN) { engine.setCurrentTool(ToolType.PEN) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconPencil, "Карандаш (N)", currentTool == ToolType.PENCIL) { engine.setCurrentTool(ToolType.PENCIL) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconBrush, "Кисть (B)", currentTool == ToolType.BRUSH) { engine.setCurrentTool(ToolType.BRUSH) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconEraser, "Ластик (E)", currentTool == ToolType.ERASER) { engine.setCurrentTool(ToolType.ERASER) }
-
-            Spacer(Modifier.height(4.dp))
-            Divider(color = EditorColors.dividerColor, modifier = Modifier.width(32.dp))
-            Spacer(Modifier.height(4.dp))
-
-            // ФИГУРЫ
-            ToolBtn(EditorIcons.iconLine, "Линия (L)", currentTool == ToolType.LINE) { engine.setCurrentTool(ToolType.LINE) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconRectangle, "Прямоугольник (R)", currentTool == ToolType.RECTANGLE) { engine.setCurrentTool(ToolType.RECTANGLE) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconEllipse, "Эллипс (O)", currentTool == ToolType.ELLIPSE) { engine.setCurrentTool(ToolType.ELLIPSE) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconFill, "Заливка (G)", currentTool == ToolType.FILL) { engine.setCurrentTool(ToolType.FILL) }
-
-            Spacer(Modifier.height(4.dp))
-            Divider(color = EditorColors.dividerColor, modifier = Modifier.width(32.dp))
-            Spacer(Modifier.height(4.dp))
-
-            // ДОПОЛНИТЕЛЬНЫЕ
-            ToolBtn(EditorIcons.iconEyedropper, "Пипетка (I)", currentTool == ToolType.EYEDROPPER) { engine.setCurrentTool(ToolType.EYEDROPPER) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconSelect, "Выделение (V)", currentTool == ToolType.SELECT) { engine.setCurrentTool(ToolType.SELECT) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconMove, "Перемещение (H)", currentTool == ToolType.MOVE) { engine.setCurrentTool(ToolType.MOVE) }
-
-            Spacer(Modifier.weight(1f))
-
-            Divider(color = EditorColors.dividerColor, modifier = Modifier.width(32.dp))
-            Spacer(Modifier.height(4.dp))
-
-            // ОТМЕНА/ПОВТОР
-            ToolBtn(EditorIcons.iconUndo, "Отменить (Ctrl+Z)", canUndo) { engine.undo() }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconRedo, "Повторить (Ctrl+Y)", canRedo) { engine.redo() }
-
-            Spacer(Modifier.height(4.dp))
-
-            // ONION SKIN
-            ToolBtn(EditorIcons.iconOnionSkin, "Onion Skin", onionSkinEnabled) { engine.setOnionSkinEnabled(!onionSkinEnabled) }
-
-            Spacer(Modifier.height(4.dp))
-
-            // ЗУМ
-            ToolBtn(EditorIcons.iconZoomOut, "Уменьшить (Ctrl+-)", false) { engine.setZoom((engine.zoom.value * 0.8f).coerceIn(0.1f, 10f)) }
-            Spacer(Modifier.height(2.dp))
-            ToolBtn(EditorIcons.iconZoomIn, "Увеличить (Ctrl++)", false) { engine.setZoom((engine.zoom.value * 1.25f).coerceIn(0.1f, 10f)) }
+        // Секция Рисования
+        ToolGroup {
+            ToolButton(EditorIcons.iconBrush, EditorStrings.observeString("tool.brush"), currentTool == ToolType.BRUSH) { engine.setTool(ToolType.BRUSH) }
+            ToolButton(EditorIcons.iconPencil, EditorStrings.observeString("tool.pencil"), currentTool == ToolType.PENCIL) { engine.setTool(ToolType.PENCIL) }
+            ToolButton(EditorIcons.iconEraser, EditorStrings.observeString("tool.eraser"), currentTool == ToolType.ERASER) { engine.setTool(ToolType.ERASER) }
         }
+        
+        Spacer(Modifier.height(8.dp))
+        
+        // Секция Фигур
+        ToolGroup {
+            ToolButton(EditorIcons.iconLine, EditorStrings.observeString("tool.line"), currentTool == ToolType.LINE) { engine.setTool(ToolType.LINE) }
+            ToolButton(EditorIcons.iconRectangle, EditorStrings.observeString("tool.rectangle"), currentTool == ToolType.RECTANGLE) { engine.setTool(ToolType.RECTANGLE) }
+            ToolButton(EditorIcons.iconEllipse, EditorStrings.observeString("tool.ellipse"), currentTool == ToolType.ELLIPSE) { engine.setTool(ToolType.ELLIPSE) }
+        }
+
+        Spacer(Modifier.height(8.dp))
+
+        // Секция Вспомогательных
+        ToolGroup {
+            ToolButton(EditorIcons.iconFill, EditorStrings.observeString("tool.fill"), currentTool == ToolType.FILL) { engine.setTool(ToolType.FILL) }
+            ToolButton(EditorIcons.iconEyedropper, EditorStrings.observeString("tool.eyedropper"), currentTool == ToolType.EYEDROPPER) { engine.setTool(ToolType.EYEDROPPER) }
+            ToolButton(EditorIcons.iconSelect, EditorStrings.observeString("tool.select"), currentTool == ToolType.SELECT) { engine.setTool(ToolType.SELECT) }
+            ToolButton(EditorIcons.iconMove, EditorStrings.observeString("tool.move"), currentTool == ToolType.MOVE) { engine.setTool(ToolType.MOVE) }
+        }
+
+        Spacer(Modifier.weight(1f))
+        
+        // Секция Истории (Undo/Redo)
+        ToolGroup {
+            ToolButton(EditorIcons.iconUndo, EditorStrings.observeString("edit.undo"), false, enabled = canUndo) { engine.undo() }
+            ToolButton(EditorIcons.iconRedo, EditorStrings.observeString("edit.redo"), false, enabled = canRedo) { engine.redo() }
+        }
+        
+        Spacer(Modifier.height(8.dp))
+        
+        // Кнопка очистки кадра
+        ToolButton(EditorIcons.iconClearAll, EditorStrings.observeString("edit.clearFrame"), false) { engine.clearFrame() }
     }
 }
 
 @Composable
-private fun ToolBtn(icon: ImageVector, tooltip: String, isActive: Boolean, onClick: () -> Unit) {
+private fun ToolGroup(content: @Composable ColumnScope.() -> Unit) {
+    Column(
+        modifier = Modifier
+            .padding(horizontal = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(EditorColors.darkSurfaceVariant.copy(alpha = 0.3f))
+            .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        content = content
+    )
+}
+
+@Composable
+private fun ToolButton(
+    icon: ImageVector, 
+    tooltip: String, 
+    isSelected: Boolean, 
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
+    val isPressed by interactionSource.collectIsPressedAsState()
+    
+    // Статический профессиональный UI (согласно TODO удалены анимации)
+    val backgroundColor = when {
+        !enabled -> Color.Transparent
+        isSelected -> EditorColors.selectionColor
+        isPressed -> EditorColors.selectionColor.copy(alpha = 0.8f)
+        isHovered -> EditorColors.hoverColor
+        else -> Color.Transparent
+    }
+
     var showTooltip by remember { mutableStateOf(false) }
 
     LaunchedEffect(isHovered) {
-        if (isHovered) {
-            delay(500)
+        if (isHovered && enabled) {
+            delay(600)
             showTooltip = true
         } else {
             showTooltip = false
         }
     }
 
-    Box {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 2.dp)) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(
-                    when {
-                        isActive -> EditorColors.accentBlue.copy(alpha = 0.25f)
-                        isHovered -> EditorColors.darkSurfaceVariant
-                        else -> Color.Transparent
-                    }
-                )
-                .hoverable(interactionSource)
-                .clickable(indication = null, interactionSource = interactionSource) { onClick() },
+                .size(38.dp)
+                .clip(EditorShapes.smallRounded)
+                .background(backgroundColor)
+                .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
+                .clickable(
+                    enabled = enabled,
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClick = onClick
+                ),
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, tooltip, tint = if (isActive) EditorColors.accentBlue else EditorColors.textSecondary, modifier = Modifier.size(20.dp))
+            Icon(
+                icon,
+                null,
+                tint = when {
+                    !enabled -> EditorColors.textMuted
+                    isSelected -> Color.White
+                    else -> EditorColors.textSecondary
+                },
+                modifier = Modifier.size(20.dp)
+            )
         }
-
+        
         if (showTooltip) {
-            Box(
-                modifier = Modifier
-                    .offset(x = 44.dp, y = 2.dp)
-                    .zIndex(600f)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(EditorColors.darkSurfaceVariant.copy(alpha = 0.98f))
-                    .border(0.5.dp, EditorColors.dividerColor, RoundedCornerShape(6.dp))
-                    .padding(horizontal = 10.dp, vertical = 5.dp)
+            Surface(
+                modifier = Modifier.offset(x = 54.dp).zIndex(1000f),
+                color = EditorColors.darkSurfaceLight,
+                shape = RoundedCornerShape(4.dp),
+                elevation = 8.dp,
+                border = BorderStroke(1.dp, EditorColors.dividerColor)
             ) {
-                Text(text = tooltip, color = EditorColors.textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
+                Text(
+                    tooltip, 
+                    color = Color.White, 
+                    fontSize = 11.sp, 
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    maxLines = 1
+                )
             }
         }
     }

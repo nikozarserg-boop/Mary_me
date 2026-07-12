@@ -13,13 +13,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.EditorColors
 import org.example.animation.ui.theme.EditorIcons
 import java.io.File
 
 /**
- * Кастомный файловый менеджер в стиле проводника
+ * Кастомный файловый менеджер с эффектом полупрозрачности
  */
 @Composable
 fun FileManagerDialog(
@@ -39,139 +40,223 @@ fun FileManagerDialog(
         } catch (e: Exception) { emptyList() }
     }
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)).clickable { onResult(null) }, contentAlignment = Alignment.Center) {
-        Surface(modifier = Modifier.width(640.dp).height(460.dp).clickable(enabled = false) {}, color = EditorColors.darkSurface, shape = RoundedCornerShape(8.dp), elevation = 8.dp) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black.copy(alpha = 0.4f))
+            .clickable { onResult(null) }, 
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            modifier = Modifier
+                .width(680.dp)
+                .height(500.dp)
+                .clickable(enabled = false) {},
+            color = EditorColors.darkSurface.copy(alpha = 0.92f), // Полупрозрачность
+            shape = RoundedCornerShape(12.dp), 
+            elevation = 16.dp,
+            border = BorderStroke(1.dp, EditorColors.dividerColor)
+        ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Заголовок
-                Row(modifier = Modifier.fillMaxWidth().background(EditorColors.panelHeader).padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(if (mode == FileDialogMode.SAVE) EditorIcons.iconFileDownload else EditorIcons.iconFileUpload, "", tint = EditorColors.accentBlue, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text(if (mode == FileDialogMode.SAVE) "Сохранить" else "Открыть", color = EditorColors.textPrimary, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(EditorColors.panelHeader.copy(alpha = 0.5f))
+                        .padding(16.dp), 
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        if (mode == FileDialogMode.SAVE) EditorIcons.iconFileDownload else EditorIcons.iconFileUpload, 
+                        null, 
+                        tint = EditorColors.accentBlue, 
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text(
+                        text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveTitle") else EditorStrings.observeString("file.openTitle"), 
+                        color = EditorColors.textPrimary, 
+                        fontSize = 16.sp, 
+                        fontWeight = FontWeight.Bold
+                    )
                     Spacer(Modifier.weight(1f))
-                    Box(modifier = Modifier.size(24.dp).clip(RoundedCornerShape(4.dp)).clickable { onResult(null) }, contentAlignment = Alignment.Center) {
-                        Text("✕", color = EditorColors.textSecondary, fontSize = 14.sp)
+                    IconButton(onClick = { onResult(null) }, modifier = Modifier.size(24.dp)) {
+                        Text("✕", color = EditorColors.textSecondary, fontSize = 16.sp)
                     }
                 }
-                Divider(color = EditorColors.dividerColor, thickness = 1.dp)
+                
+                Divider(color = EditorColors.dividerColor)
 
                 // Навигация
-                Row(modifier = Modifier.fillMaxWidth().background(EditorColors.panelBackground).padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Box(modifier = Modifier.size(28.dp).clip(RoundedCornerShape(4.dp)).background(EditorColors.buttonColor).clickable {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(EditorColors.panelBackground.copy(alpha = 0.3f))
+                        .padding(12.dp), 
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    NavButton(EditorIcons.iconArrowBack) {
                         val parent = currentDir.parentFile
                         if (parent != null) currentDir = parent
-                    }, contentAlignment = Alignment.Center) {
-                        Icon(EditorIcons.iconArrowBack, "Назад", tint = EditorColors.textSecondary, modifier = Modifier.size(16.dp))
-                    }
-                    Spacer(Modifier.width(4.dp))
-                    Box(modifier = Modifier.size(28.dp).clip(RoundedCornerShape(4.dp)).background(EditorColors.buttonColor).clickable {
-                        val home = File(System.getProperty("user.home"))
-                        if (home.exists()) currentDir = home
-                    }, contentAlignment = Alignment.Center) {
-                        Icon(EditorIcons.iconHome, "Домой", tint = EditorColors.textSecondary, modifier = Modifier.size(16.dp))
                     }
                     Spacer(Modifier.width(8.dp))
-                    Box(modifier = Modifier.weight(1f).clip(RoundedCornerShape(4.dp)).background(EditorColors.darkSurfaceVariant).padding(horizontal = 8.dp, vertical = 6.dp)) {
-                        Text(currentDir.absolutePath, color = EditorColors.textPrimary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    NavButton(EditorIcons.iconHome) {
+                        currentDir = File(System.getProperty("user.home"))
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    
+                    Surface(
+                        modifier = Modifier.weight(1f),
+                        color = EditorColors.darkSurfaceVariant.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text(
+                            currentDir.absolutePath, 
+                            color = EditorColors.textPrimary, 
+                            fontSize = 12.sp, 
+                            maxLines = 1, 
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                        )
                     }
                 }
-                Divider(color = EditorColors.dividerColor, thickness = 1.dp)
 
                 // Список файлов
                 Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     val scroll = rememberScrollState()
-                    Column(modifier = Modifier.fillMaxSize().verticalScroll(scroll).padding(4.dp)) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .verticalScroll(scroll)
+                            .padding(horizontal = 12.dp)
+                    ) {
                         files.forEach { file ->
-                            val isSel = selectedFile == file
-                            Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp)).background(if (isSel) EditorColors.selectionColor else Color.Transparent).clickable {
-                                if (file.isDirectory) {
-                                    currentDir = file
-                                    selectedFile = null
-                                } else {
-                                    selectedFile = file
-                                    fileName = file.nameWithoutExtension
-                                }
-                            }.padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    if (file.isDirectory) EditorIcons.iconFolderOpen else EditorIcons.iconFileDownload,
-                                    "",
-                                    tint = if (file.isDirectory) EditorColors.accentBlue else EditorColors.textSecondary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(file.name, color = EditorColors.textPrimary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                                if (!file.isDirectory) {
-                                    val ext = file.extension.lowercase()
-                                    if (ext == extension || mode == FileDialogMode.OPEN) {
-                                        Box(modifier = Modifier.clip(RoundedCornerShape(3.dp)).background(EditorColors.accentGreen.copy(alpha = 0.2f)).padding(horizontal = 6.dp, vertical = 2.dp)) {
-                                            Text(ext.uppercase(), color = EditorColors.accentGreen, fontSize = 9.sp)
-                                        }
+                            FileItem(
+                                file = file,
+                                isSelected = selectedFile == file,
+                                filterExt = extension,
+                                onClick = {
+                                    if (file.isDirectory) {
+                                        currentDir = file
+                                        selectedFile = null
+                                    } else {
+                                        selectedFile = file
+                                        fileName = file.nameWithoutExtension
                                     }
                                 }
-                            }
-                            Spacer(Modifier.height(2.dp))
-                        }
-                        if (files.isEmpty()) {
-                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Папка пуста", color = EditorColors.textMuted, fontSize = 12.sp)
-                            }
+                            )
                         }
                     }
                 }
 
-                Divider(color = EditorColors.dividerColor, thickness = 1.dp)
+                Divider(color = EditorColors.dividerColor)
 
-                // Поле имени файла и кнопки
-                Column(modifier = Modifier.fillMaxWidth().background(EditorColors.panelBackground).padding(12.dp)) {
+                // Нижняя панель
+                Column(modifier = Modifier.padding(16.dp)) {
                     if (errorMsg != null) {
-                        Text(errorMsg!!, color = EditorColors.accentRed, fontSize = 11.sp)
-                        Spacer(Modifier.height(4.dp))
+                        Text(errorMsg!!, color = EditorColors.accentRed, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("${if (mode == FileDialogMode.SAVE) "Имя:" else "Файл:"} ", color = EditorColors.textSecondary, fontSize = 12.sp)
+                        Text(
+                            text = if (mode == FileDialogMode.SAVE) "Имя:" else "Файл:", 
+                            color = EditorColors.textSecondary, 
+                            fontSize = 13.sp,
+                            modifier = Modifier.width(60.dp)
+                        )
                         OutlinedTextField(
                             value = fileName,
                             onValueChange = { fileName = it },
                             singleLine = true,
-                            modifier = Modifier.weight(1f).height(36.dp),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = EditorColors.textPrimary),
-                            colors = TextFieldDefaults.outlinedTextFieldColors(focusedBorderColor = EditorColors.accentBlue, unfocusedBorderColor = EditorColors.dividerColor, cursorColor = EditorColors.accentBlue, backgroundColor = EditorColors.darkSurfaceVariant)
+                            modifier = Modifier.weight(1f).height(48.dp),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = EditorColors.textPrimary),
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                focusedBorderColor = EditorColors.accentBlue, 
+                                unfocusedBorderColor = EditorColors.dividerColor,
+                                backgroundColor = EditorColors.darkSurfaceVariant.copy(alpha = 0.2f)
+                            )
                         )
                         if (mode == FileDialogMode.SAVE) {
-                            Spacer(Modifier.width(4.dp))
-                            Text(".$extension", color = EditorColors.textMuted, fontSize = 12.sp)
+                            Text(".$extension", color = EditorColors.textMuted, modifier = Modifier.padding(start = 8.dp))
                         }
                     }
-                    Spacer(Modifier.height(8.dp))
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        Button(onClick = { onResult(null) }, colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.buttonColor), modifier = Modifier.height(34.dp)) {
-                            Text("Отмена", color = EditorColors.textPrimary, fontSize = 12.sp)
+                        TextButton(onClick = { onResult(null) }) {
+                            Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary)
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Button(onClick = {
-                            val targetName = if (mode == FileDialogMode.SAVE) {
-                                val n = if (fileName.contains(".")) fileName else "$fileName.$extension"
-                                val f = File(currentDir, n)
-                                if (f.exists()) {
-                                    errorMsg = "Файл уже существует"
-                                    return@Button
-                                }
-                                f.absolutePath
-                            } else {
-                                selectedFile?.absolutePath ?: run {
-                                    // попробуем собрать из имени
+                        Spacer(Modifier.width(12.dp))
+                        Button(
+                            onClick = {
+                                val target = if (mode == FileDialogMode.SAVE) {
                                     val n = if (fileName.contains(".")) fileName else "$fileName.$extension"
                                     val f = File(currentDir, n)
-                                    if (f.exists()) f.absolutePath else null
+                                    if (f.exists()) { errorMsg = "Файл уже существует"; null } else f.absolutePath
+                                } else {
+                                    selectedFile?.absolutePath
                                 }
-                            }
-                            if (targetName != null) onResult(targetName) else errorMsg = "Выберите файл"
-                        }, colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accentBlue), modifier = Modifier.height(34.dp)) {
-                            Text(if (mode == FileDialogMode.SAVE) "Сохранить" else "Открыть", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                if (target != null) onResult(target) else if (mode == FileDialogMode.OPEN) errorMsg = "Выберите файл"
+                            },
+                            colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accentBlue),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(40.dp).width(120.dp)
+                        ) {
+                            Text(
+                                if (mode == FileDialogMode.SAVE) "Сохранить" else "Открыть", 
+                                color = Color.White, 
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun NavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.size(32.dp).clickable { onClick() },
+        color = EditorColors.buttonColor.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(6.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(icon, null, tint = EditorColors.textPrimary, modifier = Modifier.size(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun FileItem(file: File, isSelected: Boolean, filterExt: String, onClick: () -> Unit) {
+    val isMatch = !file.isDirectory && file.extension.lowercase() == filterExt.lowercase()
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(38.dp)
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (isSelected) EditorColors.selectionColor.copy(alpha = 0.7f) else Color.Transparent)
+            .clickable { onClick() }
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            if (file.isDirectory) EditorIcons.iconFolderOpen else EditorIcons.iconFileDownload,
+            null,
+            tint = if (file.isDirectory) EditorColors.accentBlue else EditorColors.textSecondary,
+            modifier = Modifier.size(18.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Text(
+            file.name, 
+            color = if (isSelected) Color.White else if (isMatch || file.isDirectory) EditorColors.textPrimary else EditorColors.textMuted,
+            fontSize = 13.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

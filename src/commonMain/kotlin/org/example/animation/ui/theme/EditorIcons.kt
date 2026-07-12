@@ -1,31 +1,14 @@
 package org.example.animation.ui.theme
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowForward
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Clear
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.Create
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.automirrored.filled.*
+import androidx.compose.material.icons.filled.*
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object EditorIcons {
     val iconAdd: ImageVector = Icons.Filled.Add
-    val iconArrowBack: ImageVector = Icons.Filled.ArrowBack
-    val iconArrowForward: ImageVector = Icons.Filled.ArrowForward
+    val iconArrowBack: ImageVector = Icons.AutoMirrored.Filled.ArrowBack
+    val iconArrowForward: ImageVector = Icons.AutoMirrored.Filled.ArrowForward
     val iconCheck: ImageVector = Icons.Filled.Check
     val iconClose: ImageVector = Icons.Filled.Close
     val iconCreate: ImageVector = Icons.Filled.Create
@@ -37,85 +20,88 @@ object EditorIcons {
     val iconPlayArrow: ImageVector = Icons.Filled.PlayArrow
     val iconRefresh: ImageVector = Icons.Filled.Refresh
     val iconSearch: ImageVector = Icons.Filled.Search
-    val iconSend: ImageVector = Icons.Filled.Send
+    val iconSend: ImageVector = Icons.AutoMirrored.Filled.Send
     val iconSettings: ImageVector = Icons.Filled.Settings
     val iconStar: ImageVector = Icons.Filled.Star
     val iconWarning: ImageVector = Icons.Filled.Warning
 
-    val iconBrush: ImageVector = Icons.Filled.Create
+    val iconBrush: ImageVector = Icons.Filled.Brush
     val iconEraser: ImageVector = Icons.Filled.Clear
-    val iconUndo: ImageVector = Icons.Filled.ArrowBack
-    val iconRedo: ImageVector = Icons.Filled.ArrowForward
-    val iconSave: ImageVector = Icons.Filled.Check
-    val iconFolderOpen: ImageVector = Icons.Filled.Search
-    val iconVisibility: ImageVector = Icons.Filled.Star
-    val iconVisibilityOff: ImageVector = Icons.Filled.Warning
-    val iconTimeline: ImageVector = Icons.Filled.PlayArrow
-    val iconZoomIn: ImageVector = Icons.Filled.Search
-    val iconZoomOut: ImageVector = Icons.Filled.Search
-    val iconArrowUpward: ImageVector = Icons.Filled.Star
-    val iconArrowDownward: ImageVector = Icons.Filled.Star
-    val iconContentCopy: ImageVector = Icons.Filled.Create
-    val iconOnionSkin: ImageVector = Icons.Filled.Star
-    val iconPen: ImageVector = Icons.Filled.Create
+    val iconUndo: ImageVector = Icons.AutoMirrored.Filled.Undo
+    val iconRedo: ImageVector = Icons.AutoMirrored.Filled.Redo
+    val iconSave: ImageVector = Icons.Filled.Save
+    val iconFolderOpen: ImageVector = Icons.Filled.FolderOpen
+    val iconVisibility: ImageVector = Icons.Filled.Visibility
+    val iconVisibilityOff: ImageVector = Icons.Filled.VisibilityOff
+    val iconTimeline: ImageVector = Icons.Filled.Timeline
+    val iconZoomIn: ImageVector = Icons.Filled.ZoomIn
+    val iconZoomOut: ImageVector = Icons.Filled.ZoomOut
+    val iconArrowUp: ImageVector = Icons.Filled.KeyboardArrowUp
+    val iconArrowDown: ImageVector = Icons.Filled.KeyboardArrowDown
+    val iconContentCopy: ImageVector = Icons.Filled.ContentCopy
+    val iconOnionSkin: ImageVector = Icons.Filled.Layers
+    val iconPen: ImageVector = Icons.Filled.Edit
     val iconPencil: ImageVector = Icons.Filled.Create
-    val iconLine: ImageVector = Icons.Filled.Star
-    val iconRectangle: ImageVector = Icons.Filled.Check
-    val iconEllipse: ImageVector = Icons.Filled.Star
-    val iconFill: ImageVector = Icons.Filled.Check
-    val iconEyedropper: ImageVector = Icons.Filled.Search
-    val iconSelect: ImageVector = Icons.Filled.Star
-    val iconMove: ImageVector = Icons.Filled.Create
-    val iconAppIcon: ImageVector = Icons.Filled.PlayArrow
+    val iconLine: ImageVector = Icons.AutoMirrored.Filled.ShowChart
+    val iconRectangle: ImageVector = Icons.Filled.CheckBoxOutlineBlank
+    val iconEllipse: ImageVector = Icons.Filled.RadioButtonUnchecked
+    val iconFill: ImageVector = Icons.Filled.FormatColorFill
+    val iconEyedropper: ImageVector = Icons.Filled.Colorize
+    val iconSelect: ImageVector = Icons.Filled.SelectAll
+    val iconMove: ImageVector = Icons.Filled.OpenWith
+    val iconAppIcon: ImageVector = Icons.Filled.Brush
     val iconNewProject: ImageVector = Icons.Filled.Add
-    val iconExport: ImageVector = Icons.Filled.Send
-    val iconGifIcon: ImageVector = Icons.Filled.Star
-    val iconPngIcon: ImageVector = Icons.Filled.Check
-    val iconAviIcon: ImageVector = Icons.Filled.Star
-    val iconFrame: ImageVector = Icons.Filled.Star
-    val iconDuplicate: ImageVector = Icons.Filled.Create
-    val iconClearAll: ImageVector = Icons.Filled.Delete
-    val iconColorLens: ImageVector = Icons.Filled.Star
-    val iconFileUpload: ImageVector = Icons.Filled.Send
-    val iconFileDownload: ImageVector = Icons.Filled.Send
-    val iconAddCircle: ImageVector = Icons.Filled.Add
-    val iconRemoveCircle: ImageVector = Icons.Filled.Delete
-    val iconStrokeFull: ImageVector = Icons.Filled.Check
-    val iconClear: ImageVector = Icons.Filled.Close
-    val iconCheckCircle: ImageVector = Icons.Filled.Check
-    val iconDateRange: ImageVector = Icons.Filled.Star
-    val iconColorize: ImageVector = Icons.Filled.Star
-    val iconFirstPage: ImageVector = Icons.Filled.ArrowBack
-    val iconLastPage: ImageVector = Icons.Filled.ArrowForward
-    val iconSkipPrevious: ImageVector = Icons.Filled.ArrowBack
-    val iconSkipNext: ImageVector = Icons.Filled.ArrowForward
-    val iconList: ImageVector = Icons.Filled.Menu
-    val iconPause: ImageVector = Icons.Filled.Star
-    val iconPictureAsPdf: ImageVector = Icons.Filled.Star
-    val iconSlowMotionVideo: ImageVector = Icons.Filled.Star
-    val iconTipsAndUpdates: ImageVector = Icons.Filled.Star
-    val iconHome: ImageVector = Icons.Filled.FavoriteBorder
-    val iconEmail: ImageVector = Icons.Filled.Warning
-    val iconFace: ImageVector = Icons.Filled.Warning
-    val iconFavorite: ImageVector = Icons.Filled.Star
-    val iconInfo: ImageVector = Icons.Filled.Warning
-    val iconPerson: ImageVector = Icons.Filled.Warning
-    val iconPhone: ImageVector = Icons.Filled.Warning
-    val iconShoppingCart: ImageVector = Icons.Filled.Warning
-    val iconNotifications: ImageVector = Icons.Filled.Warning
-    val iconThumbUp: ImageVector = Icons.Filled.Warning
-    val iconDone: ImageVector = Icons.Filled.Check
-    val iconMailOutline: ImageVector = Icons.Filled.Warning
-    val iconLocationOn: ImageVector = Icons.Filled.Star
-    val iconExitToApp: ImageVector = Icons.Filled.Close
-    val iconArrowDropDown: ImageVector = Icons.Filled.Warning
-    val iconKeyboardArrowDown: ImageVector = Icons.Filled.Warning
-    val iconKeyboardArrowUp: ImageVector = Icons.Filled.Warning
-    val iconDeleteSweep: ImageVector = Icons.Filled.Delete
+    val iconExport: ImageVector = Icons.AutoMirrored.Filled.ExitToApp
+    val iconGifIcon: ImageVector = Icons.Filled.Gif
+    val iconPngIcon: ImageVector = Icons.Filled.Image
+    val iconAviIcon: ImageVector = Icons.Filled.Movie
+    val iconFrame: ImageVector = Icons.Filled.CropSquare
+    val iconDuplicate: ImageVector = Icons.Filled.ContentCopy
+    val iconClearAll: ImageVector = Icons.Filled.DeleteSweep
+    val iconColorLens: ImageVector = Icons.Filled.ColorLens
+    val iconFileUpload: ImageVector = Icons.Filled.Upload
+    val iconFileDownload: ImageVector = Icons.Filled.Download
+    val iconAddCircle: ImageVector = Icons.Filled.AddCircle
+    val iconRemoveCircle: ImageVector = Icons.Filled.RemoveCircle
+    val iconStrokeFull: ImageVector = Icons.Filled.Brush
+    val iconClear: ImageVector = Icons.Filled.Clear
+    val iconCheckCircle: ImageVector = Icons.Filled.CheckCircle
+    val iconDateRange: ImageVector = Icons.Filled.DateRange
+    val iconColorize: ImageVector = Icons.Filled.Colorize
+    
+    // Fixed: Use Icons.Filled for these if AutoMirrored version is not available or mismatching
+    val iconFirstPage: ImageVector = Icons.Filled.FirstPage
+    val iconLastPage: ImageVector = Icons.Filled.LastPage
+    val iconSkipPrevious: ImageVector = Icons.Filled.SkipPrevious
+    val iconSkipNext: ImageVector = Icons.Filled.SkipNext
+    
+    val iconList: ImageVector = Icons.AutoMirrored.Filled.List
+    val iconPause: ImageVector = Icons.Filled.Pause
+    val iconPictureAsPdf: ImageVector = Icons.Filled.PictureAsPdf
+    val iconSlowMotionVideo: ImageVector = Icons.Filled.SlowMotionVideo
+    val iconTipsAndUpdates: ImageVector = Icons.Filled.TipsAndUpdates
+    val iconHome: ImageVector = Icons.Filled.Home
+    val iconEmail: ImageVector = Icons.Filled.Email
+    val iconFace: ImageVector = Icons.Filled.Face
+    val iconFavorite: ImageVector = Icons.Filled.Favorite
+    val iconInfo: ImageVector = Icons.Filled.Info
+    val iconPerson: ImageVector = Icons.Filled.Person
+    val iconPhone: ImageVector = Icons.Filled.Phone
+    val iconShoppingCart: ImageVector = Icons.Filled.ShoppingCart
+    val iconNotifications: ImageVector = Icons.Filled.Notifications
+    val iconThumbUp: ImageVector = Icons.Filled.ThumbUp
+    val iconDone: ImageVector = Icons.Filled.Done
+    val iconMailOutline: ImageVector = Icons.Filled.MailOutline
+    val iconLocationOn: ImageVector = Icons.Filled.LocationOn
+    val iconExitToApp: ImageVector = Icons.AutoMirrored.Filled.ExitToApp
+    val iconArrowDropDown: ImageVector = Icons.Filled.ArrowDropDown
+    val iconKeyboardArrowDown: ImageVector = Icons.Filled.KeyboardArrowDown
+    val iconKeyboardArrowUp: ImageVector = Icons.Filled.KeyboardArrowUp
+    val iconDeleteSweep: ImageVector = Icons.Filled.DeleteSweep
 
-    val iconLayers: ImageVector = Icons.Filled.Star
-    val iconLock: ImageVector = Icons.Filled.Star
-    val iconLockOpen: ImageVector = Icons.Filled.Check
-    val iconRemove: ImageVector = Icons.Filled.Delete
-    val iconRemoveCircleOutline: ImageVector = Icons.Filled.Clear
+    val iconLayers: ImageVector = Icons.Filled.Layers
+    val iconLock: ImageVector = Icons.Filled.Lock
+    val iconLockOpen: ImageVector = Icons.Filled.LockOpen
+    val iconRemove: ImageVector = Icons.Filled.Remove
+    val iconRemoveCircleOutline: ImageVector = Icons.Filled.RemoveCircleOutline
 }

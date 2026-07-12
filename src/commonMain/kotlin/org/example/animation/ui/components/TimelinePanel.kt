@@ -12,12 +12,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import org.example.animation.engine.AnimationEngine
+import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.EditorColors
 import org.example.animation.ui.theme.EditorIcons
 
@@ -28,48 +31,104 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val currentLayerIndex by engine.currentLayerIndex.collectAsState()
     val isPlaying by engine.isPlaying.collectAsState()
 
-    Surface(modifier = modifier.fillMaxWidth().height(180.dp), color = EditorColors.timelineBackground, elevation = 4.dp) {
+    Surface(modifier = modifier.fillMaxWidth(), color = EditorColors.timelineBackground, elevation = 4.dp) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Заголовок
-            Row(modifier = Modifier.fillMaxWidth().background(EditorColors.panelHeader).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(EditorIcons.iconTimeline, "Таймлайн", tint = EditorColors.textSecondary, modifier = Modifier.size(14.dp))
+            // Header - Fully Localized
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(EditorColors.panelHeader)
+                    .padding(horizontal = 8.dp, vertical = 4.dp), 
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(EditorIcons.iconTimeline, null, tint = EditorColors.textSecondary, modifier = Modifier.size(14.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("ТАЙМЛАЙН", color = EditorColors.textSecondary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 1.sp)
+                Text(
+                    EditorStrings.observeString("panel.timeline").uppercase(), 
+                    color = EditorColors.textSecondary, 
+                    fontSize = 11.sp, 
+                    fontWeight = FontWeight.SemiBold, 
+                    letterSpacing = 1.sp
+                )
                 Spacer(Modifier.width(16.dp))
-                Text("Кадр: ${currentFrameIndex + 1}/${project.maxFrames}", color = EditorColors.textPrimary, fontSize = 11.sp)
+                Text(
+                    "${EditorStrings.observeString("status.frame")}: ${currentFrameIndex + 1}/${project.maxFrames}", 
+                    color = EditorColors.textPrimary, 
+                    fontSize = 11.sp
+                )
                 Spacer(Modifier.width(12.dp))
-                Text("FPS: ${project.fps}", color = EditorColors.textSecondary, fontSize = 11.sp)
+                Text(
+                    "${EditorStrings.observeString("timeline.fps")}: ${project.fps}", 
+                    color = EditorColors.textSecondary, 
+                    fontSize = 11.sp
+                )
                 Spacer(Modifier.weight(1f))
-                TSmallBtn(EditorIcons.iconAdd, "Добавить кадр") { engine.addFrame() }
+                
+                TSmallBtn(EditorIcons.iconAdd, EditorStrings.observeString("frame.add")) { engine.addFrame() }
                 Spacer(Modifier.width(4.dp))
-                TSmallBtn(EditorIcons.iconContentCopy, "Дублировать кадр") { engine.duplicateFrame() }
+                TSmallBtn(EditorIcons.iconContentCopy, EditorStrings.observeString("frame.duplicate")) { engine.duplicateFrame() }
                 Spacer(Modifier.width(4.dp))
-                TSmallBtn(EditorIcons.iconDelete, "Удалить кадр") { engine.removeFrame() }
+                TSmallBtn(EditorIcons.iconDelete, EditorStrings.observeString("frame.delete")) { engine.removeFrame() }
                 Spacer(Modifier.width(4.dp))
-                TSmallBtn(EditorIcons.iconClear, "Очистить кадр") { engine.clearFrame() }
+                TSmallBtn(EditorIcons.iconClear, EditorStrings.observeString("frame.clear")) { engine.clearFrame() }
             }
 
             Divider(color = EditorColors.dividerColor, thickness = 1.dp)
 
-            // Сетка кадров
+            // Frames Grid
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                Column(modifier = Modifier.width(80.dp).background(EditorColors.panelBackground).verticalScroll(rememberScrollState())) {
+                Column(
+                    modifier = Modifier
+                        .width(100.dp)
+                        .background(EditorColors.panelBackground)
+                        .verticalScroll(rememberScrollState())
+                ) {
                     project.layers.forEachIndexed { index, layer ->
-                        Box(modifier = Modifier.fillMaxWidth().height(28.dp).background(if (index == currentLayerIndex) EditorColors.selectionColor else Color.Transparent).clickable { engine.setCurrentLayer(index) }.padding(horizontal = 6.dp), contentAlignment = Alignment.CenterStart) {
-                            Text(layer.name, color = EditorColors.textPrimary, fontSize = 10.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(32.dp)
+                                .background(if (index == currentLayerIndex) EditorColors.selectionColor else Color.Transparent)
+                                .pointerHoverIcon(PointerIcon.Hand)
+                                .clickable { engine.setCurrentLayer(index) }
+                                .padding(horizontal = 8.dp), 
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Text(layer.name, color = EditorColors.textPrimary, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
+                
                 Box(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         project.layers.forEachIndexed { layerIndex, _ ->
-                            Row(modifier = Modifier.height(28.dp)) {
+                            Row(modifier = Modifier.height(32.dp)) {
                                 for (frameIndex in 0 until maxOf(project.maxFrames, 1)) {
-                                    val hasContent = layerIndex < project.layers.size && frameIndex < project.layers[layerIndex].frames.size && project.layers[layerIndex].frames[frameIndex].strokes.isNotEmpty()
+                                    val hasContent = layerIndex < project.layers.size && 
+                                                     frameIndex < project.layers[layerIndex].frames.size && 
+                                                     project.layers[layerIndex].frames[frameIndex].strokes.isNotEmpty()
                                     val isCurrent = frameIndex == currentFrameIndex && layerIndex == currentLayerIndex
-                                    val bgColor = when { isCurrent -> EditorColors.timelineCellActive; hasContent -> EditorColors.timelineCellHasContent.copy(alpha = 0.3f); else -> EditorColors.timelineCell }
-                                    Box(modifier = Modifier.width(24.dp).height(28.dp).border(width = if (isCurrent) 1.5.dp else 0.5.dp, color = if (isCurrent) EditorColors.accentBlue else EditorColors.dividerColor).background(bgColor).clickable { engine.setCurrentFrame(frameIndex) }, contentAlignment = Alignment.Center) {
-                                        if (hasContent) Box(modifier = Modifier.size(6.dp).background(EditorColors.accentBlue, RoundedCornerShape(1.dp)))
+                                    
+                                    val bgColor = when {
+                                        isCurrent -> EditorColors.timelineCellActive
+                                        hasContent -> EditorColors.timelineCellHasContent.copy(alpha = 0.3f)
+                                        else -> EditorColors.timelineCell
+                                    }
+                                    
+                                    Box(
+                                        modifier = Modifier
+                                            .width(28.dp)
+                                            .fillMaxHeight()
+                                            .border(width = if (isCurrent) 1.5.dp else 0.5.dp, color = if (isCurrent) EditorColors.accentBlue else EditorColors.dividerColor)
+                                            .background(bgColor)
+                                            .pointerHoverIcon(PointerIcon.Hand)
+                                            .clickable { 
+                                                engine.setCurrentFrame(frameIndex)
+                                                engine.setCurrentLayer(layerIndex)
+                                            }, 
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        if (hasContent) Box(modifier = Modifier.size(8.dp).background(EditorColors.accentBlue, RoundedCornerShape(2.dp)))
                                     }
                                 }
                             }
@@ -80,45 +139,77 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
             Divider(color = EditorColors.dividerColor, thickness = 1.dp)
 
-            // Управление
-            Row(modifier = Modifier.fillMaxWidth().background(EditorColors.panelBackground).padding(horizontal = 8.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                TSmallBtn(EditorIcons.iconFirstPage, "Первый кадр") { engine.goToFirstFrame() }
+            // Controls
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(EditorColors.panelBackground)
+                    .padding(horizontal = 8.dp, vertical = 6.dp), 
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TSmallBtn(EditorIcons.iconFirstPage, EditorStrings.observeString("frame.first")) { engine.goToFirstFrame() }
                 Spacer(Modifier.width(2.dp))
-                TSmallBtn(EditorIcons.iconSkipPrevious, "Предыдущий кадр") { engine.goToPreviousFrame() }
-                Spacer(Modifier.width(4.dp))
-                Box(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(4.dp)).background(EditorColors.accentBlue.copy(alpha = 0.3f)).clickable { engine.togglePlayback() }, contentAlignment = Alignment.Center) {
-                    Icon(if (isPlaying) EditorIcons.iconPause else EditorIcons.iconPlayArrow, if (isPlaying) "Пауза" else "Воспроизвести", tint = EditorColors.accentBlue, modifier = Modifier.size(20.dp))
+                TSmallBtn(EditorIcons.iconSkipPrevious, EditorStrings.observeString("frame.prev")) { engine.goToPreviousFrame() }
+                Spacer(Modifier.width(8.dp))
+                
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(EditorColors.accentBlue.copy(alpha = 0.2f))
+                        .pointerHoverIcon(PointerIcon.Hand)
+                        .clickable { engine.togglePlayback() }, 
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        if (isPlaying) EditorIcons.iconPause else EditorIcons.iconPlayArrow, 
+                        null, 
+                        tint = EditorColors.accentBlue, 
+                        modifier = Modifier.size(22.dp)
+                    )
                 }
-                Spacer(Modifier.width(4.dp))
-                TSmallBtn(EditorIcons.iconSkipNext, "Следующий кадр") { engine.goToNextFrame() }
+                
+                Spacer(Modifier.width(8.dp))
+                TSmallBtn(EditorIcons.iconSkipNext, EditorStrings.observeString("frame.next")) { engine.goToNextFrame() }
                 Spacer(Modifier.width(2.dp))
-                TSmallBtn(EditorIcons.iconLastPage, "Последний кадр") { engine.goToLastFrame() }
-                Spacer(Modifier.width(16.dp))
-                val totalMs = project.maxFrames * 1000 / project.fps; val sec = totalMs / 1000
-                Text("$currentFrameIndex : ${sec / 60}:${sec % 60}", color = EditorColors.textPrimary, fontSize = 12.sp, modifier = Modifier.padding(horizontal = 8.dp))
+                TSmallBtn(EditorIcons.iconLastPage, EditorStrings.observeString("frame.last")) { engine.goToLastFrame() }
+                
+                Spacer(Modifier.width(24.dp))
+                
+                val totalMs = project.maxFrames * 1000 / project.fps
+                val sec = totalMs / 1000
+                Text(
+                    "${currentFrameIndex + 1} | ${sec / 60}:${(sec % 60).toString().padStart(2, '0')}", 
+                    color = EditorColors.textPrimary, 
+                    fontSize = 13.sp, 
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                )
+                
                 Spacer(Modifier.weight(1f))
-                Text("FPS:", color = EditorColors.textSecondary, fontSize = 11.sp)
-                Spacer(Modifier.width(4.dp))
+                
+                Text(EditorStrings.observeString("timeline.fps"), color = EditorColors.textSecondary, fontSize = 11.sp)
+                Spacer(Modifier.width(8.dp))
+                
                 var fpsText by remember(project.fps) { mutableStateOf(project.fps.toString()) }
                 OutlinedTextField(
                     value = fpsText,
                     onValueChange = {
-                        fpsText = it.filter { c -> c.isDigit() }.take(2)
-                        val v = fpsText.toIntOrNull()
-                        if (v != null && v >= 1 && v <= 60) {
-                            val p = engine.project.value
+                        val filtered = it.filter { c -> c.isDigit() }.take(3)
+                        fpsText = filtered
+                        val v = filtered.toIntOrNull()
+                        if (v != null && v in 1..240) {
+                            val p = project.copy()
                             p.fps = v
                             engine.setProject(p)
                         }
                     },
-                    placeholder = { Text("24", color = EditorColors.textMuted, fontSize = 12.sp) },
                     singleLine = true,
                     textStyle = LocalTextStyle.current.copy(fontSize = 12.sp, color = EditorColors.textPrimary),
-                    modifier = Modifier.width(48.dp).height(28.dp),
+                    modifier = Modifier.width(60.dp).height(32.dp),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = EditorColors.accentBlue,
                         unfocusedBorderColor = EditorColors.dividerColor,
-                        cursorColor = EditorColors.accentBlue,
                         backgroundColor = EditorColors.darkSurfaceVariant
                     )
                 )
@@ -131,13 +222,36 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
 private fun TSmallBtn(icon: ImageVector, tooltip: String, onClick: () -> Unit) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
+    
     Box {
-        Box(modifier = Modifier.size(24.dp).clip(RoundedCornerShape(3.dp)).background(EditorColors.buttonColor).hoverable(interactionSource).clickable { onClick() }, contentAlignment = Alignment.Center) {
-            Icon(icon, tooltip, tint = EditorColors.textSecondary, modifier = Modifier.size(14.dp))
+        Box(
+            modifier = Modifier
+                .size(28.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(if (isHovered) EditorColors.buttonHoverColor else EditorColors.buttonColor)
+                .pointerHoverIcon(PointerIcon.Hand)
+                .hoverable(interactionSource)
+                .clickable { onClick() }, 
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = EditorColors.textSecondary, modifier = Modifier.size(16.dp))
         }
         if (isHovered) {
-            Box(modifier = Modifier.offset(x = 0.dp, y = (-28).dp).zIndex(10f).clip(RoundedCornerShape(4.dp)).background(EditorColors.darkSurfaceVariant.copy(alpha = 0.95f)).border(0.5.dp, EditorColors.dividerColor, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)) {
-                Text(text = tooltip, color = EditorColors.textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Normal)
+            Surface(
+                modifier = Modifier
+                    .offset(y = (-36).dp)
+                    .zIndex(1000f),
+                color = EditorColors.darkSurfaceLight,
+                shape = RoundedCornerShape(4.dp),
+                elevation = 6.dp,
+                border = BorderStroke(1.dp, EditorColors.dividerColor)
+            ) {
+                Text(
+                    text = tooltip, 
+                    color = Color.White, 
+                    fontSize = 11.sp, 
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
             }
         }
     }
