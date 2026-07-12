@@ -57,10 +57,13 @@ fun SettingsDialog(
                 .width(600.dp.scaled())
                 .height(450.dp.scaled())
                 .clickable(enabled = false) {},
-            color = EditorColors.surface,
+            color = if (currentTheme == ThemeType.GLASS) EditorColors.glassBackground else EditorColors.surface,
             shape = EditorShapes.large,
-            elevation = 16.dp.scaled(),
-            border = BorderStroke(1.dp.scaled(), EditorColors.divider)
+            elevation = if (currentTheme == ThemeType.GLASS) 4.dp.scaled() else 16.dp.scaled(),
+            border = BorderStroke(
+                if (currentTheme == ThemeType.GLASS) 1.dp.scaled() else 1.dp.scaled(),
+                if (currentTheme == ThemeType.GLASS) EditorColors.glassBorder else EditorColors.divider
+            )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header

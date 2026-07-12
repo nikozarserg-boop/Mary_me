@@ -1,8 +1,6 @@
 package org.example.animation.ui.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -14,13 +12,13 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
@@ -37,68 +35,88 @@ fun ToolsPanel(engine: AnimationEngine, onImportImage: () -> Unit = {}) {
     if (!isVisible) return
 
     val theme = LocalThemeType.current
-    val background = if (theme == ThemeType.GLASS) EditorColors.glassBackground else EditorColors.panelBackground
+    val isGlass = theme == ThemeType.GLASS
+    val background = if (isGlass) EditorColors.glassBackground else EditorColors.panelBackground
+    val shape = if (isGlass) RoundedCornerShape(10.dp.scaled()) else RoundedCornerShape(0.dp)
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxHeight()
             .width(if (isCollapsed) 32.dp.scaled() else UiDimensions.ToolBarWidth.scaled())
-            .background(background)
-            .border(if (theme == ThemeType.GLASS) 0.dp else 1.dp.scaled(), EditorColors.divider)
-            .padding(vertical = UiDimensions.PaddingSmall.scaled()),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .border(1.dp.scaled(), if (isGlass) EditorColors.glassBorder else EditorColors.divider)
     ) {
-        // Кнопка сворачивания со стилизованной обводкой
-        ToolCollapseButton(
-            icon = if (isCollapsed) EditorIcons.iconArrowForward else EditorIcons.iconArrowBack,
-            onClick = { engine.setToolsCollapsed(!isCollapsed) }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clip(shape)
+                .background(background)
+                .then(
+                    if (isGlass) Modifier.background(
+                        Brush.radialGradient(
+                            colors = listOf(EditorColors.glassSheen, Color.Transparent),
+                            center = Offset(0.3f, 0.1f),
+                            radius = 1.0f
+                        )
+                    ) else Modifier
+                )
         )
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(vertical = UiDimensions.PaddingSmall.scaled()),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            ToolCollapseButton(
+                icon = if (isCollapsed) EditorIcons.iconArrowForward else EditorIcons.iconArrowBack,
+                onClick = { engine.setToolsCollapsed(!isCollapsed) }
+            )
 
-        if (!isCollapsed) {
-            Divider(color = EditorColors.divider, modifier = Modifier.padding(vertical = 4.dp.scaled()))
+            if (!isCollapsed) {
+                Divider(color = EditorColors.divider, modifier = Modifier.padding(vertical = 4.dp.scaled()))
 
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                ToolGroup {
-                    ToolButton(EditorIcons.iconBrush, EditorStrings.observeString("tool.brush"), currentTool == ToolType.BRUSH) { engine.setTool(ToolType.BRUSH) }
-                    ToolButton(EditorIcons.iconPencil, EditorStrings.observeString("tool.pencil"), currentTool == ToolType.PENCIL) { engine.setTool(ToolType.PENCIL) }
-                    ToolButton(EditorIcons.iconEraser, EditorStrings.observeString("tool.eraser"), currentTool == ToolType.ERASER) { engine.setTool(ToolType.ERASER) }
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    ToolGroup {
+                        ToolButton(EditorIcons.iconBrush, EditorStrings.observeString("tool.brush"), currentTool == ToolType.BRUSH) { engine.setTool(ToolType.BRUSH) }
+                        ToolButton(EditorIcons.iconPencil, EditorStrings.observeString("tool.pencil"), currentTool == ToolType.PENCIL) { engine.setTool(ToolType.PENCIL) }
+                        ToolButton(EditorIcons.iconEraser, EditorStrings.observeString("tool.eraser"), currentTool == ToolType.ERASER) { engine.setTool(ToolType.ERASER) }
+                    }
+
+                    Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
+
+                    ToolGroup {
+                        ToolButton(EditorIcons.iconLine, EditorStrings.observeString("tool.line"), currentTool == ToolType.LINE) { engine.setTool(ToolType.LINE) }
+                        ToolButton(EditorIcons.iconRectangle, EditorStrings.observeString("tool.rectangle"), currentTool == ToolType.RECTANGLE) { engine.setTool(ToolType.RECTANGLE) }
+                        ToolButton(EditorIcons.iconEllipse, EditorStrings.observeString("tool.ellipse"), currentTool == ToolType.ELLIPSE) { engine.setTool(ToolType.ELLIPSE) }
+                    }
+
+                    Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
+
+                    ToolGroup {
+                        ToolButton(EditorIcons.iconFill, EditorStrings.observeString("tool.fill"), currentTool == ToolType.FILL) { engine.setTool(ToolType.FILL) }
+                        ToolButton(EditorIcons.iconEyedropper, EditorStrings.observeString("tool.eyedropper"), currentTool == ToolType.EYEDROPPER) { engine.setTool(ToolType.EYEDROPPER) }
+                        ToolButton(EditorIcons.iconSelect, EditorStrings.observeString("tool.select"), currentTool == ToolType.SELECT) { engine.setTool(ToolType.SELECT) }
+                        ToolButton(EditorIcons.iconMove, EditorStrings.observeString("tool.move"), currentTool == ToolType.MOVE) { engine.setTool(ToolType.MOVE) }
+                    }
+
+                    Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
+
+                    ToolGroup {
+                        ToolButton(EditorIcons.iconPngIcon, EditorStrings.observeString("import.image"), false) { onImportImage() }
+                    }
+
+                    Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
+
+                    ToolButton(EditorIcons.iconDeleteSweep, EditorStrings.observeString("edit.clearFrame"), false) { engine.clearFrame() }
+
+                    Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
+
+                    ToolButton(EditorIcons.iconClose, EditorStrings.observeString("cancel"), false) { engine.setToolsVisible(false) }
                 }
-                
-                Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
-                
-                ToolGroup {
-                    ToolButton(EditorIcons.iconLine, EditorStrings.observeString("tool.line"), currentTool == ToolType.LINE) { engine.setTool(ToolType.LINE) }
-                    ToolButton(EditorIcons.iconRectangle, EditorStrings.observeString("tool.rectangle"), currentTool == ToolType.RECTANGLE) { engine.setTool(ToolType.RECTANGLE) }
-                    ToolButton(EditorIcons.iconEllipse, EditorStrings.observeString("tool.ellipse"), currentTool == ToolType.ELLIPSE) { engine.setTool(ToolType.ELLIPSE) }
-                }
-
-                Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
-
-                ToolGroup {
-                    ToolButton(EditorIcons.iconFill, EditorStrings.observeString("tool.fill"), currentTool == ToolType.FILL) { engine.setTool(ToolType.FILL) }
-                    ToolButton(EditorIcons.iconEyedropper, EditorStrings.observeString("tool.eyedropper"), currentTool == ToolType.EYEDROPPER) { engine.setTool(ToolType.EYEDROPPER) }
-                    ToolButton(EditorIcons.iconSelect, EditorStrings.observeString("tool.select"), currentTool == ToolType.SELECT) { engine.setTool(ToolType.SELECT) }
-                    ToolButton(EditorIcons.iconMove, EditorStrings.observeString("tool.move"), currentTool == ToolType.MOVE) { engine.setTool(ToolType.MOVE) }
-                }
-
-                Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
-
-                ToolGroup {
-                    ToolButton(EditorIcons.iconPngIcon, "Загрузить изображение", false) { onImportImage() }
-                }
-
-                Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
-                
-                ToolButton(EditorIcons.iconDeleteSweep, EditorStrings.observeString("edit.clearFrame"), false) { engine.clearFrame() }
-                
-                Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
-                
-                ToolButton(EditorIcons.iconClose, EditorStrings.observeString("cancel"), false) { engine.setToolsVisible(false) }
             }
         }
     }
@@ -110,15 +128,9 @@ private fun ToolCollapseButton(icon: ImageVector, onClick: () -> Unit) {
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else if (isHovered) 1.1f else 1.0f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)
-    )
-
     Box(
         modifier = Modifier
             .size(24.dp.scaled())
-            .graphicsLayer(scaleX = scale, scaleY = scale)
             .clip(RoundedCornerShape(4.dp.scaled()))
             .background(if (isHovered) EditorColors.hover else Color.Transparent)
             .border(
@@ -168,11 +180,6 @@ private fun ToolButton(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     
-    val scale by animateFloatAsState(
-        targetValue = if (isHovered && enabled) 1.15f else 1.0f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 300f)
-    )
-
     val backgroundColor = when {
         !enabled -> Color.Transparent
         isSelected -> EditorColors.accent.copy(alpha = 0.7f)
@@ -189,7 +196,6 @@ private fun ToolButton(
         Box(
             modifier = Modifier
                 .size(UiDimensions.IconButtonSize.scaled())
-                .graphicsLayer(scaleX = scale, scaleY = scale)
                 .clip(RoundedCornerShape(4.dp.scaled()))
                 .background(backgroundColor)
                 .border(
@@ -210,20 +216,14 @@ private fun ToolButton(
         }
         
         if (showTooltip) {
-            Surface(
-                modifier = Modifier.offset(x = (UiDimensions.ToolBarWidth + 4.dp).scaled()).zIndex(1000f),
-                color = EditorColors.surface,
-                shape = RoundedCornerShape(4.dp.scaled()),
-                elevation = 4.dp.scaled(),
-                border = BorderStroke(1.dp.scaled(), EditorColors.divider)
+            Box(
+                modifier = Modifier.offset(x = (UiDimensions.ToolBarWidth + 4.dp).scaled(), y = 0.dp).zIndex(1000f)
+                    .clip(RoundedCornerShape(4.dp.scaled()))
+                    .background(EditorColors.surface)
+                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
+                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
             ) {
-                Text(
-                    tooltip, 
-                    style = EditorTypography.toolText(),
-                    color = EditorColors.textPrimary,
-                    modifier = Modifier.padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled()), 
-                    maxLines = 1
-                )
+                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
             }
         }
     }

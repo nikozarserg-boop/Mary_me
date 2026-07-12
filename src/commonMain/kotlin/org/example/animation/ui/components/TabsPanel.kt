@@ -1,6 +1,5 @@
 package org.example.animation.ui.components
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -87,13 +86,11 @@ private fun ProjectTab(
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     
-    val backgroundColor by animateColorAsState(
-        when {
-            isActive -> EditorColors.background
-            isHovered -> EditorColors.hover
-            else -> Color.Transparent
-        }
-    )
+    val backgroundColor = when {
+        isActive -> EditorColors.background
+        isHovered -> EditorColors.hover
+        else -> Color.Transparent
+    }
 
     var dragAccumulator by remember { mutableStateOf(0f) }
 

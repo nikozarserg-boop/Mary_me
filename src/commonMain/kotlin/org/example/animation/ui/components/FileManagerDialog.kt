@@ -15,13 +15,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
 import org.example.animation.io.FileEntry
 import org.example.animation.io.PlatformFileHandler
 import org.example.animation.io.createPlatformFileHandler
 import org.example.animation.localization.EditorStrings
-import org.example.animation.ui.theme.EditorColors
-import org.example.animation.ui.theme.EditorIcons
-import org.example.animation.ui.theme.scaled
+import org.example.animation.ui.theme.*
 
 /**
  * Кроссплатформенный файловый менеджер
@@ -52,7 +52,7 @@ fun FileManagerDialog(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black.copy(alpha = 0.4f))
-            .clickable { onResult(null) }, 
+            .clickable { onResult(null) },
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -60,169 +60,189 @@ fun FileManagerDialog(
                 .width(680.dp.scaled())
                 .height(500.dp.scaled())
                 .clickable(enabled = false) {},
-            color = EditorColors.surface.copy(alpha = 0.95f),
-            shape = RoundedCornerShape(12.dp.scaled()), 
+            // Проводник получает цвета темы напрямую из EditorColors (как и другие панели),
+            // поэтому в стеклянной теме он автоматически становится голубым и полупрозрачным
+            color = EditorColors.surface,
+            shape = RoundedCornerShape(12.dp.scaled()),
             elevation = 16.dp.scaled(),
             border = BorderStroke(1.dp.scaled(), EditorColors.divider)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
-                // Заголовок
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(EditorColors.panelHeader.copy(alpha = 0.5f))
-                        .padding(16.dp.scaled()), 
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        if (mode == FileDialogMode.SAVE) EditorIcons.iconSave else EditorIcons.iconFolderOpen, 
-                        null, 
-                        tint = EditorColors.accent, 
-                        modifier = Modifier.size(20.dp.scaled())
-                    )
-                    Spacer(Modifier.width(12.dp.scaled()))
-                    Text(
-                        text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveTitle") else EditorStrings.observeString("file.openTitle"), 
-                        color = EditorColors.textPrimary, 
-                        fontSize = 16.sp.scaled(), 
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(Modifier.weight(1f))
-                    IconButton(onClick = { onResult(null) }, modifier = Modifier.size(24.dp.scaled())) {
-                        Icon(EditorIcons.iconClose, null, tint = EditorColors.textSecondary, modifier = Modifier.size(16.dp.scaled()))
-                    }
-                }
-                
-                Divider(color = EditorColors.divider)
-
-                // Навигация
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(EditorColors.panelBackground.copy(alpha = 0.3f))
-                        .padding(12.dp.scaled()), 
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    NavButton(EditorIcons.iconArrowBack) {
-                        fileHandler.getParentPath(currentPath)?.let { currentPath = it }
-                    }
-                    Spacer(Modifier.width(8.dp.scaled()))
-                    NavButton(EditorIcons.iconHome) {
-                        currentPath = fileHandler.getHomeDirectory()
-                    }
-                    Spacer(Modifier.width(12.dp.scaled()))
-                    
-                    Surface(
-                        modifier = Modifier.weight(1f),
-                        color = EditorColors.background.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(6.dp.scaled())
-                    ) {
-                        Text(
-                            currentPath, 
-                            color = EditorColors.textPrimary, 
-                            fontSize = 12.sp.scaled(), 
-                            maxLines = 1, 
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 12.dp.scaled(), vertical = 8.dp.scaled())
-                        )
-                    }
-                }
-
-                // Список файлов
-                Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    val scroll = rememberScrollState()
-                    Column(
+            // Контент и блик лежат в одном Box: блик — наложение, не влияет на раскладку
+            Box(modifier = Modifier.fillMaxSize()) {
+                // В стеклянной теме поверх проводника рисуем линзовый блик «рыбьего глаза»
+                if (LocalThemeType.current == ThemeType.GLASS) {
+                    Box(
                         modifier = Modifier
-                            .fillMaxSize()
-                            .verticalScroll(scroll)
-                            .padding(horizontal = 12.dp.scaled())
-                    ) {
-                        entries.forEach { entry ->
-                            FileItem(
-                                entry = entry,
-                                isSelected = selectedEntry?.path == entry.path,
-                                filterExt = extension,
-                                onClick = {
-                                    if (entry.isDirectory) {
-                                        currentPath = entry.path
-                                        selectedEntry = null
-                                    } else {
-                                        selectedEntry = entry
-                                        fileName = entry.name.substringBeforeLast(".")
-                                    }
-                                }
+                            .matchParentSize()
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(EditorColors.glassSheen, Color.Transparent),
+                                    center = Offset(0.2f, 0.08f),
+                                    radius = 1.2f
+                                )
                             )
-                        }
-                    }
+                    )
                 }
-
-                Divider(color = EditorColors.divider)
-
-                // Нижняя панель
-                Column(modifier = Modifier.padding(16.dp.scaled())) {
-                    if (errorMsg != null) {
-                        Text(errorMsg!!, color = EditorColors.accentRed, fontSize = 12.sp.scaled(), modifier = Modifier.padding(bottom = 8.dp.scaled()))
-                    }
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.fillMaxSize()) {
+                    // Заголовок
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(EditorColors.panelHeader.copy(alpha = 0.5f))
+                            .padding(16.dp.scaled()),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            if (mode == FileDialogMode.SAVE) EditorIcons.iconSave else EditorIcons.iconFolderOpen,
+                            null,
+                            tint = EditorColors.accent,
+                            modifier = Modifier.size(20.dp.scaled())
+                        )
+                        Spacer(Modifier.width(12.dp.scaled()))
                         Text(
-                            text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.name") else EditorStrings.observeString("file.file"), 
-                            color = EditorColors.textSecondary, 
-                            fontSize = 13.sp.scaled(),
-                            modifier = Modifier.width(60.dp.scaled())
+                            text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveTitle") else EditorStrings.observeString("file.openTitle"),
+                            color = EditorColors.textPrimary,
+                            fontSize = 16.sp.scaled(),
+                            fontWeight = FontWeight.Bold
                         )
-                        OutlinedTextField(
-                            value = fileName,
-                            onValueChange = { fileName = it },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f).height(48.dp.scaled()),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp.scaled(), color = EditorColors.textPrimary),
-                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = EditorColors.accent, 
-                                unfocusedBorderColor = EditorColors.divider,
-                                backgroundColor = EditorColors.background.copy(alpha = 0.2f)
-                            )
-                        )
-                        if (mode == FileDialogMode.SAVE) {
-                            Text(".$extension", color = EditorColors.textMuted, modifier = Modifier.padding(start = 8.dp.scaled()))
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = { onResult(null) }, modifier = Modifier.size(24.dp.scaled())) {
+                            Icon(EditorIcons.iconClose, null, tint = EditorColors.textSecondary, modifier = Modifier.size(16.dp.scaled()))
                         }
                     }
-                    
-                    Spacer(Modifier.height(16.dp.scaled()))
-                    
-                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        TextButton(onClick = { onResult(null) }) {
-                            Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary)
+
+                    Divider(color = EditorColors.divider)
+
+                    // Навигация
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(EditorColors.panelBackground.copy(alpha = 0.3f))
+                            .padding(12.dp.scaled()),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        NavButton(EditorIcons.iconArrowBack) {
+                            fileHandler.getParentPath(currentPath)?.let { currentPath = it }
+                        }
+                        Spacer(Modifier.width(8.dp.scaled()))
+                        NavButton(EditorIcons.iconHome) {
+                            currentPath = fileHandler.getHomeDirectory()
                         }
                         Spacer(Modifier.width(12.dp.scaled()))
-                        Button(
-                            onClick = {
-                                if (mode == FileDialogMode.SAVE) {
-                                    if (fileName.isEmpty()) {
-                                        errorMsg = EditorStrings["file.selectError"]
-                                        return@Button
-                                    }
-                                    val fullFileName = if (fileName.contains(".")) fileName else "$fileName.$extension"
-                                    val separator = if (currentPath.endsWith("/") || currentPath.endsWith("\\")) "" else "/"
-                                    val fullPath = "$currentPath$separator$fullFileName"
-                                    
-                                    if (fileHandler.fileExists(fullPath)) {
-                                        errorMsg = EditorStrings["file.exists"]
-                                    } else {
-                                        onResult(fullPath)
-                                    }
-                                } else {
-                                    selectedEntry?.let { onResult(it.path) } ?: run { errorMsg = EditorStrings["file.selectError"] }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
-                            shape = RoundedCornerShape(8.dp.scaled()),
-                            modifier = Modifier.height(40.dp.scaled()).width(120.dp.scaled())
+
+                        Surface(
+                            modifier = Modifier.weight(1f),
+                            color = EditorColors.background.copy(alpha = 0.5f),
+                            shape = RoundedCornerShape(6.dp.scaled())
                         ) {
                             Text(
-                                if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveBtn") else EditorStrings.observeString("file.openBtn"), 
-                                color = Color.White, 
-                                fontWeight = FontWeight.Bold
+                                currentPath,
+                                color = EditorColors.textPrimary,
+                                fontSize = 12.sp.scaled(),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 12.dp.scaled(), vertical = 8.dp.scaled())
                             )
+                        }
+                    }
+
+                    // Список файлов
+                    Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                        val scroll = rememberScrollState()
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .verticalScroll(scroll)
+                                .padding(horizontal = 12.dp.scaled())
+                        ) {
+                            entries.forEach { entry ->
+                                FileItem(
+                                    entry = entry,
+                                    isSelected = selectedEntry?.path == entry.path,
+                                    filterExt = extension,
+                                    onClick = {
+                                        if (entry.isDirectory) {
+                                            currentPath = entry.path
+                                            selectedEntry = null
+                                        } else {
+                                            selectedEntry = entry
+                                            fileName = entry.name.substringBeforeLast(".")
+                                        }
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Divider(color = EditorColors.divider)
+
+                    // Нижняя панель
+                    Column(modifier = Modifier.padding(16.dp.scaled())) {
+                        if (errorMsg != null) {
+                            Text(errorMsg!!, color = EditorColors.accentRed, fontSize = 12.sp.scaled(), modifier = Modifier.padding(bottom = 8.dp.scaled()))
+                        }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.name") else EditorStrings.observeString("file.file"),
+                                color = EditorColors.textSecondary,
+                                fontSize = 13.sp.scaled(),
+                                modifier = Modifier.width(60.dp.scaled())
+                            )
+                            OutlinedTextField(
+                                value = fileName,
+                                onValueChange = { fileName = it },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f).height(48.dp.scaled()),
+                                textStyle = LocalTextStyle.current.copy(fontSize = 14.sp.scaled(), color = EditorColors.textPrimary),
+                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                    textColor = EditorColors.textPrimary,
+                                    focusedBorderColor = EditorColors.accent,
+                                    unfocusedBorderColor = EditorColors.divider,
+                                    backgroundColor = EditorColors.background.copy(alpha = 0.2f)
+                                )
+                            )
+                            if (mode == FileDialogMode.SAVE) {
+                                Text(".$extension", color = EditorColors.textMuted, modifier = Modifier.padding(start = 8.dp.scaled()))
+                            }
+                        }
+
+                        Spacer(Modifier.height(16.dp.scaled()))
+
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                            TextButton(onClick = { onResult(null) }) {
+                                Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary)
+                            }
+                            Spacer(Modifier.width(12.dp.scaled()))
+                            Button(
+                                onClick = {
+                                    if (mode == FileDialogMode.SAVE) {
+                                        if (fileName.isEmpty()) {
+                                            errorMsg = EditorStrings["file.selectError"]
+                                            return@Button
+                                        }
+                                        val fullFileName = if (fileName.contains(".")) fileName else "$fileName.$extension"
+                                        val separator = if (currentPath.endsWith("/") || currentPath.endsWith("\\")) "" else "/"
+                                        val fullPath = "$currentPath$separator$fullFileName"
+
+                                        if (fileHandler.fileExists(fullPath)) {
+                                            errorMsg = EditorStrings["file.exists"]
+                                        } else {
+                                            onResult(fullPath)
+                                        }
+                                    } else {
+                                        selectedEntry?.let { onResult(it.path) } ?: run { errorMsg = EditorStrings["file.selectError"] }
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
+                                shape = RoundedCornerShape(8.dp.scaled()),
+                                modifier = Modifier.height(40.dp.scaled()).width(120.dp.scaled())
+                            ) {
+                                Text(
+                                    if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveBtn") else EditorStrings.observeString("file.openBtn"),
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
                 }
@@ -247,7 +267,7 @@ private fun NavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onC
 @Composable
 private fun FileItem(entry: FileEntry, isSelected: Boolean, filterExt: String, onClick: () -> Unit) {
     val isMatch = !entry.isDirectory && entry.extension.lowercase() == filterExt.lowercase()
-    
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -266,7 +286,7 @@ private fun FileItem(entry: FileEntry, isSelected: Boolean, filterExt: String, o
         )
         Spacer(Modifier.width(12.dp.scaled()))
         Text(
-            entry.name, 
+            entry.name,
             color = if (isSelected) Color.White else if (isMatch || entry.isDirectory) EditorColors.textPrimary else EditorColors.textMuted,
             fontSize = 13.sp.scaled(),
             maxLines = 1,

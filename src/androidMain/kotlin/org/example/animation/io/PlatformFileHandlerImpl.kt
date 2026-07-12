@@ -1,11 +1,15 @@
 package org.example.animation.io
 
-import java.io.File
-import android.os.Environment
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
+import android.os.Build
+import android.os.Environment
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.content.ContextCompat
+import java.io.File
 
 /**
  * Android реализация платформенно-зависимого файлового ввода/вывода
@@ -25,9 +29,22 @@ actual fun decodeImage(data: ByteArray): ImageBitmap? {
 }
 
 class AndroidPlatformFileHandler : PlatformFileHandler {
+
+    // Проверяем, есть ли доступ к внешнему хранилищу (для API ≤ 32)
+    private fun hasStoragePermission(): Boolean {
+        val ctx: Context = ContextHolder.get()
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            true // на API 33+ scoped storage, запись в свои каталоги не требует явного пермишена
+        } else {
+            ContextCompat.checkSelfPermission(
+                ctx,
+                Manifest.permission.READ_EXTERNAL_STORAGE
+            ) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     override fun saveFile(defaultName: String, extension: String, data: ByteArray): Boolean {
-        // На Android обычно используется системный Picker через ActivityResultContract
-        // В данной реализации через File API для простоты (требует разрешений)
+        if (!hasStoragePermission()) return false
         return saveToPath(getDocumentsDirectory() + "/" + defaultName + "." + extension, data)
     }
 
@@ -36,6 +53,7 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun saveToPath(path: String, data: ByteArray): Boolean {
+        if (!hasStoragePermission()) return false
         return try {
             val file = File(path)
             file.parentFile?.mkdirs()
@@ -48,6 +66,7 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun readFromPath(path: String): ByteArray? {
+        if (!hasStoragePermission()) return null
         return try {
             val file = File(path)
             if (file.exists()) file.readBytes() else null
@@ -62,13 +81,14 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun getCacheDirectory(): String {
-        return "/data/user/0/org.example.mary_me/cache" 
+        // Корректный путь к кэшу через Context (вместо захардкоженной строки)
+        return ContextHolder.get().cacheDir.absolutePath
     }
 
     override fun listFiles(path: String): List<FileEntry> {
         val dir = File(path)
         if (!dir.exists() || !dir.isDirectory) return emptyList()
-        
+
         return dir.listFiles()?.map {
             FileEntry(
                 name = it.name,

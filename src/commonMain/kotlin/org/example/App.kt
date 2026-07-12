@@ -53,7 +53,8 @@ fun App(
 
     // Глобальный масштаб и тема
     var savedUiScale by remember { mutableStateOf(AppSettingsManager.getUiScale()) }
-    var currentTheme by remember { mutableStateOf(ThemeType.DARK) }
+    // Загружаем сохранённую тему или используем тёмную по умолчанию
+    var currentTheme by remember { mutableStateOf(ThemeType.valueOf(AppSettingsManager.getTheme())) }
 
     LaunchedEffect(lastAutosave) {
         if (lastAutosave > 0) {
@@ -144,7 +145,10 @@ fun App(
                                     savedUiScale = it
                                     AppSettingsManager.setUiScale(it)
                                 },
-                                onThemeChange = { currentTheme = it },
+                                onThemeChange = { 
+                                    currentTheme = it
+                                    AppSettingsManager.setTheme(it.name)
+                                },
                                 onClose = { showSettings = false }
                             )
                         }

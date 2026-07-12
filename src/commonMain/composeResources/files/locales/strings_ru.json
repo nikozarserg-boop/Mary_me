@@ -70,6 +70,7 @@
   "layer.name": "Имя слоя",
   "layer.up": "Вверх",
   "layer.down": "Вниз",
+  "import.image": "Загрузить изображение",
   "play": "Воспроизвести",
   "pause": "Пауза",
   "stop": "Стоп",
@@ -125,5 +126,10 @@
   "frame.add": "Добавить кадр",
   "frame.duplicate": "Дублировать",
   "frame.delete": "Удалить",
-  "frame.clear": "Очистить"
+  "frame.clear": "Очистить",
+  "close": "Закрыть",
+  "view.expand": "Развернуть",
+  "view.collapse": "Свернуть",
+  "view.rotateLeft": "Повернуть влево",
+  "view.rotateRight": "Повернуть вправо"
 }

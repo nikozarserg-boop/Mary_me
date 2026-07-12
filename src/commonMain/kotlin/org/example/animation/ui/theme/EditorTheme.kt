@@ -17,7 +17,7 @@ enum class ThemeType {
 }
 
 object EditorColors {
-    // Reactive colors via states
+    // Реактивные цвета через состояния (State)
     private val _background = mutableStateOf(Color(0xFF121212))
     var background: Color by _background
 
@@ -58,13 +58,16 @@ object EditorColors {
     val accentRed = Color(0xFFF44336)
     val accentOrange = Color(0xFFCE9178)
     
-    val glassBackground = Color(0xAA121212) 
-    val glassBorder = Color(0x44FFFFFF)
-    
+    // Более тёмный, мягкий и приятный голубой для стеклянной темы
+    val glassBackground = Color(0x99121C2A) // Глубокий тёмно-голубой полупрозрачный фон стекла
+    val glassBorder = Color(0x556E9FCB) // Мягкая приглушённо-голубая стеклянная граница
+    // Цвет линзового блика (эффект «рыбьего глаза» стекла)
+    val glassSheen = Color(0x22Bcd8F5)
+
     var canvasBackground by mutableStateOf(Color(0xFF181818))
     val canvasBorder = Color(0xFF444444)
 
-    // Aliases
+    // Псевдонимы (Aliases) для обратной совместимости
     val dividerColor: Color get() = _divider.value
     val accentBlue: Color get() = _accent.value
     val darkSurface: Color get() = _surface.value
@@ -102,20 +105,29 @@ object EditorColors {
                 canvasBackground = Color(0xFF2D2D2D)
             }
             ThemeType.GLASS -> {
-                background = Color(0xFF05050A); surface = Color(0xAA1A1A1A); surfaceVariant = Color(0x662D2D2D)
-                panelBackground = Color(0x441A1A1A); panelHeader = Color(0x88252525); accent = Color(0xAA007ACC)
-                textPrimary = Color(0xFFFFFFFF); textSecondary = Color(0xFFCCCCCC); textMuted = Color(0xFF888888)
-                divider = Color(0x22FFFFFF); selection = Color(0xAA007ACC); hover = Color(0x33FFFFFF)
-                canvasBackground = Color(0xFF0A0A0F)
+                // Тёмная мягкая голубая стеклянная тема: спокойные приятные оттенки везде
+                background = Color(0xFF03080F)        // Очень тёмный сине-голубой фон
+                surface = Color(0x9913202C)           // Тёмная голубая стеклянная поверхность
+                surfaceVariant = Color(0x66182638)
+                panelBackground = Color(0x40111928)   // Тёмный голубой полупрозрачный фон панелей
+                panelHeader = Color(0x70182436)       // Тёмный голубой заголовок
+                accent = Color(0xCC5E97C6)            // Мягкий приятный голубой акцент
+                textPrimary = Color(0xFFDCE8F5)       // Светло-голубой основной текст
+                textSecondary = Color(0xFFA9C2DB)     // Мягкий голубой вторичный текст
+                textMuted = Color(0xFF6E88A8)         // Приглушённый голубой
+                divider = Color(0x336E9FCB)           // Мягкая голубая разделительная линия
+                selection = Color(0xCC4A82BE)         // Мягкое голубое выделение
+                hover = Color(0x335E97C6)             // Мягкая голубая подсветка при наведении
+                canvasBackground = Color(0xFF05101A)  // Тёмный голубоватый фон холста
             }
         }
     }
 }
 
-// Global UI Scaling System
+// Глобальная система масштабирования интерфейса
 val LocalUiScale = compositionLocalOf { 1.0f }
 
-// Non-composable global scale for edge cases
+// Глобальный масштаб для не-композабельных случаев
 private val _uiScaleState = mutableStateOf(1.0f)
 var currentUiScale: Float
     get() = _uiScaleState.value
@@ -127,7 +139,7 @@ fun Dp.scaled(): Dp = this * LocalUiScale.current
 @Composable
 fun TextUnit.scaled(): TextUnit = this * LocalUiScale.current
 
-// Helper for non-composable contexts
+// Вспомогательная функция для не-композабельного контекста
 fun Dp.scaledNonReactive(): Dp = this * _uiScaleState.value
 fun TextUnit.scaledNonReactive(): TextUnit = this * _uiScaleState.value
 

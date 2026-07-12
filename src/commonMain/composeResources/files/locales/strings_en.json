@@ -69,6 +69,11 @@
   "frame.duplicate": "Duplicate",
   "frame.delete": "Delete",
   "frame.clear": "Clear",
+  "close": "Close",
+  "view.expand": "Expand",
+  "view.collapse": "Collapse",
+  "view.rotateLeft": "Rotate Left",
+  "view.rotateRight": "Rotate Right",
   "frame.first": "First Frame",
   "frame.prev": "Previous Frame",
   "frame.next": "Next Frame",
@@ -132,5 +137,6 @@
   "timeline.frame": "Frame",
   "timeline.fps": "FPS",
   "autosave.done": "Autosave successful",
-  "status.fps": "FPS"
+  "status.fps": "FPS",
+  "import.image": "Import Image"
 }

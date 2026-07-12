@@ -1,40 +1,95 @@
 package org.example.animation.ui.components
 
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.hoverable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
-import kotlinx.coroutines.delay
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.engine.ProjectManager
 import org.example.animation.io.AppSettingsManager
 import org.example.animation.io.RecentProject
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.*
+
+@Composable
+fun GlassPanel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
+    val theme = LocalThemeType.current
+    val isGlass = theme == ThemeType.GLASS
+    val background = if (isGlass) EditorColors.glassBackground else EditorColors.panelBackground
+    val border = if (isGlass) EditorColors.glassBorder else EditorColors.divider.copy(alpha = 0.1f)
+    val shape = if (isGlass) RoundedCornerShape(10.dp.scaled()) else RoundedCornerShape(0.dp)
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .background(background)
+    ) {
+        content()
+        if (isGlass) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(shape)
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(EditorColors.glassSheen, Color.Transparent),
+                            center = Offset(0.25f, 0.15f),
+                            radius = 1.1f
+                        )
+                    )
+            )
+        }
+        Box(modifier = Modifier.fillMaxSize().border(1.dp.scaled(), border).clip(shape))
+    }
+}
+
+@Composable
+private fun VerticalSplitter(onDrag: (Float) -> Unit) {
+    Box(
+        modifier = Modifier.width(4.dp.scaled()).fillMaxHeight()
+            .pointerHoverIcon(PointerIcon.Hand)
+            .pointerInput(Unit) { detectDragGestures { change, dragAmount -> change.consume(); onDrag(dragAmount.x) } }
+            .zIndex(100f),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(modifier = Modifier.width(1.dp.scaled()).fillMaxHeight().background(EditorColors.divider))
+    }
+}
+
+@Composable
+private fun HorizontalSplitter(onDrag: (Float) -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().height(4.dp.scaled())
+            .pointerHoverIcon(PointerIcon.Hand)
+            .pointerInput(Unit) { detectDragGestures { change, dragAmount -> change.consume(); onDrag(dragAmount.y) } }
+            .zIndex(100f),
+        contentAlignment = Alignment.Center
+    ) {
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp.scaled()).background(EditorColors.divider))
+    }
+}
 
 @Composable
 fun EditorScreen(
@@ -109,7 +164,6 @@ fun EditorScreen(
                 isPropertiesVisible = propertiesVisible
             )
 
-            // Панель вкладок (отображается если проектов > 1)
             TabsPanel(
                 projectManager = projectManager,
                 onCloseRequested = onCloseTab
@@ -224,21 +278,28 @@ fun EditorScreen(
                 
                 Box(modifier = Modifier.fillMaxWidth().height(if (timelineCollapsed) 30.dp.scaled() else timelineHeight)) {
                     Column(Modifier.fillMaxSize()) {
+                        val isGlass = LocalThemeType.current == ThemeType.GLASS
                         Row(
-                            modifier = Modifier.fillMaxWidth().height(30.dp.scaled()).background(EditorColors.panelHeader),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(30.dp.scaled())
+                                .background(if (isGlass) EditorColors.panelHeader.copy(alpha = 0.6f) else EditorColors.panelHeader)
+                                .then(if (isGlass) Modifier.border(0.5.dp.scaled(), EditorColors.glassBorder) else Modifier),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             PanelStyledIconButton(
                                 icon = if (timelineCollapsed) EditorIcons.iconKeyboardArrowUp else EditorIcons.iconKeyboardArrowDown,
                                 onClick = { engine.setTimelineCollapsed(!timelineCollapsed) },
-                                modifier = Modifier.padding(horizontal = 4.dp.scaled())
+                                modifier = Modifier.padding(horizontal = 4.dp.scaled()),
+                                tooltip = if (timelineCollapsed) EditorStrings.observeString("view.expand") else EditorStrings.observeString("view.collapse")
                             )
                             Text(EditorStrings.observeString("panel.timeline").uppercase(), style = EditorTypography.panelTitle())
                             Spacer(Modifier.weight(1f))
                             PanelStyledIconButton(
                                 icon = EditorIcons.iconClose,
                                 onClick = { engine.setTimelineVisible(false) },
-                                modifier = Modifier.padding(horizontal = 4.dp.scaled())
+                                modifier = Modifier.padding(horizontal = 4.dp.scaled()),
+                                tooltip = EditorStrings.observeString("close")
                             )
                         }
                         if (!timelineCollapsed) {
@@ -247,11 +308,15 @@ fun EditorScreen(
                     }
                 }
             } else {
+                val isGlass = LocalThemeType.current == ThemeType.GLASS
                 Box(
-                    modifier = Modifier.fillMaxWidth().height(UiDimensions.StatusBarHeight.scaled())
-                        .background(EditorColors.panelHeader)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(UiDimensions.StatusBarHeight.scaled())
+                        .background(if (isGlass) EditorColors.panelHeader.copy(alpha = 0.6f) else EditorColors.panelHeader)
+                        .then(if (isGlass) Modifier.border(0.5.dp.scaled(), EditorColors.glassBorder) else Modifier)
                         .clickable { engine.setTimelineVisible(true) }
-                        .pointerHoverIcon(PointerIcon.Hand), 
+                        .pointerHoverIcon(PointerIcon.Hand),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(EditorIcons.iconKeyboardArrowUp, null, tint = EditorColors.textSecondary, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
@@ -279,7 +344,8 @@ private fun PanelHeader(
             if (onToggleCollapse != null) {
                 PanelStyledIconButton(
                     icon = if (isCollapsed) EditorIcons.iconKeyboardArrowDown else EditorIcons.iconKeyboardArrowUp,
-                    onClick = onToggleCollapse
+                    onClick = onToggleCollapse,
+                    tooltip = if (isCollapsed) EditorStrings.observeString("view.expand") else EditorStrings.observeString("view.collapse")
                 )
             }
             if (title.isNotEmpty()) {
@@ -289,7 +355,8 @@ private fun PanelHeader(
         }
         PanelStyledIconButton(
             icon = EditorIcons.iconClose,
-            onClick = onClose
+            onClick = onClose,
+            tooltip = EditorStrings.observeString("close")
         )
     }
 }
@@ -299,27 +366,22 @@ private fun PanelStyledIconButton(
     icon: ImageVector,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    iconSize: androidx.compose.ui.unit.Dp = 14.dp
+    iconSize: androidx.compose.ui.unit.Dp = 14.dp,
+    tooltip: String = ""
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.9f else if (isHovered) 1.1f else 1.0f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)
-    )
-
     Box(
         modifier = modifier
             .size(24.dp.scaled())
-            .graphicsLayer(scaleX = scale, scaleY = scale)
             .clip(RoundedCornerShape(4.dp.scaled()))
             .background(if (isHovered) EditorColors.hover else Color.Transparent)
             .border(
-                width = 1.dp.scaled(), 
-                color = if (isPressed) EditorColors.accent 
-                        else if (isHovered) EditorColors.accent.copy(alpha = 0.6f) 
+                width = 1.dp.scaled(),
+                color = if (isPressed) EditorColors.accent
+                        else if (isHovered) EditorColors.accent.copy(alpha = 0.6f)
                         else Color.Transparent,
                 shape = RoundedCornerShape(4.dp.scaled())
             )
@@ -336,44 +398,46 @@ private fun PanelStyledIconButton(
             tint = if (isHovered) EditorColors.textPrimary else EditorColors.textMuted,
             modifier = Modifier.size(iconSize.scaled())
         )
+        if (tooltip.isNotEmpty() && isHovered) {
+            Box(
+                modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
+                    .clip(RoundedCornerShape(4.dp.scaled()))
+                    .background(EditorColors.surface)
+                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
+                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
+            ) {
+                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
+            }
+        }
     }
 }
 
 @Composable
-fun GlassPanel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val theme = LocalThemeType.current
-    val background = if (theme == ThemeType.GLASS) EditorColors.glassBackground else EditorColors.panelBackground
-    val border = if (theme == ThemeType.GLASS) EditorColors.glassBorder else EditorColors.divider.copy(alpha = 0.1f)
-    
-    Box(modifier = modifier.background(background)) {
-        content()
-        Box(modifier = Modifier.fillMaxSize().border(0.5.dp.scaled(), border))
-    }
-}
+private fun TopBarIconButton(icon: ImageVector, enabled: Boolean = true, tooltip: String = "", onClick: () -> Unit) {
+    var showTooltip by remember { mutableStateOf(false) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
 
-@Composable
-private fun VerticalSplitter(onDrag: (Float) -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxHeight().width(4.dp.scaled())
-            .pointerHoverIcon(PointerIcon.Hand)
-            .pointerInput(Unit) { detectDragGestures { change, dragAmount -> change.consume(); onDrag(dragAmount.x) } }
-            .zIndex(100f), 
-        contentAlignment = Alignment.Center
-    ) {
-        Box(modifier = Modifier.fillMaxHeight().width(1.dp.scaled()).background(EditorColors.divider))
+    LaunchedEffect(isHovered) {
+        if (isHovered && tooltip.isNotEmpty()) { delay(400); showTooltip = true } else { showTooltip = false }
     }
-}
 
-@Composable
-private fun HorizontalSplitter(onDrag: (Float) -> Unit) {
-    Box(
-        modifier = Modifier.fillMaxWidth().height(4.dp.scaled())
-            .pointerHoverIcon(PointerIcon.Hand)
-            .pointerInput(Unit) { detectDragGestures { change, dragAmount -> change.consume(); onDrag(dragAmount.y) } }
-            .zIndex(100f), 
-        contentAlignment = Alignment.Center
-    ) {
-        Box(modifier = Modifier.fillMaxWidth().height(1.dp.scaled()).background(EditorColors.divider))
+    Box {
+        IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(UiDimensions.IconButtonSize.scaled())
+            .hoverable(interactionSource)) {
+            Icon(icon, null, tint = if (enabled) EditorColors.textPrimary.copy(alpha = 0.7f) else EditorColors.textMuted, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
+        }
+        if (showTooltip && tooltip.isNotEmpty()) {
+            Box(
+                modifier = Modifier.offset(x = (UiDimensions.IconButtonSize + 6.dp).scaled(), y = 4.dp.scaled()).zIndex(2000f)
+                    .clip(RoundedCornerShape(4.dp.scaled()))
+                    .background(EditorColors.surface)
+                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
+                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
+            ) {
+                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
+            }
+        }
     }
 }
 
@@ -399,7 +463,18 @@ private fun EditorMenuBar(
     isTimelineVisible: Boolean,
     isPropertiesVisible: Boolean
 ) {
-    Surface(modifier = Modifier.fillMaxWidth().height(UiDimensions.TopBarHeight.scaled()), color = EditorColors.panelHeader, elevation = 1.dp.scaled()) {
+    val theme = LocalThemeType.current
+    val isGlass = theme == ThemeType.GLASS
+    val barColor = if (isGlass) EditorColors.panelHeader.copy(alpha = 0.7f) else EditorColors.panelHeader
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(UiDimensions.TopBarHeight.scaled())
+            .then(if (isGlass) Modifier.border(0.5.dp.scaled(), EditorColors.glassBorder) else Modifier),
+        color = barColor,
+        elevation = if (isGlass) 0.dp.scaled() else 1.dp.scaled()
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -451,7 +526,6 @@ private fun EditorMenuBar(
                 VerticalDivider()
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
-                // Блок Зума
                 TopBarIconButton(EditorIcons.iconZoomOut, tooltip = EditorStrings.observeString("view.zoomOut")) { engine.setZoom((zoom * 0.8f).coerceIn(0.1f, 20f)) }
                 Text("${(zoom * 100).toInt()}%", style = EditorTypography.mono(), color = EditorColors.textSecondary, modifier = Modifier.width(45.dp.scaled()).clickable { engine.setZoom(1f) }, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 TopBarIconButton(EditorIcons.iconZoomIn, tooltip = EditorStrings.observeString("view.zoomIn")) { engine.setZoom((zoom * 1.25f).coerceIn(0.1f, 20f)) }
@@ -460,16 +534,15 @@ private fun EditorMenuBar(
                 VerticalDivider()
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
-                // Блок Поворота
-                TopBarIconButton(EditorIcons.iconRotateLeft, tooltip = "Повернуть влево") { engine.setRotation(rotation - 15f) }
+                TopBarIconButton(EditorIcons.iconRotateLeft, tooltip = EditorStrings.observeString("view.rotateLeft")) { engine.setRotation(rotation - 15f) }
                 Text("${rotation.toInt()}°", style = EditorTypography.mono(), color = EditorColors.textSecondary, modifier = Modifier.width(40.dp.scaled()).clickable { engine.setRotation(0f); engine.setPanOffset(Offset.Zero) }, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                TopBarIconButton(EditorIcons.iconRotateRight, tooltip = "Повернуть вправо") { engine.setRotation(rotation + 15f) }
+                TopBarIconButton(EditorIcons.iconRotateRight, tooltip = EditorStrings.observeString("view.rotateRight")) { engine.setRotation(rotation + 15f) }
 
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
                 VerticalDivider()
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
-                TopBarIconButton(if (isPlaying) EditorIcons.iconPause else EditorIcons.iconPlayArrow) { 
+                TopBarIconButton(if (isPlaying) EditorIcons.iconPause else EditorIcons.iconPlayArrow, tooltip = if (isPlaying) EditorStrings.observeString("pause") else EditorStrings.observeString("play")) { 
                     engine.togglePlayback()
                 }
             }
@@ -488,13 +561,6 @@ private fun EditorMenuBar(
 @Composable
 private fun VerticalDivider() {
     Box(modifier = Modifier.width(1.dp.scaled()).height(16.dp.scaled()).background(EditorColors.divider))
-}
-
-@Composable
-private fun TopBarIconButton(icon: ImageVector, enabled: Boolean = true, tooltip: String = "", onClick: () -> Unit) {
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(UiDimensions.IconButtonSize.scaled())) {
-        Icon(icon, null, tint = if (enabled) EditorColors.textPrimary.copy(alpha = 0.7f) else EditorColors.textMuted, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
-    }
 }
 
 @Composable
@@ -517,7 +583,18 @@ private fun DropdownMenuButton(title: String, items: List<Pair<String, () -> Uni
 
 @Composable
 private fun EditorStatusBar(projectName: String, size: String, frame: Int, total: Int, fps: Int, playing: Boolean) {
-    Surface(modifier = Modifier.fillMaxWidth().height(UiDimensions.StatusBarHeight.scaled()), color = EditorColors.panelHeader) {
+    val theme = LocalThemeType.current
+    val isGlass = theme == ThemeType.GLASS
+    val barColor = if (isGlass) EditorColors.panelHeader.copy(alpha = 0.7f) else EditorColors.panelHeader
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(UiDimensions.StatusBarHeight.scaled())
+            .then(if (isGlass) Modifier.border(0.5.dp.scaled(), EditorColors.glassBorder) else Modifier),
+        color = barColor,
+        elevation = if (isGlass) 0.dp.scaled() else 1.dp.scaled()
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

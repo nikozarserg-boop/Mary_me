@@ -14,8 +14,9 @@ data class RecentProject(
 
 @Serializable
 data class AppSettings(
-    var uiScale: Float = 0.0f, // 0.0 means Auto
+    var uiScale: Float = 0.0f, // 0.0 означает Авто
     var language: String = "ru",
+    var theme: String = "DARK", // Текущая тема (DARK, LIGHT, GREY, GLASS)
     var recentProjects: MutableList<RecentProject> = mutableListOf(),
     var autoSaveEnabled: Boolean = true,
     var autoSaveIntervalMin: Int = 2
@@ -72,6 +73,10 @@ object AppSettingsManager {
     fun setUiScale(scale: Float) { settings.uiScale = scale; save() }
     fun getLanguage() = settings.language
     fun setLanguage(code: String) { settings.language = code; save() }
+
+    // Получение/сохранение выбранной темы оформления
+    fun getTheme(): String = settings.theme
+    fun setTheme(theme: String) { settings.theme = theme; save() }
     fun isAutoSaveEnabled() = settings.autoSaveEnabled
     fun setAutoSaveEnabled(enabled: Boolean) { settings.autoSaveEnabled = enabled; save() }
     fun getAutoSaveInterval() = settings.autoSaveIntervalMin

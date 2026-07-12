@@ -62,7 +62,7 @@ fun TooltipToolButton(
             Box(
                 modifier = Modifier.offset(x = 42.dp.scaled(), y = 0.dp).zIndex(500f)
                     .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.darkSurfaceVariant.copy(alpha = 0.98f))
+                    .background(EditorColors.darkSurfaceVariant)
                     .border(0.5.dp.scaled(), EditorColors.dividerColor, RoundedCornerShape(4.dp.scaled()))
                     .padding(horizontal = 8.dp.scaled(), vertical = 4.dp.scaled())
             ) {
@@ -110,7 +110,7 @@ fun TooltipSmallButton(
             Box(
                 modifier = Modifier.offset(x = 28.dp.scaled(), y = 0.dp).zIndex(500f)
                     .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.darkSurfaceVariant.copy(alpha = 0.98f))
+                    .background(EditorColors.darkSurfaceVariant)
                     .border(0.5.dp.scaled(), EditorColors.dividerColor, RoundedCornerShape(4.dp.scaled()))
                     .padding(horizontal = 8.dp.scaled(), vertical = 4.dp.scaled())
             ) {
