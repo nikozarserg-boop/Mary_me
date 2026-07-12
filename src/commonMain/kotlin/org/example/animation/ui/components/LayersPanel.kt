@@ -17,10 +17,10 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
+import org.example.animation.ui.components.tooltip.tooltipAnchor
 import org.example.animation.ui.theme.*
 
 @Composable
@@ -99,11 +99,8 @@ private fun CompactLayerItem(
     onConfirmRename: () -> Unit,
     onCancelRename: () -> Unit
 ) {
-    var showTooltipVisible by remember { mutableStateOf(false) }
-    var showTooltipLocked by remember { mutableStateOf(false) }
-    
     val background = if (isSelected) EditorColors.selection.copy(alpha = 0.5f) else Color.Transparent
-    
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -117,92 +114,64 @@ private fun CompactLayerItem(
         ) {
             val eyeInteraction = remember { MutableInteractionSource() }
             val eyeHovered by eyeInteraction.collectIsHoveredAsState()
-            
-            LaunchedEffect(eyeHovered) {
-                if (eyeHovered) { delay(400); showTooltipVisible = true } else { showTooltipVisible = false }
-            }
-            
-            Box {
-                IconButton(
-                    onClick = onToggleVisible,
-                    modifier = Modifier.size(24.dp.scaled()).hoverable(eyeInteraction),
-                    content = {
-                        Icon(
-                            if (isVisible) EditorIcons.iconVisibility else EditorIcons.iconVisibilityOff,
-                            null,
-                            tint = if (isVisible) EditorColors.textPrimary else EditorColors.textMuted,
-                            modifier = Modifier.size(16.dp.scaled())
-                        )
-                    }
-                )
-                if (showTooltipVisible) {
-                    Box(
-                        modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
-                            .clip(RoundedCornerShape(4.dp.scaled()))
-                            .background(EditorColors.surface)
-                            .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                            .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-                    ) {
-                        Text(EditorStrings.observeString("layer.visible"), style = EditorTypography.toolText(), color = EditorColors.textPrimary)
-                    }
+
+            IconButton(
+                onClick = onToggleVisible,
+                modifier = Modifier
+                    .size(24.dp.scaled())
+                    .hoverable(eyeInteraction)
+                    .tooltipAnchor(EditorStrings.observeString("layer.visible")),
+                content = {
+                    Icon(
+                        if (isVisible) EditorIcons.iconVisibility else EditorIcons.iconVisibilityOff,
+                        null,
+                        tint = if (isVisible) EditorColors.textPrimary else EditorColors.textMuted,
+                        modifier = Modifier.size(16.dp.scaled())
+                    )
                 }
-            }
-            
+            )
+
             val lockInteraction = remember { MutableInteractionSource() }
             val lockHovered by lockInteraction.collectIsHoveredAsState()
-            
-            LaunchedEffect(lockHovered) {
-                if (lockHovered) { delay(400); showTooltipLocked = true } else { showTooltipLocked = false }
-            }
-            
-            Box {
-                IconButton(
-                    onClick = onToggleLocked,
-                    modifier = Modifier.size(24.dp.scaled()).hoverable(lockInteraction),
-                    content = {
-                        Icon(
-                            EditorIcons.iconLock,
-                            null,
-                            tint = if (isLocked) EditorColors.accent else EditorColors.textMuted.copy(alpha = 0.5f),
-                            modifier = Modifier.size(16.dp.scaled())
-                        )
-                    }
-                )
-                if (showTooltipLocked) {
-                    Box(
-                        modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
-                            .clip(RoundedCornerShape(4.dp.scaled()))
-                            .background(EditorColors.surface)
-                            .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                            .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-                    ) {
-                        Text(EditorStrings.observeString("layer.locked"), style = EditorTypography.toolText(), color = EditorColors.textPrimary)
-                    }
+
+            IconButton(
+                onClick = onToggleLocked,
+                modifier = Modifier
+                    .size(24.dp.scaled())
+                    .hoverable(lockInteraction)
+                    .tooltipAnchor(EditorStrings.observeString("layer.locked")),
+                content = {
+                    Icon(
+                        EditorIcons.iconLock,
+                        null,
+                        tint = if (isLocked) EditorColors.accent else EditorColors.textMuted.copy(alpha = 0.5f),
+                        modifier = Modifier.size(16.dp.scaled())
+                    )
                 }
-            }
-            
+            )
+
             Spacer(Modifier.width(4.dp.scaled()))
-            
+
             Box(modifier = Modifier.weight(1f).fillMaxHeight().clickable { onSelect() }) {
                 if (isEditing) {
                     var textFieldValue by remember { mutableStateOf(editText) }
                     var hasFocus by remember { mutableStateOf(false) }
-                    
+
                     BasicTextField(
                         value = textFieldValue,
-                        onValueChange = { 
-                            textFieldValue = it 
-                            onTextChange(it) 
+                        onValueChange = {
+                            textFieldValue = it
+                            onTextChange(it)
                         },
                         modifier = Modifier.fillMaxSize(),
                         textStyle = EditorTypography.layerName().copy(color = if (isSelected) EditorColors.textPrimary else EditorColors.textSecondary)
                     )
-                    
+
                     LaunchedEffect(Unit) {
                         delay(100)
                         hasFocus = true
                     }
-                    
+
                     LaunchedEffect(textFieldValue) {
                         if (textFieldValue.isEmpty()) {
                             onCancelRename()
@@ -218,8 +187,13 @@ private fun CompactLayerItem(
                     )
                 }
             }
-            
-            IconButton(onClick = onStartRename, modifier = Modifier.size(20.dp.scaled())) {
+
+            IconButton(
+                onClick = onStartRename,
+                modifier = Modifier
+                    .size(20.dp.scaled())
+                    .tooltipAnchor(EditorStrings.observeString("layer.rename"))
+            ) {
                 Icon(EditorIcons.iconEdit, null, tint = EditorColors.textMuted, modifier = Modifier.size(14.dp.scaled()))
             }
         }
@@ -228,13 +202,8 @@ private fun CompactLayerItem(
 
 @Composable
 private fun SmallFooterBtn(icon: ImageVector, tooltip: String = "", onClick: () -> Unit) {
-    var showTooltip by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-
-    LaunchedEffect(isHovered) {
-        if (isHovered && tooltip.isNotEmpty()) { delay(400); showTooltip = true } else { showTooltip = false }
-    }
 
     Box(contentAlignment = Alignment.Center) {
         Box(
@@ -247,6 +216,7 @@ private fun SmallFooterBtn(icon: ImageVector, tooltip: String = "", onClick: () 
                     color = if (isHovered) EditorColors.accent.copy(alpha = 0.6f) else Color.Transparent,
                     shape = RoundedCornerShape(4.dp.scaled())
                 )
+                .tooltipAnchor(tooltip)
                 .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
@@ -255,17 +225,6 @@ private fun SmallFooterBtn(icon: ImageVector, tooltip: String = "", onClick: () 
                 tint = if (isHovered) EditorColors.accent else EditorColors.textSecondary,
                 modifier = Modifier.size(14.dp.scaled())
             )
-        }
-        if (showTooltip && tooltip.isNotEmpty()) {
-            Box(
-                modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
-                    .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.surface)
-                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-            ) {
-                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
-            }
         }
     }
 }

@@ -1,6 +1,5 @@
 package org.example.animation.ui.components
 
-import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -19,11 +18,10 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.model.ToolType
 import org.example.animation.localization.EditorStrings
+import org.example.animation.ui.components.tooltip.tooltipAnchor
 import org.example.animation.ui.theme.*
 
 @Composable
@@ -171,25 +169,20 @@ private fun ToolGroup(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun ToolButton(
-    icon: ImageVector, 
-    tooltip: String, 
-    isSelected: Boolean, 
+    icon: ImageVector,
+    tooltip: String,
+    isSelected: Boolean,
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    
+
     val backgroundColor = when {
         !enabled -> Color.Transparent
         isSelected -> EditorColors.accent.copy(alpha = 0.7f)
         isHovered -> EditorColors.hover
         else -> Color.Transparent
-    }
-
-    var showTooltip by remember { mutableStateOf(false) }
-    LaunchedEffect(isHovered) {
-        if (isHovered && enabled) { delay(400); showTooltip = true } else { showTooltip = false }
     }
 
     Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 1.dp.scaled())) {
@@ -204,27 +197,16 @@ private fun ToolButton(
                     shape = RoundedCornerShape(4.dp.scaled())
                 )
                 .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
+                .tooltipAnchor(tooltip, enabled = enabled)
                 .clickable(enabled = enabled, interactionSource = interactionSource, indication = null, onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                icon, 
-                null, 
-                tint = if (isSelected) Color.White else EditorColors.textPrimary.copy(alpha = 0.6f), 
+                icon,
+                null,
+                tint = if (isSelected) Color.White else EditorColors.textPrimary.copy(alpha = 0.6f),
                 modifier = Modifier.size(UiDimensions.IconSize.scaled())
             )
-        }
-        
-        if (showTooltip) {
-            Box(
-                modifier = Modifier.offset(x = (UiDimensions.ToolBarWidth + 4.dp).scaled(), y = 0.dp).zIndex(1000f)
-                    .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.surface)
-                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-            ) {
-                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
-            }
         }
     }
 }

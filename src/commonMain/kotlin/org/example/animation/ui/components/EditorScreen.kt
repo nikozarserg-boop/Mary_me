@@ -25,12 +25,12 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.engine.ProjectManager
 import org.example.animation.io.AppSettingsManager
 import org.example.animation.io.RecentProject
 import org.example.animation.localization.EditorStrings
+import org.example.animation.ui.components.tooltip.tooltipAnchor
 import org.example.animation.ui.theme.*
 
 @Composable
@@ -386,6 +386,7 @@ private fun PanelStyledIconButton(
                 shape = RoundedCornerShape(4.dp.scaled())
             )
             .pointerHoverIcon(PointerIcon.Hand)
+            .tooltipAnchor(tooltip)
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -398,46 +399,19 @@ private fun PanelStyledIconButton(
             tint = if (isHovered) EditorColors.textPrimary else EditorColors.textMuted,
             modifier = Modifier.size(iconSize.scaled())
         )
-        if (tooltip.isNotEmpty() && isHovered) {
-            Box(
-                modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
-                    .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.surface)
-                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-            ) {
-                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
-            }
-        }
     }
 }
 
 @Composable
 private fun TopBarIconButton(icon: ImageVector, enabled: Boolean = true, tooltip: String = "", onClick: () -> Unit) {
-    var showTooltip by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    LaunchedEffect(isHovered) {
-        if (isHovered && tooltip.isNotEmpty()) { delay(400); showTooltip = true } else { showTooltip = false }
-    }
-
-    Box {
-        IconButton(onClick = onClick, enabled = enabled, modifier = Modifier.size(UiDimensions.IconButtonSize.scaled())
-            .hoverable(interactionSource)) {
-            Icon(icon, null, tint = if (enabled) EditorColors.textPrimary.copy(alpha = 0.7f) else EditorColors.textMuted, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
-        }
-        if (showTooltip && tooltip.isNotEmpty()) {
-            Box(
-                modifier = Modifier.offset(x = (UiDimensions.IconButtonSize + 6.dp).scaled(), y = 4.dp.scaled()).zIndex(2000f)
-                    .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.surface)
-                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-            ) {
-                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
-            }
-        }
+    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier
+        .size(UiDimensions.IconButtonSize.scaled())
+        .hoverable(interactionSource)
+        .tooltipAnchor(tooltip, enabled = enabled)) {
+        Icon(icon, null, tint = if (enabled) EditorColors.textPrimary.copy(alpha = 0.7f) else EditorColors.textMuted, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
     }
 }
 

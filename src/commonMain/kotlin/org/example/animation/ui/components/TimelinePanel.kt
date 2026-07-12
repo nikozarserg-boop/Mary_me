@@ -17,10 +17,9 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.zIndex
-import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
+import org.example.animation.ui.components.tooltip.tooltipAnchor
 import org.example.animation.ui.theme.*
 
 @Composable
@@ -220,22 +219,17 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
 @Composable
 private fun TControlBtn(icon: ImageVector, tooltip: String = "", onClick: () -> Unit) {
-    var showTooltip by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    LaunchedEffect(isHovered) {
-        if (isHovered && tooltip.isNotEmpty()) { delay(400); showTooltip = true } else { showTooltip = false }
+    val backgroundColor = when {
+        isPressed -> EditorColors.accent.copy(alpha = 0.3f)
+        isHovered -> EditorColors.hover
+        else -> EditorColors.surfaceVariant.copy(alpha = 0.2f)
     }
 
     Box {
-        val backgroundColor = when {
-            isPressed -> EditorColors.accent.copy(alpha = 0.3f)
-            isHovered -> EditorColors.hover
-            else -> EditorColors.surfaceVariant.copy(alpha = 0.2f)
-        }
-
         Box(
             modifier = Modifier
                 .size(28.dp.scaled())
@@ -247,6 +241,7 @@ private fun TControlBtn(icon: ImageVector, tooltip: String = "", onClick: () -> 
                     shape = RoundedCornerShape(6.dp.scaled())
                 )
                 .pointerHoverIcon(PointerIcon.Hand)
+                .tooltipAnchor(tooltip)
                 .hoverable(interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
@@ -261,17 +256,6 @@ private fun TControlBtn(icon: ImageVector, tooltip: String = "", onClick: () -> 
                 modifier = Modifier.size(16.dp.scaled())
             )
         }
-        if (showTooltip && tooltip.isNotEmpty()) {
-            Box(
-                modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
-                    .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.surface)
-                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-            ) {
-                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
-            }
-        }
     }
 }
 
@@ -282,22 +266,17 @@ private fun TimelineFrameActionBtn(
     iconTint: Color,
     onClick: () -> Unit
 ) {
-    var showTooltip by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    LaunchedEffect(isHovered) {
-        if (isHovered && tooltip.isNotEmpty()) { delay(400); showTooltip = true } else { showTooltip = false }
+    val backgroundColor = when {
+        isPressed -> iconTint.copy(alpha = 0.35f)
+        isHovered -> iconTint.copy(alpha = 0.2f)
+        else -> EditorColors.surfaceVariant.copy(alpha = 0.15f)
     }
 
     Box(contentAlignment = Alignment.Center) {
-        val backgroundColor = when {
-            isPressed -> iconTint.copy(alpha = 0.35f)
-            isHovered -> iconTint.copy(alpha = 0.2f)
-            else -> EditorColors.surfaceVariant.copy(alpha = 0.15f)
-        }
-
         Box(
             modifier = Modifier
                 .size(30.dp.scaled())
@@ -309,6 +288,7 @@ private fun TimelineFrameActionBtn(
                     shape = RoundedCornerShape(6.dp.scaled())
                 )
                 .pointerHoverIcon(PointerIcon.Hand)
+                .tooltipAnchor(tooltip)
                 .hoverable(interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
@@ -323,34 +303,18 @@ private fun TimelineFrameActionBtn(
                 modifier = Modifier.size(16.dp.scaled())
             )
         }
-        if (showTooltip && tooltip.isNotEmpty()) {
-            Box(
-                modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
-                    .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.surface)
-                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-            ) {
-                Text(tooltip, style = EditorTypography.toolText(), color = EditorColors.textPrimary, maxLines = 1)
-            }
-        }
     }
 }
 
 @Composable
 private fun PlayPauseBtn(isPlaying: Boolean, onClick: () -> Unit) {
-    var showTooltip by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
     val isPressed by interactionSource.collectIsPressedAsState()
 
-    LaunchedEffect(isHovered) {
-        if (isHovered) { delay(400); showTooltip = true } else { showTooltip = false }
-    }
+    val backgroundColor = if (isPlaying) EditorColors.accent.copy(alpha = 0.15f) else EditorColors.accent.copy(alpha = 0.25f)
 
     Box(contentAlignment = Alignment.Center) {
-        val backgroundColor = if (isPlaying) EditorColors.accent.copy(alpha = 0.15f) else EditorColors.accent.copy(alpha = 0.25f)
-
         Box(
             modifier = Modifier
                 .size(36.dp.scaled())
@@ -362,6 +326,7 @@ private fun PlayPauseBtn(isPlaying: Boolean, onClick: () -> Unit) {
                     shape = RoundedCornerShape(8.dp.scaled())
                 )
                 .pointerHoverIcon(PointerIcon.Hand)
+                .tooltipAnchor(if (isPlaying) EditorStrings.observeString("pause") else EditorStrings.observeString("play"))
                 .hoverable(interactionSource)
                 .clickable(
                     interactionSource = interactionSource,
@@ -376,22 +341,6 @@ private fun PlayPauseBtn(isPlaying: Boolean, onClick: () -> Unit) {
                 tint = EditorColors.accent,
                 modifier = Modifier.size(22.dp.scaled())
             )
-        }
-        if (showTooltip) {
-            Box(
-                modifier = Modifier.offset(y = 18.dp.scaled()).zIndex(2000f)
-                    .clip(RoundedCornerShape(4.dp.scaled()))
-                    .background(EditorColors.surface)
-                    .border(1.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
-                    .padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled())
-            ) {
-                Text(
-                    if (isPlaying) EditorStrings.observeString("pause") else EditorStrings.observeString("play"),
-                    style = EditorTypography.toolText(),
-                    color = EditorColors.textPrimary,
-                    maxLines = 1
-                )
-            }
         }
     }
 }

@@ -22,6 +22,9 @@ import org.example.animation.io.ProjectSerializer
 import org.example.animation.io.createPlatformFileHandler
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.components.*
+import org.example.animation.ui.components.tooltip.LocalTooltipManager
+import org.example.animation.ui.components.tooltip.TooltipHost
+import org.example.animation.ui.components.tooltip.TooltipManager
 import org.example.animation.ui.theme.*
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 
@@ -107,6 +110,7 @@ fun App(
             onDispose { projectManager.engines.value.forEach { it.cleanup() } }
         }
 
+        CompositionLocalProvider(LocalTooltipManager provides remember { TooltipManager() }) {
         EditorTheme(themeType = currentTheme, uiScale = effectiveScale) {
             Box(modifier = Modifier.fillMaxSize()) {
                 Surface(modifier = Modifier.fillMaxSize(), color = EditorColors.background) {
@@ -298,6 +302,10 @@ fun App(
                     }
                 }
             }
+
+            // Глобальный слой tooltip'ов (Popup, НЕ влияет на layout).
+            TooltipHost()
         }
-    }
+        }
+        }
 }
