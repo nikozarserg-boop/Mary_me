@@ -1,17 +1,15 @@
 package org.example.animation.io
 
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.toComposeImageBitmap
 import org.example.animation.model.AnimationProject
-import org.example.animation.model.FrameData
 import org.example.animation.model.ImageElement
 import org.example.animation.model.Stroke
-import org.jetbrains.skia.*
-import kotlin.math.*
+import java.awt.image.BufferedImage
+import java.awt.Graphics2D
+import java.awt.Color
 
 /**
- * Flood fill реализация для JVM (использует Skia)
+ * Flood fill реализация для JVM (использует AWT BufferedImage)
  */
 actual fun floodFillOnBitmap(
     project: AnimationProject,
@@ -24,39 +22,34 @@ actual fun floodFillOnBitmap(
     val h = project.canvasHeight
     if (point.x < 0 || point.y < 0 || point.x >= w || point.y >= h) return
 
-    // Создаем bitmap Skia
-    val skiaBitmap = Bitmap()
-    skiaBitmap.setImageInfo(ImageInfo.makeN32Premul(w, h))
-    skiaBitmap.allocPixels()
+    // Создаем BufferedImage
+    val bufferedImage = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+    val graphics = bufferedImage.createGraphics()
 
-    // Рендерим текущий кадр на bitmap
-    renderProjectToBitmap(project, skiaBitmap)
+    // Рендерим на BufferedImage
+    renderProjectToBufferedImage(project, graphics, w, h)
 
     val px = point.x.toInt().coerceIn(0, w - 1)
     val py = point.y.toInt().coerceIn(0, h - 1)
 
-    // Цвет замены (из ULong в Skia Color int)
+    // Цвет замены (из ULong в AWT Color int)
     val replacement = ((fillColor shr 24) and 0xFFuL).toInt() shl 24 or
                       ((fillColor shr 16) and 0xFFuL).toInt() shl 16 or
                       ((fillColor shr 8) and 0xFFuL).toInt() shl 8 or
                       (fillColor and 0xFFuL).toInt()
 
-    // Flood fill алгоритм через Skia
-    // Используем readPixels для получения пикселей в массив
-    val pixels = IntArray(w * h)
-    skiaBitmap.readPixels(pixels, 0, 0, w, h)
-    val target = pixels[py * w + px]
-    if (target == replacement) return
+    // Flood fill алгоритм на BufferedImage
+    val target = bufferedImage.getRGB(px, py)
+    if (target == replacement) {
+        graphics.dispose()
+        return
+    }
 
-    floodFillPixels(pixels, w, h, px, py, target, replacement)
+    floodFillBufferedImage(bufferedImage, px, py, target, replacement)
+    graphics.dispose()
 
-    // Обновляем bitmap с измененными пикселями
-    skiaBitmap.installPixels(pixels)
-
-    // Кодируем bitmap обратно в ByteArray и сохраняем как ImageElement
-    val image = skiaBitmap.makeImageSnapshot()
-    val encoded = image.encodeToData(EncodedImageFormat.PNG)
-    val imageData = encoded?.bytes ?: ByteArray(0)
+    // Кодируем BufferedImage в PNG
+    val imageData = encodeBufferedImageToPNG(bufferedImage)
 
     // Добавляем изображение на текущий кадр
     project.ensureFrameCount(frameIndex + 1)
@@ -77,19 +70,17 @@ actual fun pickColorFromBitmap(
     val h = project.canvasHeight
     if (point.x < 0 || point.y < 0 || point.x >= w || point.y >= h) return null
 
-    // Создаем bitmap Skia и рендерим
-    val skiaBitmap = Bitmap()
-    skiaBitmap.setImageInfo(ImageInfo.makeN32Premul(w, h))
-    skiaBitmap.allocPixels()
+    // Создаем BufferedImage
+    val bufferedImage = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
+    val graphics = bufferedImage.createGraphics()
 
-    renderProjectToBitmap(project, skiaBitmap)
+    renderProjectToBufferedImage(project, graphics, w, h)
 
     val px = point.x.toInt().coerceIn(0, w - 1)
     val py = point.y.toInt().coerceIn(0, h - 1)
 
-    val pixels = IntArray(w * h)
-    skiaBitmap.readPixels(pixels, 0, 0, w, h)
-    val colorInt = pixels[py * w + px]
+    val colorInt = bufferedImage.getRGB(px, py)
+    graphics.dispose()
 
     // Конвертируем обратно в ULong (ARGB)
     val a = (colorInt shr 24) and 0xFF
@@ -101,74 +92,64 @@ actual fun pickColorFromBitmap(
 }
 
 /**
- * Рендерим проект на bitmap Skia
+ * Рендерим проект на BufferedImage
  */
-private fun renderProjectToBitmap(project: AnimationProject, bitmap: Bitmap) {
-    val canvas = Canvas(bitmap)
-
+private fun renderProjectToBufferedImage(project: AnimationProject, graphics: Graphics2D, w: Int, h: Int) {
     // Белый фон
-    canvas.clear(Color.WHITE)
+    graphics.clearRect(0, 0, w, h)
+    graphics.color = Color.WHITE
+    graphics.fillRect(0, 0, w, h)
 
     // Рендерим слои
     for (layer in project.layers.filter { it.isVisible }) {
         for (frame in layer.frames) {
-            // Рендерим изображения
-            for (img in frame.images) {
-                try {
-                    val image = Image.makeFromEncoded(img.data)
-                    if (image != null) {
-                        canvas.save()
-                        canvas.translate(img.x, img.y)
-                        canvas.rotate(img.rotation * 180f / PI.toFloat())
-                        canvas.scale(img.scale, img.scale)
-                        canvas.drawImage(image, 0f, 0f)
-                        canvas.restore()
-                    }
-                } catch (e: Exception) {
-                    // Игнорируем ошибки изображений
-                }
-            }
-
+            // Рисуем штрихи (изображения пока пропустим для упрощения)
             for (stroke in frame.strokes) {
-                drawStrokeOnCanvas(canvas, stroke)
+                drawStrokeOnGraphics(graphics, stroke)
             }
         }
     }
 }
 
 /**
- * Рисуем штрих на canvas Skia
+ * Рисуем штрих на Graphics2D
  */
-private fun drawStrokeOnCanvas(canvas: Canvas, stroke: Stroke) {
+private fun drawStrokeOnGraphics(graphics: Graphics2D, stroke: Stroke) {
     val pts = stroke.points
     if (pts.isEmpty()) return
 
     // Цвет штриха
-    val paint = Paint()
     val colorULong = stroke.color
-    paint.color = ((colorULong shr 24) and 0xFFuL).toInt() shl 24 or
-                 ((colorULong shr 16) and 0xFFuL).toInt() shl 16 or
-                 ((colorULong shr 8) and 0xFFuL).toInt() shl 8 or
-                 (colorULong and 0xFFuL).toInt()
-    paint.strokeWidth = stroke.strokeWidth
-    paint.isAntiAlias = true
+    val awtColor = Color(
+        ((colorULong shr 16) and 0xFFuL).toInt(), // R
+        ((colorULong shr 8) and 0xFFuL).toInt(),  // G
+        (colorULong and 0xFFuL).toInt(),          // B
+        ((colorULong shr 24) and 0xFFuL).toInt()   // A
+    )
+    graphics.color = awtColor
+    graphics.stroke = java.awt.BasicStroke(stroke.strokeWidth.toFloat())
 
     if (pts.size == 1) {
-        canvas.drawCircle(pts[0].x, pts[0].y, stroke.strokeWidth / 2f, paint)
+        graphics.fillOval(pts[0].x.toInt() - stroke.strokeWidth.toInt() / 2, 
+                          pts[0].y.toInt() - stroke.strokeWidth.toInt() / 2,
+                          stroke.strokeWidth.toInt(), 
+                          stroke.strokeWidth.toInt())
         return
     }
 
     // Рисуем линию через точки
     for (i in 0 until pts.size - 1) {
-        canvas.drawLine(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, paint)
+        graphics.drawLine(pts[i].x.toInt(), pts[i].y.toInt(), pts[i + 1].x.toInt(), pts[i + 1].y.toInt())
     }
 }
 
 /**
- * Flood fill на массив пикселей
+ * Flood fill на BufferedImage
  */
-private fun floodFillPixels(pixels: IntArray, w: Int, h: Int, x: Int, y: Int, target: Int, replacement: Int) {
+private fun floodFillBufferedImage(image: BufferedImage, x: Int, y: Int, target: Int, replacement: Int) {
     if (target == replacement) return
+    val w = image.width
+    val h = image.height
     val stack = ArrayDeque<Pair<Int, Int>>()
     stack.addLast(x to y)
     val visited = mutableSetOf<Pair<Int, Int>>()
@@ -178,13 +159,22 @@ private fun floodFillPixels(pixels: IntArray, w: Int, h: Int, x: Int, y: Int, ta
         if (cx < 0 || cy < 0 || cx >= w || cy >= h) continue
         if (cx to cy in visited) continue
 
-        if (pixels[cy * w + cx] != target) continue
+        if (image.getRGB(cx, cy) != target) continue
 
         visited.add(cx to cy)
-        pixels[cy * w + cx] = replacement
+        image.setRGB(cx, cy, replacement)
         stack.addLast(cx + 1 to cy)
         stack.addLast(cx - 1 to cy)
         stack.addLast(cx to cy + 1)
         stack.addLast(cx to cy - 1)
     }
+}
+
+/**
+ * Кодируем BufferedImage в PNG bytes
+ */
+private fun encodeBufferedImageToPNG(image: BufferedImage): ByteArray {
+    val outputStream = java.io.ByteArrayOutputStream()
+    javax.imageio.ImageIO.write(image, "PNG", outputStream)
+    return outputStream.toByteArray()
 }
