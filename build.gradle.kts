@@ -1,5 +1,6 @@
 plugins {
     kotlin("multiplatform") version "2.2.21"
+    kotlin("plugin.serialization") version "2.2.21"
     id("org.jetbrains.compose") version "1.7.3"
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.21"
     id("com.android.application") version "8.7.3"
@@ -50,6 +51,7 @@ kotlin {
                 implementation(compose.material)
                 implementation(compose.ui)
                 implementation(compose.components.resources)
+                implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
             }
         }
         
