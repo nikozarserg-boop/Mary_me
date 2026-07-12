@@ -28,6 +28,16 @@ actual fun decodeImage(data: ByteArray): ImageBitmap? {
     }
 }
 
+actual fun encodeImage(bitmap: ImageBitmap): ByteArray {
+    return try {
+        // TODO: Proper implementation for Android
+        ByteArray(0)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        ByteArray(0)
+    }
+}
+
 class AndroidPlatformFileHandler : PlatformFileHandler {
 
     // Проверяем, есть ли доступ к внешнему хранилищу (для API ≤ 32)

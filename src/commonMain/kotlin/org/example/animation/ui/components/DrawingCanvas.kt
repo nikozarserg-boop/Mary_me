@@ -54,11 +54,16 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val ghostFramesEnabled by engine.ghostFramesEnabled.collectAsState()
     val ghostFramesBefore by engine.ghostFramesBefore.collectAsState()
     val ghostFramesAfter by engine.ghostFramesAfter.collectAsState()
-    
+
     val activeStroke by engine.activeStroke.collectAsState()
 
+    // Состояние для фигур (превью во время рисования)
+    var shapePreview by remember { mutableStateOf<ShapePreview?>(null) }
+    // Состояние для выделения (SELECT)
+    var selectionRect by remember { mutableStateOf<SelectionRect?>(null) }
+
     val framesForRender = remember(
-        project, currentFrameIndex, 
+        project, currentFrameIndex,
         ghostFramesEnabled, ghostFramesBefore, ghostFramesAfter
     ) {
         engine.getFramesForRendering()
@@ -67,6 +72,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val toolCursor = when (currentTool) {
         ToolType.MOVE -> PointerIcon.Hand
         ToolType.EYEDROPPER -> PointerIcon.Crosshair
+        ToolType.FILL -> PointerIcon.Crosshair
         else -> PointerIcon.Default
     }
 
@@ -90,73 +96,81 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
                     awaitEachGesture {
                         val down = awaitFirstDown(requireUnconsumed = false)
-                        
+                        val startCanvas = screenToCanvas(
+                            down.position,
+                            engine.panOffset.value,
+                            engine.zoom.value,
+                            engine.rotation.value,
+                            viewportSize,
+                            project.canvasWidth.toFloat(),
+                            project.canvasHeight.toFloat()
+                        )
+
+                        // Инструменты мульти-тач / перемещение камеры
                         if (currentTool == ToolType.MOVE) {
                             var previousPosition = down.position
-                            // Для мультитача (зум/пан/поворот)
                             var lastDistance = 0f
                             var lastAngle = 0f
-                            
                             do {
                                 val event = awaitPointerEvent()
                                 val pressed = event.changes.filter { it.pressed }
-                                
                                 if (pressed.size >= 2) {
                                     val p1 = pressed[0].position
                                     val p2 = pressed[1].position
-                                    
                                     val currentDistance = (p1 - p2).getDistance()
                                     val currentAngle = atan2(p2.y - p1.y, p2.x - p1.x) * 180f / PI.toFloat()
-                                    
                                     if (lastDistance > 0) {
-                                        val zoomFactor = currentDistance / lastDistance
-                                        engine.setZoom(engine.zoom.value * zoomFactor)
-                                        
-                                        val angleDelta = currentAngle - lastAngle
-                                        engine.setRotation(engine.rotation.value + angleDelta)
-                                        
-                                        // Пан при мультитаче
+                                        engine.setZoom(engine.zoom.value * (currentDistance / lastDistance))
+                                        engine.setRotation(engine.rotation.value + (currentAngle - lastAngle))
                                         val center = (p1 + p2) / 2f
                                         val prevCenter = (pressed[0].previousPosition + pressed[1].previousPosition) / 2f
                                         engine.setPanOffset(engine.panOffset.value + (center - prevCenter))
                                     }
-                                    
                                     lastDistance = currentDistance
                                     lastAngle = currentAngle
                                     event.changes.forEach { it.consume() }
                                 } else if (pressed.size == 1) {
                                     val dragChange = pressed.firstOrNull { it.id == down.id }
                                     if (dragChange != null) {
-                                        val currentPosition = dragChange.position
-                                        val delta = currentPosition - previousPosition
+                                        val delta = dragChange.position - previousPosition
                                         engine.setPanOffset(engine.panOffset.value + delta)
-                                        previousPosition = currentPosition
+                                        previousPosition = dragChange.position
                                         dragChange.consume()
                                     }
                                     lastDistance = 0f
                                 }
                             } while (event.changes.any { it.pressed })
-                        } else {
-                            val startPos = screenToCanvas(
-                                down.position, 
-                                engine.panOffset.value, 
-                                engine.zoom.value, 
-                                engine.rotation.value,
-                                viewportSize,
-                                project.canvasWidth.toFloat(),
-                                project.canvasHeight.toFloat()
-                            )
-                            engine.startStroke(startPos)
-                            down.consume()
+                            return@awaitEachGesture
+                        }
 
+                        // Заливка: одиночное нажатие
+                        if (currentTool == ToolType.FILL) {
+                            engine.floodFillAt(startCanvas, engine.currentColor.value)
+                            down.consume()
+                            return@awaitEachGesture
+                        }
+
+                        // Пипетка: одиночное нажатие
+                        if (currentTool == ToolType.EYEDROPPER) {
+                            engine.pickColorAt(startCanvas)?.let { engine.setCurrentColor(it) }
+                            down.consume()
+                            return@awaitEachGesture
+                        }
+
+                        // Свободное рисование (кисть/карандаш/перо/ластик)
+                        if (currentTool == ToolType.BRUSH || currentTool == ToolType.PENCIL ||
+                            currentTool == ToolType.PEN || currentTool == ToolType.ERASER
+                        ) {
+                            engine.startStroke(startCanvas)
+                            down.consume()
                             do {
                                 val event = awaitPointerEvent()
                                 val moveChange = event.changes.firstOrNull { it.id == down.id }
                                 if (moveChange != null) {
                                     val currentPos = screenToCanvas(
-                                        moveChange.position, 
-                                        engine.panOffset.value, 
-                                        engine.zoom.value, 
+                                        moveChange.position,
+                                        engine.panOffset.value,
+                                        engine.zoom.value,
                                         engine.rotation.value,
                                         viewportSize,
                                         project.canvasWidth.toFloat(),
@@ -166,8 +180,63 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                     moveChange.consume()
                                 }
                             } while (event.changes.any { it.pressed })
-                            
                             engine.endStroke()
+                            return@awaitEachGesture
+                        }
+
+                        // Геометрические фигуры (линия, прямоугольник, эллипс) — превью + фиксация
+                        if (currentTool == ToolType.LINE || currentTool == ToolType.RECTANGLE ||
+                            currentTool == ToolType.ELLIPSE
+                        ) {
+                            shapePreview = ShapePreview(currentTool, startCanvas, startCanvas)
+                            down.consume()
+                            do {
+                                val event = awaitPointerEvent()
+                                val moveChange = event.changes.firstOrNull { it.id == down.id }
+                                if (moveChange != null) {
+                                    val currentPos = screenToCanvas(
+                                        moveChange.position,
+                                        engine.panOffset.value,
+                                        engine.zoom.value,
+                                        engine.rotation.value,
+                                        viewportSize,
+                                        project.canvasWidth.toFloat(),
+                                        project.canvasHeight.toFloat()
+                                    )
+                                    shapePreview = ShapePreview(currentTool, startCanvas, currentPos)
+                                    moveChange.consume()
+                                }
+                            } while (event.changes.any { it.pressed })
+                            shapePreview?.let { engine.addShapeStroke(it.tool, it.start, it.end) }
+                            shapePreview = null
+                            return@awaitEachGesture
+                        }
+
+                        // Выделение (SELECT) — запоминаем рамку, превью
+                        if (currentTool == ToolType.SELECT) {
+                            selectionRect = SelectionRect(startCanvas, startCanvas)
+                            down.consume()
+                            do {
+                                val event = awaitPointerEvent()
+                                val moveChange = event.changes.firstOrNull { it.id == down.id }
+                                if (moveChange != null) {
+                                    val currentPos = screenToCanvas(
+                                        moveChange.position,
+                                        engine.panOffset.value,
+                                        engine.zoom.value,
+                                        engine.rotation.value,
+                                        viewportSize,
+                                        project.canvasWidth.toFloat(),
+                                        project.canvasHeight.toFloat()
+                                    )
+                                    selectionRect = SelectionRect(startCanvas, currentPos)
+                                    moveChange.consume()
+                                }
+                            } while (event.changes.any { it.pressed })
+                            // Для SELECT пока просто сохраняем рамку (визуальная отметка),
+                            // реальное перемещение содержимого можно добавить позже.
+                            selectionRect = null
+                            return@awaitEachGesture
                         }
                     }
                 }
@@ -187,7 +256,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
         ) {
             val cw = project.canvasWidth.toFloat()
             val ch = project.canvasHeight.toFloat()
-            
+
             val cx = size.width / 2f
             val cy = size.height / 2f
 
@@ -201,19 +270,17 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                 topLeft = Offset(4f/zoom, 4f/zoom),
                                 size = Size(cw, ch)
                             )
-                            
+
                             clipRect(left = 0f, top = 0f, right = cw, bottom = ch) {
                                 drawRect(color = Color.White, topLeft = Offset.Zero, size = Size(cw, ch))
-                                
+
                                 for (frame in framesForRender) {
                                     val alpha = if (frame.isCurrent) 1f else frame.opacity
-                                    
-                                    // Отрисовка изображений
+
                                     for (image in frame.images) {
                                         drawImageElement(image, alpha)
                                     }
 
-                                    // Отрисовка штрихов
                                     for (stroke in frame.strokes) {
                                         drawStrokeWithColor(stroke, if (frame.isCurrent) null else Color(0x440099FF), alpha)
                                     }
@@ -222,12 +289,17 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                 activeStroke?.let {
                                     drawStrokeWithColor(it)
                                 }
+
+                                // Превью фигуры
+                                shapePreview?.let { preview ->
+                                    drawShapePreview(preview, engine)
+                                }
                             }
 
                             drawRect(
-                                color = EditorColors.canvasBorder, 
-                                topLeft = Offset.Zero, 
-                                size = Size(cw, ch), 
+                                color = EditorColors.canvasBorder,
+                                topLeft = Offset.Zero,
+                                size = Size(cw, ch),
                                 style = Stroke(width = 1f/zoom)
                             )
                         }
@@ -236,7 +308,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
             }
         }
 
-        // UI Индикатор зума и поворота - Дизайн обновлен
+        // UI Индикатор зума и поворота
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -251,32 +323,30 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp.scaled())
             ) {
-                // Блок Зума
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ZoomButton(EditorIcons.iconRemove) { engine.setZoom(zoom * 0.8f) }
                     Box(
                         modifier = Modifier
                             .width(54.dp.scaled())
-                            .clickable { engine.setZoom(1f) }, 
+                            .clickable { engine.setZoom(1f) },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("${(zoom * 100).toInt()}%", color = EditorColors.textPrimary, style = EditorTypography.mono(), fontSize = 11.sp.scaled())
                     }
                     ZoomButton(EditorIcons.iconAdd) { engine.setZoom(zoom * 1.25f) }
                 }
-                
+
                 Box(modifier = Modifier.width(1.dp.scaled()).height(16.dp.scaled()).background(EditorColors.divider.copy(alpha = 0.5f)))
-                
-                // Блок Поворота
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ZoomButton(EditorIcons.iconRotateLeft) { engine.setRotation(rotation - 15f) }
                     Box(
                         modifier = Modifier
                             .width(48.dp.scaled())
-                            .clickable { 
+                            .clickable {
                                 engine.setRotation(0f)
                                 engine.setPanOffset(Offset.Zero)
-                            }, 
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Text("${rotation.toInt()}°", color = EditorColors.textPrimary, style = EditorTypography.mono(), fontSize = 11.sp.scaled())
@@ -287,6 +357,9 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
         }
     }
 }
+
+private data class ShapePreview(val tool: ToolType, val start: Offset, val end: Offset)
+private data class SelectionRect(val start: Offset, val end: Offset)
 
 @Composable
 private fun ZoomButton(icon: ImageVector, onClick: () -> Unit) {
@@ -300,10 +373,33 @@ private fun ZoomButton(icon: ImageVector, onClick: () -> Unit) {
         contentAlignment = Alignment.Center
     ) {
         Icon(
-            icon, null, 
-            tint = EditorColors.textPrimary, 
+            icon, null,
+            tint = EditorColors.textPrimary,
             modifier = Modifier.size(16.dp.scaled())
         )
+    }
+}
+
+private fun DrawScope.drawShapePreview(preview: ShapePreview, engine: AnimationEngine) {
+    val color = ulongToColor(engine.currentColor.value).copy(alpha = engine.opacity.value)
+    val strokeStyle = Stroke(width = engine.brushSize.value, cap = StrokeCap.Round, join = StrokeJoin.Round)
+    when (preview.tool) {
+        ToolType.LINE -> {
+            drawLine(color = color, start = preview.start, end = preview.end, strokeWidth = engine.brushSize.value, cap = StrokeCap.Round)
+        }
+        ToolType.RECTANGLE -> {
+            val p1 = Offset(minOf(preview.start.x, preview.end.x), minOf(preview.start.y, preview.end.y))
+            val p2 = Offset(maxOf(preview.start.x, preview.end.x), maxOf(preview.start.y, preview.end.y))
+            drawRect(color = color, topLeft = p1, size = Size(p2.x - p1.x, p2.y - p1.y), style = strokeStyle)
+        }
+        ToolType.ELLIPSE -> {
+            val cx = (preview.start.x + preview.end.x) / 2f
+            val cy = (preview.start.y + preview.end.y) / 2f
+            val rx = abs(preview.end.x - preview.start.x) / 2f
+            val ry = abs(preview.end.y - preview.start.y) / 2f
+            drawOval(color = color, topLeft = Offset(cx - rx, cy - ry), size = Size(rx * 2f, ry * 2f), style = strokeStyle)
+        }
+        else -> {}
     }
 }
 
@@ -325,8 +421,8 @@ private fun DrawScope.drawStrokeWithColor(stroke: Stroke, overrideColor: Color? 
     }
 
     drawPath(
-        path = path, 
-        color = color, 
+        path = path,
+        color = color,
         style = Stroke(width = stroke.strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round)
     )
 }
@@ -335,7 +431,7 @@ private fun DrawScope.drawImageElement(image: ImageElement, alpha: Float) {
     val bitmap = imageCache.getOrPut(image.id) {
         decodeImage(image.data) ?: return
     }
-    
+
     withTransform({
         translate(image.x, image.y)
         rotate(image.rotation, Offset(bitmap.width / 2f, bitmap.height / 2f))
@@ -346,9 +442,9 @@ private fun DrawScope.drawImageElement(image: ImageElement, alpha: Float) {
 }
 
 private fun screenToCanvas(
-    screenPos: Offset, 
-    panOffset: Offset, 
-    scale: Float, 
+    screenPos: Offset,
+    panOffset: Offset,
+    scale: Float,
     rotationDeg: Float,
     viewportSize: Size,
     canvasWidth: Float,
@@ -356,20 +452,17 @@ private fun screenToCanvas(
 ): Offset {
     val cx = viewportSize.width / 2f
     val cy = viewportSize.height / 2f
-    
-    // 1. Убираем трансляцию центра экрана и панораму
+
     var x = screenPos.x - (cx + panOffset.x)
     var y = screenPos.y - (cy + panOffset.y)
-    
-    // 2. Обратный поворот (вокруг Pivot = Zero, который сейчас в центре экрана + pan)
+
     val rad = -rotationDeg * PI.toFloat() / 180f
     val cosR = cos(rad)
     val sinR = sin(rad)
-    
+
     val rx = x * cosR - y * sinR
     val ry = x * sinR + y * cosR
-    
-    // 3. Делим на зум и добавляем смещение к центру холста
+
     return Offset(
         rx / scale + canvasWidth / 2f,
         ry / scale + canvasHeight / 2f

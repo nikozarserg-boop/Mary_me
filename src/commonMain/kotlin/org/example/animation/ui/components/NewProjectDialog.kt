@@ -29,9 +29,12 @@ fun NewProjectDialog(
     var width by remember { mutableStateOf("1280") }
     var height by remember { mutableStateOf("720") }
     var fps by remember { mutableStateOf("24") }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var sizeError by remember { mutableStateOf<String?>(null) }
 
+    // Нельзя выйти иначе чем по "Отмена": фон не перехватывает клики для закрытия
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable { onCancel() },
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
         contentAlignment = Alignment.Center
     ) {
         Surface(
@@ -48,11 +51,11 @@ fun NewProjectDialog(
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header (Fixed)
                 Text(
-                    EditorStrings.observeString("dialog.newProject"), 
+                    EditorStrings.observeString("dialog.newProject"),
                     style = EditorTypography.body().copy(fontSize = 18.sp.scaled(), fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(20.dp.scaled())
                 )
-                
+
                 // Scrollable Content
                 Column(
                     modifier = Modifier
@@ -63,16 +66,23 @@ fun NewProjectDialog(
                     Text(EditorStrings.observeString("project.name"), style = EditorTypography.caption())
                     OutlinedTextField(
                         value = name,
-                        onValueChange = { name = it },
+                        onValueChange = {
+                            name = it
+                            nameError = if (it.isBlank()) EditorStrings["project.nameRequired"] else null
+                        },
                         modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
                         textStyle = EditorTypography.body(),
                         singleLine = true,
+                        isError = nameError != null,
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = EditorColors.accent,
                             backgroundColor = EditorColors.background,
                             unfocusedBorderColor = EditorColors.divider
                         )
                     )
+                    if (nameError != null) {
+                        Text(nameError!!, color = EditorColors.accentRed, fontSize = 11.sp.scaled(), modifier = Modifier.padding(top = 4.dp.scaled()))
+                    }
 
                     Spacer(Modifier.height(16.dp.scaled()))
 
@@ -81,13 +91,18 @@ fun NewProjectDialog(
                             Text(EditorStrings.observeString("project.width"), style = EditorTypography.caption())
                             OutlinedTextField(
                                 value = width,
-                                onValueChange = { width = it.filter { c -> c.isDigit() } },
+                                onValueChange = {
+                                    width = it.filter { c -> c.isDigit() }.take(5)
+                                    sizeError = null
+                                },
                                 modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
                                 textStyle = EditorTypography.mono(),
                                 singleLine = true,
+                                isError = sizeError != null,
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     focusedBorderColor = EditorColors.accent,
-                                    backgroundColor = EditorColors.background
+                                    backgroundColor = EditorColors.background,
+                                    unfocusedBorderColor = EditorColors.divider
                                 )
                             )
                         }
@@ -96,13 +111,18 @@ fun NewProjectDialog(
                             Text(EditorStrings.observeString("project.height"), style = EditorTypography.caption())
                             OutlinedTextField(
                                 value = height,
-                                onValueChange = { height = it.filter { c -> c.isDigit() } },
+                                onValueChange = {
+                                    height = it.filter { c -> c.isDigit() }.take(5)
+                                    sizeError = null
+                                },
                                 modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
                                 textStyle = EditorTypography.mono(),
                                 singleLine = true,
+                                isError = sizeError != null,
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     focusedBorderColor = EditorColors.accent,
-                                    backgroundColor = EditorColors.background
+                                    backgroundColor = EditorColors.background,
+                                    unfocusedBorderColor = EditorColors.divider
                                 )
                             )
                         }
@@ -113,44 +133,48 @@ fun NewProjectDialog(
                     Text(EditorStrings.observeString("canvas.fps"), style = EditorTypography.caption())
                     OutlinedTextField(
                         value = fps,
-                        onValueChange = { fps = it.filter { c -> c.isDigit() } },
+                        onValueChange = { fps = it.filter { c -> c.isDigit() }.take(3) },
                         modifier = Modifier.width(100.dp.scaled()).height(40.dp.scaled()),
                         textStyle = EditorTypography.mono(),
                         singleLine = true,
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = EditorColors.accent,
-                            backgroundColor = EditorColors.background
+                            backgroundColor = EditorColors.background,
+                            unfocusedBorderColor = EditorColors.divider
                         )
                     )
-                    
+
+                    if (sizeError != null) {
+                        Text(sizeError!!, color = EditorColors.accentRed, fontSize = 11.sp.scaled(), modifier = Modifier.padding(top = 4.dp.scaled()))
+                    }
+
                     Spacer(Modifier.height(20.dp.scaled()))
                 }
 
                 Divider(color = EditorColors.divider)
 
                 // Footer (Fixed)
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp.scaled()), 
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onCancel) {
-                        Text(EditorStrings.observeString("cancel"), style = EditorTypography.body(), color = EditorColors.textSecondary)
-                    }
-                    Spacer(Modifier.width(12.dp.scaled()))
-                    Button(
-                        onClick = {
-                            val w = width.toIntOrNull() ?: 1280
-                            val h = height.toIntOrNull() ?: 720
-                            val f = fps.toIntOrNull() ?: 24
-                            onCreate(AnimationProject(name = name, canvasWidth = w, canvasHeight = h, fps = f))
-                        },
-                        colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
-                        shape = EditorShapes.medium,
-                        modifier = Modifier.height(36.dp.scaled())
-                    ) {
-                        Text(EditorStrings.observeString("btn.create"), color = Color.White, style = EditorTypography.body().copy(fontWeight = FontWeight.Bold))
-                    }
-                }
+                DialogButtonRow(
+                    cancelText = EditorStrings.observeString("cancel"),
+                    confirmText = EditorStrings.observeString("btn.create"),
+                    onCancel = onCancel,
+                    onConfirm = {
+                        val w = width.toIntOrNull()
+                        val h = height.toIntOrNull()
+                        val f = fps.toIntOrNull()
+                        val nameOk = name.isNotBlank()
+                        val sizeOk = (w != null && w in 1..10000) && (h != null && h in 1..10000) && (f != null && f in 1..240)
+                        nameError = if (!nameOk) EditorStrings["project.nameRequired"] else null
+                        sizeError = if (!sizeOk) EditorStrings["project.sizeError"] else null
+                        if (nameOk && sizeOk) {
+                            onCreate(AnimationProject(name = name.trim(), canvasWidth = w!!, canvasHeight = h!!, fps = f!!))
+                        }
+                    },
+                    confirmEnabled = name.isNotBlank()
+                        && (width.toIntOrNull()?.let { it in 1..10000 } ?: false)
+                        && (height.toIntOrNull()?.let { it in 1..10000 } ?: false)
+                        && (fps.toIntOrNull()?.let { it in 1..240 } ?: false)
+                )
             }
         }
     }

@@ -7,7 +7,6 @@ import javax.swing.filechooser.FileNameExtensionFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
 import org.jetbrains.skia.Image
-import java.io.ByteArrayInputStream
 
 /**
  * JVM реализация платформенно-зависимого файлового ввода/вывода
@@ -23,6 +22,18 @@ actual fun decodeImage(data: ByteArray): ImageBitmap? {
     } catch (e: Exception) {
         e.printStackTrace()
         null
+    }
+}
+
+actual fun encodeImage(bitmap: ImageBitmap): ByteArray {
+    return try {
+        // Encode ImageBitmap to PNG bytes - create new bitmap and encode
+        // Note: This is a simplified stub implementation
+        // Full implementation would copy pixels from bitmap to Skia bitmap
+        ByteArray(0) // TODO: Proper implementation
+    } catch (e: Exception) {
+        e.printStackTrace()
+        ByteArray(0)
     }
 }
 

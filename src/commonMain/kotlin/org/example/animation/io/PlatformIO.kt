@@ -1,6 +1,7 @@
 package org.example.animation.io
 
 import androidx.compose.ui.graphics.ImageBitmap
+import org.example.animation.model.AnimationProject
 
 /**
  * Описание записи файла или папки для кроссплатформенного менеджера
@@ -21,6 +22,30 @@ expect fun createPlatformFileHandler(): PlatformFileHandler
  * Декодирование изображения из байтов в ImageBitmap
  */
 expect fun decodeImage(data: ByteArray): ImageBitmap?
+
+/**
+ * Кодирование ImageBitmap в байты (PNG)
+ */
+expect fun encodeImage(bitmap: ImageBitmap): ByteArray
+
+/**
+ * Заливка на bitmap (рендеринг текущего кадра + flood fill)
+ */
+expect fun floodFillOnBitmap(
+    project: AnimationProject,
+    layerIndex: Int,
+    frameIndex: Int,
+    point: androidx.compose.ui.geometry.Offset,
+    fillColor: ULong
+)
+
+/**
+ * Пипетка - получение цвета из bitmap
+ */
+expect fun pickColorFromBitmap(
+    project: AnimationProject,
+    point: androidx.compose.ui.geometry.Offset
+): ULong?
 
 interface PlatformFileHandler {
     fun saveFile(defaultName: String, extension: String, data: ByteArray): Boolean

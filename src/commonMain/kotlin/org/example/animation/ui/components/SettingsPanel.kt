@@ -145,38 +145,20 @@ fun SettingsDialog(
                 Divider(color = EditorColors.divider)
                 
                 // Footer
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(8.dp.scaled()), 
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextButton(onClick = onClose) {
-                        Text(EditorStrings.observeString("cancel"), style = EditorTypography.body(), color = EditorColors.textSecondary)
+                DialogButtonRow(
+                    cancelText = EditorStrings.observeString("cancel"),
+                    confirmText = EditorStrings.observeString("apply"),
+                    onCancel = onClose,
+                    onConfirm = {
+                        val newProject = project.copy()
+                        newProject.canvasWidth = canvasWidth.toIntOrNull()?.coerceIn(1, 10000) ?: project.canvasWidth
+                        newProject.canvasHeight = canvasHeight.toIntOrNull()?.coerceIn(1, 10000) ?: project.canvasHeight
+                        newProject.fps = fps.toIntOrNull()?.coerceIn(1, 120) ?: project.fps
+                        newProject.dpi = dpi.toIntOrNull()?.coerceIn(1, 1200) ?: project.dpi
+                        engine.setProject(newProject)
+                        onClose()
                     }
-                    Spacer(Modifier.width(8.dp.scaled()))
-                    Button(
-                        onClick = {
-                            val newProject = project.copy()
-                            newProject.canvasWidth = canvasWidth.toIntOrNull()?.coerceIn(1, 10000) ?: project.canvasWidth
-                            newProject.canvasHeight = canvasHeight.toIntOrNull()?.coerceIn(1, 10000) ?: project.canvasHeight
-                            newProject.fps = fps.toIntOrNull()?.coerceIn(1, 120) ?: project.fps
-                            newProject.dpi = dpi.toIntOrNull()?.coerceIn(1, 1200) ?: project.dpi
-                            engine.setProject(newProject)
-                            onClose()
-                        },
-                        colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
-                        shape = EditorShapes.medium,
-                        modifier = Modifier.height(32.dp.scaled()).widthIn(min = 90.dp.scaled())
-                    ) {
-                        Text(
-                            EditorStrings.observeString("apply"), 
-                            color = Color.White, 
-                            style = EditorTypography.body().copy(fontWeight = FontWeight.Bold)
-                        )
-                    }
-                }
+                )
             }
         }
     }

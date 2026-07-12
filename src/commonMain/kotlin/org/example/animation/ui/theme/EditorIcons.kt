@@ -40,6 +40,7 @@ object EditorIcons {
     val iconArrowUp: ImageVector = Icons.Filled.KeyboardArrowUp
     val iconArrowDown: ImageVector = Icons.Filled.KeyboardArrowDown
     val iconContentCopy: ImageVector = Icons.Filled.ContentCopy
+    val iconContentPaste: ImageVector = Icons.Filled.ContentPaste
     val iconOnionSkin: ImageVector = Icons.Filled.Layers
     val iconPen: ImageVector = Icons.Filled.Edit
     val iconPencil: ImageVector = Icons.Filled.Create

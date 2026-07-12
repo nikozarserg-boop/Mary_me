@@ -1,6 +1,7 @@
 package org.example.animation.ui.components
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -11,16 +12,22 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.components.tooltip.tooltipAnchor
 import org.example.animation.ui.theme.*
+import kotlin.math.roundToInt
 
 @Composable
 fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
@@ -28,6 +35,9 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val currentFrameIndex by engine.currentFrameIndex.collectAsState()
     val currentLayerIndex by engine.currentLayerIndex.collectAsState()
     val isPlaying by engine.isPlaying.collectAsState()
+
+    // Состояние drag&drop для кадров
+    var dragState by remember { mutableStateOf<FrameDragState?>(null) }
 
     Surface(modifier = modifier.fillMaxWidth(), color = EditorColors.timelineBackground, elevation = 4.dp.scaled()) {
         Column(modifier = Modifier.fillMaxSize()) {
@@ -89,7 +99,15 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                     }
                 }
 
-                Box(modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState())) {
+                // Область сетки кадров
+                val cellPx = 28f
+                val layerHeaderHeightPx = 32f
+
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .horizontalScroll(rememberScrollState())
+                ) {
                     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                         project.layers.forEachIndexed { layerIndex, _ ->
                             Row(modifier = Modifier.height(32.dp.scaled())) {
@@ -98,6 +116,10 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                             frameIndex < project.layers[layerIndex].frames.size &&
                                             project.layers[layerIndex].frames[frameIndex].strokes.isNotEmpty()
                                     val isCurrent = frameIndex == currentFrameIndex && layerIndex == currentLayerIndex
+                                    val isDragSource =
+                                        dragState?.fromLayer == layerIndex && dragState?.fromFrame == frameIndex
+                                    val isDropTarget = dragState?.hoverLayer == layerIndex &&
+                                            dragState?.hoverFrame == frameIndex && !isDragSource
 
                                     val bgColor = when {
                                         isCurrent -> EditorColors.timelineCellActive
@@ -109,16 +131,93 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                         modifier = Modifier
                                             .width(28.dp.scaled())
                                             .fillMaxHeight()
-                                            .border(width = if (isCurrent) 1.5.dp.scaled() else 0.5.dp.scaled(), color = if (isCurrent) EditorColors.accent else EditorColors.divider)
-                                            .background(bgColor)
+                                            .border(
+                                                width = if (isCurrent) 1.5.dp.scaled() else 0.5.dp.scaled(),
+                                                color = when {
+                                                    isDropTarget -> EditorColors.accent
+                                                    isCurrent -> EditorColors.accent
+                                                    else -> EditorColors.divider
+                                                }
+                                            )
+                                            .background(
+                                                if (isDragSource) EditorColors.accent.copy(alpha = 0.15f)
+                                                else if (isDropTarget) EditorColors.accent.copy(alpha = 0.3f)
+                                                else bgColor
+                                            )
                                             .pointerHoverIcon(PointerIcon.Hand)
                                             .clickable {
                                                 engine.setCurrentFrame(frameIndex)
                                                 engine.setCurrentLayer(layerIndex)
-                                            },
+                                            }
+                                            .pointerInput(layerIndex, frameIndex) {
+                                                detectDragGestures(
+                                                    onDragStart = {
+                                                        dragState = FrameDragState(
+                                                            fromLayer = layerIndex,
+                                                            fromFrame = frameIndex,
+                                                            hoverLayer = layerIndex,
+                                                            hoverFrame = frameIndex
+                                                        )
+                                                    },
+                                                    onDrag = { change, dragAmount ->
+                                                        change.consume()
+                                                        dragState?.let { st ->
+                                                            val newHoverLayer = (st.hoverLayer + (dragAmount.y / layerHeaderHeightPx).roundToInt())
+                                                                .coerceIn(0, project.layers.lastIndex)
+                                                            val newHoverFrame = (st.hoverFrame + (dragAmount.x / cellPx).roundToInt())
+                                                                .coerceIn(0, project.maxFrames - 1)
+                                                            dragState = st.copy(
+                                                                offsetX = st.offsetX + dragAmount.x,
+                                                                offsetY = st.offsetY + dragAmount.y,
+                                                                hoverLayer = newHoverLayer,
+                                                                hoverFrame = newHoverFrame
+                                                            )
+                                                        }
+                                                    },
+                                                    onDragEnd = {
+                                                        dragState?.let { st ->
+                                                            if (st.hoverLayer != st.fromLayer || st.hoverFrame != st.fromFrame) {
+                                                                engine.moveFrameToLayer(
+                                                                    fromLayer = st.fromLayer,
+                                                                    fromFrame = st.fromFrame,
+                                                                    toLayer = st.hoverLayer,
+                                                                    toFrame = st.hoverFrame
+                                                                )
+                                                            } else {
+                                                                // отпустили на месте — просто выбираем
+                                                                engine.setCurrentFrame(st.fromFrame)
+                                                                engine.setCurrentLayer(st.fromLayer)
+                                                            }
+                                                        }
+                                                        dragState = null
+                                                    },
+                                                    onDragCancel = { dragState = null }
+                                                )
+                                            }
+                                            // Визуальный «отклеенный» кадр, который держат мышкой
+                                            .then(
+                                                if (isDragSource) {
+                                                    Modifier
+                                                        .offset {
+                                                            IntOffset(
+                                                                dragState?.offsetX?.roundToInt() ?: 0,
+                                                                dragState?.offsetY?.roundToInt() ?: 0
+                                                            )
+                                                        }
+                                                        .zIndex(10f)
+                                                        .shadow(8.dp.scaled(), RoundedCornerShape(4.dp.scaled()))
+                                                        .graphicsLayer {
+                                                            scaleX = 1.15f
+                                                            scaleY = 1.15f
+                                                            alpha = 0.9f
+                                                        }
+                                                } else Modifier
+                                            ),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        if (hasContent) Box(modifier = Modifier.size(8.dp.scaled()).background(EditorColors.accent, RoundedCornerShape(2.dp.scaled())))
+                                        if (hasContent && !isDragSource) {
+                                            Box(modifier = Modifier.size(8.dp.scaled()).background(EditorColors.accent, RoundedCornerShape(2.dp.scaled())))
+                                        }
                                     }
                                 }
                             }
@@ -189,6 +288,18 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     TimelineFrameActionBtn(
+                        icon = EditorIcons.iconContentCopy,
+                        tooltip = EditorStrings.observeString("frame.copy"),
+                        iconTint = EditorColors.accent
+                    ) { engine.copyFrame() }
+                    Spacer(Modifier.width(4.dp.scaled()))
+                    TimelineFrameActionBtn(
+                        icon = EditorIcons.iconContentPaste,
+                        tooltip = EditorStrings.observeString("frame.paste"),
+                        iconTint = EditorColors.accent
+                    ) { engine.pasteFrame() }
+                    Spacer(Modifier.width(4.dp.scaled()))
+                    TimelineFrameActionBtn(
                         icon = EditorIcons.iconAdd,
                         tooltip = EditorStrings.observeString("frame.add"),
                         iconTint = EditorColors.accent
@@ -216,6 +327,15 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
         }
     }
 }
+
+private data class FrameDragState(
+    val fromLayer: Int,
+    val fromFrame: Int,
+    val hoverLayer: Int,
+    val hoverFrame: Int,
+    val offsetX: Float = 0f,
+    val offsetY: Float = 0f
+)
 
 @Composable
 private fun TControlBtn(icon: ImageVector, tooltip: String = "", onClick: () -> Unit) {

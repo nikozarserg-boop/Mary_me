@@ -135,30 +135,19 @@ fun ExportDialog(
                 Divider(color = EditorColors.divider)
 
                 // Footer
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp.scaled()), 
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    TextButton(onClick = onCancel) {
-                        Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary, fontSize = 13.sp.scaled())
+                DialogButtonRow(
+                    cancelText = EditorStrings.observeString("cancel"),
+                    confirmText = EditorStrings.observeString("export.perform"),
+                    onCancel = onCancel,
+                    onConfirm = {
+                        onExport(
+                            fileName,
+                            exportWidth.toIntOrNull() ?: project.canvasWidth,
+                            exportHeight.toIntOrNull() ?: project.canvasHeight,
+                            selectedFormat
+                        )
                     }
-                    Spacer(Modifier.width(12.dp.scaled()))
-                    Button(
-                        onClick = {
-                            onExport(
-                                fileName,
-                                exportWidth.toIntOrNull() ?: project.canvasWidth,
-                                exportHeight.toIntOrNull() ?: project.canvasHeight,
-                                selectedFormat
-                            )
-                        },
-                        colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
-                        shape = RoundedCornerShape(6.dp.scaled()),
-                        modifier = Modifier.height(36.dp.scaled())
-                    ) {
-                        Text(EditorStrings.observeString("export.perform"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp.scaled())
-                    }
-                }
+                )
             }
         }
     }

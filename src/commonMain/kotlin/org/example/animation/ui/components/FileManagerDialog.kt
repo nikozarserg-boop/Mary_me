@@ -1,6 +1,7 @@
 package org.example.animation.ui.components
 
 import androidx.compose.foundation.*
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
@@ -10,13 +11,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.pointer.PointerIcon
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.geometry.Offset
+import kotlin.math.roundToInt
 import org.example.animation.io.FileEntry
 import org.example.animation.io.PlatformFileHandler
 import org.example.animation.io.createPlatformFileHandler
@@ -38,6 +44,7 @@ fun FileManagerDialog(
     var fileName by remember { mutableStateOf(defaultName) }
     var selectedEntry by remember { mutableStateOf<FileEntry?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
+    var offset by remember { mutableStateOf(IntOffset(0, 0)) }
 
     val entries = remember(currentPath) {
         try {
@@ -51,12 +58,12 @@ fun FileManagerDialog(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black.copy(alpha = 0.4f))
-            .clickable { onResult(null) },
+            .background(Color.Black.copy(alpha = 0.4f)),
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
+                .offset { offset }
                 .width(680.dp.scaled())
                 .height(500.dp.scaled())
                 .clickable(enabled = false) {},
@@ -84,11 +91,21 @@ fun FileManagerDialog(
                     )
                 }
                 Column(modifier = Modifier.fillMaxSize()) {
-                    // Заголовок
+                    // Заголовок (перетаскиваемый)
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .background(EditorColors.panelHeader.copy(alpha = 0.5f))
+                            .pointerHoverIcon(PointerIcon.Hand)
+                            .pointerInput(Unit) {
+                                detectDragGestures { change, dragAmount ->
+                                    change.consume()
+                                    offset = IntOffset(
+                                        offset.x + dragAmount.x.roundToInt(),
+                                        offset.y + dragAmount.y.roundToInt()
+                                    )
+                                }
+                            }
                             .padding(16.dp.scaled()),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -208,42 +225,30 @@ fun FileManagerDialog(
 
                         Spacer(Modifier.height(16.dp.scaled()))
 
-                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                            TextButton(onClick = { onResult(null) }) {
-                                Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary)
-                            }
-                            Spacer(Modifier.width(12.dp.scaled()))
-                            Button(
-                                onClick = {
-                                    if (mode == FileDialogMode.SAVE) {
-                                        if (fileName.isEmpty()) {
-                                            errorMsg = EditorStrings["file.selectError"]
-                                            return@Button
-                                        }
-                                        val fullFileName = if (fileName.contains(".")) fileName else "$fileName.$extension"
-                                        val separator = if (currentPath.endsWith("/") || currentPath.endsWith("\\")) "" else "/"
-                                        val fullPath = "$currentPath$separator$fullFileName"
-
-                                        if (fileHandler.fileExists(fullPath)) {
-                                            errorMsg = EditorStrings["file.exists"]
-                                        } else {
-                                            onResult(fullPath)
-                                        }
-                                    } else {
-                                        selectedEntry?.let { onResult(it.path) } ?: run { errorMsg = EditorStrings["file.selectError"] }
+                        DialogButtonRow(
+                            cancelText = EditorStrings.observeString("cancel"),
+                            confirmText = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveBtn") else EditorStrings.observeString("file.openBtn"),
+                            onCancel = { onResult(null) },
+                            onConfirm = {
+                                if (mode == FileDialogMode.SAVE) {
+                                    if (fileName.isEmpty()) {
+                                        errorMsg = EditorStrings["file.selectError"]
+                                        return@DialogButtonRow
                                     }
-                                },
-                                colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
-                                shape = RoundedCornerShape(8.dp.scaled()),
-                                modifier = Modifier.height(40.dp.scaled()).width(120.dp.scaled())
-                            ) {
-                                Text(
-                                    if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveBtn") else EditorStrings.observeString("file.openBtn"),
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
+                                    val fullFileName = if (fileName.contains(".")) fileName else "$fileName.$extension"
+                                    val separator = if (currentPath.endsWith("/") || currentPath.endsWith("\\")) "" else "/"
+                                    val fullPath = "$currentPath$separator$fullFileName"
+
+                                    if (fileHandler.fileExists(fullPath)) {
+                                        errorMsg = EditorStrings["file.exists"]
+                                    } else {
+                                        onResult(fullPath)
+                                    }
+                                } else {
+                                    selectedEntry?.let { onResult(it.path) } ?: run { errorMsg = EditorStrings["file.selectError"] }
+                                }
                             }
-                        }
+                        )
                     }
                 }
             }
