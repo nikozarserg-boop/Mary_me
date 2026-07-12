@@ -3,11 +3,26 @@ package org.example.animation.io
 import java.io.File
 import android.os.Environment
 import android.content.Context
+import android.graphics.BitmapFactory
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 
 /**
  * Android реализация платформенно-зависимого файлового ввода/вывода
  */
 actual fun createPlatformFileHandler(): PlatformFileHandler = AndroidPlatformFileHandler()
+
+/**
+ * Декодирование изображения для Android
+ */
+actual fun decodeImage(data: ByteArray): ImageBitmap? {
+    return try {
+        BitmapFactory.decodeByteArray(data, 0, data.size)?.asImageBitmap()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
 
 class AndroidPlatformFileHandler : PlatformFileHandler {
     override fun saveFile(defaultName: String, extension: String, data: ByteArray): Boolean {
@@ -17,7 +32,7 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun openFile(extension: String): ByteArray? {
-        return null // Требует системного диалога
+        return null // Требует системного диалога (в реальном приложении нужно пробрасывать Activity/Fragment)
     }
 
     override fun saveToPath(path: String, data: ByteArray): Boolean {

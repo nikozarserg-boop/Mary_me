@@ -5,6 +5,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -33,86 +35,104 @@ fun NewProjectDialog(
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.width(360.dp.scaled()).clickable(enabled = false) {},
+            modifier = Modifier
+                .widthIn(max = 400.dp.scaled())
+                .fillMaxWidth(0.9f)
+                .fillMaxHeight(0.85f)
+                .clickable(enabled = false) {},
             color = EditorColors.surface,
             shape = EditorShapes.large,
             elevation = 16.dp.scaled(),
             border = BorderStroke(1.dp.scaled(), EditorColors.divider)
         ) {
-            Column(modifier = Modifier.padding(20.dp.scaled())) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header (Fixed)
                 Text(
                     EditorStrings.observeString("dialog.newProject"), 
-                    style = EditorTypography.body().copy(fontSize = 18.sp.scaled(), fontWeight = FontWeight.Bold)
+                    style = EditorTypography.body().copy(fontSize = 18.sp.scaled(), fontWeight = FontWeight.Bold),
+                    modifier = Modifier.padding(20.dp.scaled())
                 )
                 
-                Spacer(Modifier.height(20.dp.scaled()))
-
-                Text(EditorStrings.observeString("project.name"), style = EditorTypography.caption())
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    modifier = Modifier.fillMaxWidth().height(36.dp.scaled()),
-                    textStyle = EditorTypography.body(),
-                    singleLine = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = EditorColors.accent,
-                        backgroundColor = EditorColors.background,
-                        unfocusedBorderColor = EditorColors.divider
+                // Scrollable Content
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp.scaled())
+                ) {
+                    Text(EditorStrings.observeString("project.name"), style = EditorTypography.caption())
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
+                        textStyle = EditorTypography.body(),
+                        singleLine = true,
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = EditorColors.accent,
+                            backgroundColor = EditorColors.background,
+                            unfocusedBorderColor = EditorColors.divider
+                        )
                     )
-                )
 
-                Spacer(Modifier.height(16.dp.scaled()))
+                    Spacer(Modifier.height(16.dp.scaled()))
 
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(EditorStrings.observeString("project.width"), style = EditorTypography.caption())
-                        OutlinedTextField(
-                            value = width,
-                            onValueChange = { width = it.filter { c -> c.isDigit() } },
-                            modifier = Modifier.fillMaxWidth().height(36.dp.scaled()),
-                            textStyle = EditorTypography.mono(),
-                            singleLine = true,
-                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = EditorColors.accent,
-                                backgroundColor = EditorColors.background
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(EditorStrings.observeString("project.width"), style = EditorTypography.caption())
+                            OutlinedTextField(
+                                value = width,
+                                onValueChange = { width = it.filter { c -> c.isDigit() } },
+                                modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
+                                textStyle = EditorTypography.mono(),
+                                singleLine = true,
+                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                    focusedBorderColor = EditorColors.accent,
+                                    backgroundColor = EditorColors.background
+                                )
                             )
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp.scaled()))
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(EditorStrings.observeString("project.height"), style = EditorTypography.caption())
-                        OutlinedTextField(
-                            value = height,
-                            onValueChange = { height = it.filter { c -> c.isDigit() } },
-                            modifier = Modifier.fillMaxWidth().height(36.dp.scaled()),
-                            textStyle = EditorTypography.mono(),
-                            singleLine = true,
-                            colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = EditorColors.accent,
-                                backgroundColor = EditorColors.background
+                        }
+                        Spacer(Modifier.width(12.dp.scaled()))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(EditorStrings.observeString("project.height"), style = EditorTypography.caption())
+                            OutlinedTextField(
+                                value = height,
+                                onValueChange = { height = it.filter { c -> c.isDigit() } },
+                                modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
+                                textStyle = EditorTypography.mono(),
+                                singleLine = true,
+                                colors = TextFieldDefaults.outlinedTextFieldColors(
+                                    focusedBorderColor = EditorColors.accent,
+                                    backgroundColor = EditorColors.background
+                                )
                             )
-                        )
+                        }
                     }
+
+                    Spacer(Modifier.height(16.dp.scaled()))
+
+                    Text(EditorStrings.observeString("canvas.fps"), style = EditorTypography.caption())
+                    OutlinedTextField(
+                        value = fps,
+                        onValueChange = { fps = it.filter { c -> c.isDigit() } },
+                        modifier = Modifier.width(100.dp.scaled()).height(40.dp.scaled()),
+                        textStyle = EditorTypography.mono(),
+                        singleLine = true,
+                        colors = TextFieldDefaults.outlinedTextFieldColors(
+                            focusedBorderColor = EditorColors.accent,
+                            backgroundColor = EditorColors.background
+                        )
+                    )
+                    
+                    Spacer(Modifier.height(20.dp.scaled()))
                 }
 
-                Spacer(Modifier.height(16.dp.scaled()))
+                Divider(color = EditorColors.divider)
 
-                Text(EditorStrings.observeString("canvas.fps"), style = EditorTypography.caption())
-                OutlinedTextField(
-                    value = fps,
-                    onValueChange = { fps = it.filter { c -> c.isDigit() } },
-                    modifier = Modifier.width(80.dp.scaled()).height(36.dp.scaled()),
-                    textStyle = EditorTypography.mono(),
-                    singleLine = true,
-                    colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = EditorColors.accent,
-                        backgroundColor = EditorColors.background
-                    )
-                )
-
-                Spacer(Modifier.height(32.dp.scaled()))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                // Footer (Fixed)
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp.scaled()), 
+                    horizontalArrangement = Arrangement.End
+                ) {
                     TextButton(onClick = onCancel) {
                         Text(EditorStrings.observeString("cancel"), style = EditorTypography.body(), color = EditorColors.textSecondary)
                     }
@@ -125,7 +145,8 @@ fun NewProjectDialog(
                             onCreate(AnimationProject(name = name, canvasWidth = w, canvasHeight = h, fps = f))
                         },
                         colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
-                        shape = EditorShapes.medium
+                        shape = EditorShapes.medium,
+                        modifier = Modifier.height(36.dp.scaled())
                     ) {
                         Text(EditorStrings.observeString("btn.create"), color = Color.White, style = EditorTypography.body().copy(fontWeight = FontWeight.Bold))
                     }

@@ -2,6 +2,7 @@ package org.example.animation.io
 
 import org.example.animation.model.*
 import kotlin.math.roundToInt
+import kotlinx.datetime.Clock
 
 /**
  * Сериализация/десериализация проектов в JSON строку
@@ -32,6 +33,8 @@ object ProjectSerializer {
                 sb.appendLine("        {")
                 sb.appendLine("          \"durationMs\": ${frame.durationMs},")
                 sb.appendLine("          \"name\": \"${escapeJson(frame.name)}\",")
+                
+                // Strokes
                 sb.appendLine("          \"strokes\": [")
                 for ((strokeIdx, stroke) in frame.strokes.withIndex()) {
                     sb.appendLine("            {")
@@ -50,8 +53,24 @@ object ProjectSerializer {
                     if (strokeIdx < frame.strokes.size - 1) sb.append(",")
                     sb.appendLine()
                 }
-                sb.append("          ]")
-                sb.appendLine()
+                sb.appendLine("          ],")
+                
+                // Images
+                sb.appendLine("          \"images\": [")
+                for ((imgIdx, img) in frame.images.withIndex()) {
+                    sb.appendLine("            {")
+                    sb.appendLine("              \"x\": ${formatFloat(img.x)},")
+                    sb.appendLine("              \"y\": ${formatFloat(img.y)},")
+                    sb.appendLine("              \"scale\": ${formatFloat(img.scale)},")
+                    sb.appendLine("              \"rotation\": ${formatFloat(img.rotation)},")
+                    sb.appendLine("              \"id\": ${img.id},")
+                    sb.appendLine("              \"data\": \"${encodeBase64(img.data)}\"")
+                    sb.append("            }")
+                    if (imgIdx < frame.images.size - 1) sb.append(",")
+                    sb.appendLine()
+                }
+                sb.appendLine("          ]")
+                
                 sb.append("        }")
                 if (frameIdx < layer.frames.size - 1) sb.append(",")
                 sb.appendLine()
@@ -103,29 +122,55 @@ object ProjectSerializer {
                         name = extractString(frameJson, "name") ?: ""
                     )
                     frame.strokes.clear()
+                    frame.images.clear()
 
-                    val strokesArray = extractArray(frameJson, "strokes") ?: continue
-                    val strokeObjects = splitTopLevel(strokesArray, '{', '}')
-                    for (strokeJson in strokeObjects) {
-                        val toolTypeName = extractString(strokeJson, "toolType") ?: "PEN"
-                        val toolType = try { ToolType.valueOf(toolTypeName) } catch (e: Exception) { ToolType.PEN }
-                        val stroke = Stroke(
-                            color = hexToColor(extractString(strokeJson, "color") ?: "FF000000"),
-                            strokeWidth = extractFloat(strokeJson, "strokeWidth") ?: 4f,
-                            isEraser = extractBoolean(strokeJson, "isEraser") ?: false,
-                            toolType = toolType,
-                            opacity = extractFloat(strokeJson, "opacity") ?: 1f
-                        )
+                    // Deserializing strokes
+                    val strokesArray = extractArray(frameJson, "strokes")
+                    if (strokesArray != null) {
+                        val strokeObjects = splitTopLevel(strokesArray, '{', '}')
+                        for (strokeJson in strokeObjects) {
+                            val toolTypeName = extractString(strokeJson, "toolType") ?: "PEN"
+                            val toolType = try { ToolType.valueOf(toolTypeName) } catch (e: Exception) { ToolType.PEN }
+                            val stroke = Stroke(
+                                color = hexToColor(extractString(strokeJson, "color") ?: "FF000000"),
+                                strokeWidth = extractFloat(strokeJson, "strokeWidth") ?: 4f,
+                                isEraser = extractBoolean(strokeJson, "isEraser") ?: false,
+                                toolType = toolType,
+                                opacity = extractFloat(strokeJson, "opacity") ?: 1f
+                            )
 
-                        val pointsArray = extractArray(strokeJson, "points") ?: continue
-                        val pointObjects = splitTopLevel(pointsArray, '{', '}')
-                        for (ptJson in pointObjects) {
-                            val x = extractFloat(ptJson, "x") ?: 0f
-                            val y = extractFloat(ptJson, "y") ?: 0f
-                            stroke.points.add(androidx.compose.ui.geometry.Offset(x, y))
+                            val pointsArray = extractArray(strokeJson, "points") ?: continue
+                            val pointObjects = splitTopLevel(pointsArray, '{', '}')
+                            for (ptJson in pointObjects) {
+                                val x = extractFloat(ptJson, "x") ?: 0f
+                                val y = extractFloat(ptJson, "y") ?: 0f
+                                stroke.points.add(androidx.compose.ui.geometry.Offset(x, y))
+                            }
+                            frame.strokes.add(stroke)
                         }
-                        frame.strokes.add(stroke)
                     }
+
+                    // Deserializing images
+                    val imagesArray = extractArray(frameJson, "images")
+                    if (imagesArray != null) {
+                        val imageObjects = splitTopLevel(imagesArray, '{', '}')
+                        for (imgJson in imageObjects) {
+                            val base64Data = extractString(imgJson, "data") ?: ""
+                            val imageData = decodeBase64(base64Data)
+                            if (imageData.isNotEmpty()) {
+                                val image = ImageElement(
+                                    data = imageData,
+                                    x = extractFloat(imgJson, "x") ?: 0f,
+                                    y = extractFloat(imgJson, "y") ?: 0f,
+                                    scale = extractFloat(imgJson, "scale") ?: 1f,
+                                    rotation = extractFloat(imgJson, "rotation") ?: 0f,
+                                    id = extractLong(imgJson, "id") ?: Clock.System.now().toEpochMilliseconds()
+                                )
+                                frame.images.add(image)
+                            }
+                        }
+                    }
+
                     layer.frames.add(frame)
                 }
                 if (layer.frames.isEmpty()) layer.frames.add(FrameData())
@@ -160,7 +205,7 @@ object ProjectSerializer {
     }
 
     private fun extractFloat(json: String, key: String): Float? {
-        val regex = "\"$key\"\\s*:\\s*(-?\\d+\\.?\\d*)(?:[,\\n\\r\\s}])".toRegex()
+        val regex = "\"$key\"\\s*:\\s*(-?\\d+\\.?\\d*)".toRegex()
         val match = regex.find(json)
         return match?.groupValues?.getOrNull(1)?.toFloatOrNull()
     }
@@ -171,18 +216,15 @@ object ProjectSerializer {
     }
 
     private fun extractArray(json: String, key: String): String? {
-        val regex = "\"$key\"\\s*:\\s*(\\[|\\{)".toRegex()
+        val regex = "\"$key\"\\s*:\\s*(\\[)".toRegex()
         val match = regex.find(json) ?: return null
         val startIdx = match.range.last + 1
-        val openChar = json[startIdx - 1]
-        val closeChar = if (openChar == '[') ']' else '}'
-
         var depth = 1
         var idx = startIdx
         while (idx < json.length && depth > 0) {
             when (json[idx]) {
-                openChar -> depth++
-                closeChar -> depth--
+                '[' -> depth++
+                ']' -> depth--
                 '"' -> {
                     idx++
                     while (idx < json.length && json[idx] != '"') {
@@ -243,5 +285,58 @@ object ProjectSerializer {
     private fun formatFloat(value: Float): String {
         val rounded = (value * 1000).roundToInt() / 1000f
         return if (rounded == rounded.toInt().toFloat()) rounded.toInt().toString() else rounded.toString()
+    }
+
+    // Simple Base64 for multiplatform without dependencies
+    private const val BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
+
+    private fun encodeBase64(data: ByteArray): String {
+        val result = StringBuilder()
+        var i = 0
+        while (i < data.size) {
+            val b1 = data[i].toInt() and 0xFF
+            val b2 = if (i + 1 < data.size) data[i + 1].toInt() and 0xFF else -1
+            val b3 = if (i + 2 < data.size) data[i + 2].toInt() and 0xFF else -1
+
+            result.append(BASE64_ALPHABET[(b1 shr 2) and 0x3F])
+            if (b2 != -1) {
+                result.append(BASE64_ALPHABET[((b1 shl 4) or (b2 shr 4)) and 0x3F])
+                if (b3 != -1) {
+                    result.append(BASE64_ALPHABET[((b2 shl 2) or (b3 shr 6)) and 0x3F])
+                    result.append(BASE64_ALPHABET[b3 and 0x3F])
+                } else {
+                    result.append(BASE64_ALPHABET[(b2 shl 2) and 0x3F])
+                    result.append('=')
+                }
+            } else {
+                result.append(BASE64_ALPHABET[(b1 shl 4) and 0x3F])
+                result.append("==")
+            }
+            i += 3
+        }
+        return result.toString()
+    }
+
+    private fun decodeBase64(base64: String): ByteArray {
+        if (base64.isEmpty()) return byteArrayOf()
+        val clean = base64.replace("=", "").replace("\n", "").replace("\r", "")
+        val result = mutableListOf<Byte>()
+        var i = 0
+        while (i < clean.length) {
+            val c1 = BASE64_ALPHABET.indexOf(clean[i])
+            val c2 = if (i + 1 < clean.length) BASE64_ALPHABET.indexOf(clean[i + 1]) else 0
+            val c3 = if (i + 2 < clean.length) BASE64_ALPHABET.indexOf(clean[i + 2]) else -1
+            val c4 = if (i + 3 < clean.length) BASE64_ALPHABET.indexOf(clean[i + 3]) else -1
+
+            result.add(((c1 shl 2) or (c2 shr 4)).toByte())
+            if (c3 != -1) {
+                result.add(((c2 shl 4) or (c3 shr 2)).toByte())
+                if (c4 != -1) {
+                    result.add(((c3 shl 6) or c4).toByte())
+                }
+            }
+            i += 4
+        }
+        return result.toByteArray()
     }
 }

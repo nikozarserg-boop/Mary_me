@@ -4,6 +4,48 @@ import androidx.compose.ui.geometry.Offset
 import kotlinx.datetime.Clock
 
 /**
+ * Представляет изображение, загруженное на холст
+ */
+data class ImageElement(
+    val data: ByteArray,
+    var x: Float = 0f,
+    var y: Float = 0f,
+    var scale: Float = 1f,
+    var rotation: Float = 0f,
+    val id: Long = Clock.System.now().toEpochMilliseconds()
+) {
+    fun copy(): ImageElement = ImageElement(
+        data = data.copyOf(),
+        x = x,
+        y = y,
+        scale = scale,
+        rotation = rotation,
+        id = id
+    )
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is ImageElement) return false
+        if (!data.contentEquals(other.data)) return false
+        if (x != other.x) return false
+        if (y != other.y) return false
+        if (scale != other.scale) return false
+        if (rotation != other.rotation) return false
+        return id == other.id
+    }
+
+    override fun hashCode(): Int {
+        var result = data.contentHashCode()
+        result = 31 * result + x.hashCode()
+        result = 31 * result + y.hashCode()
+        result = 31 * result + scale.hashCode()
+        result = 31 * result + rotation.hashCode()
+        result = 31 * result + id.hashCode()
+        return result
+    }
+}
+
+/**
  * Представляет один штрих/рисунок на холсте
  */
 data class Stroke(
@@ -29,12 +71,14 @@ data class Stroke(
  */
 class FrameData(
     val strokes: MutableList<Stroke> = mutableListOf(),
+    val images: MutableList<ImageElement> = mutableListOf(),
     var durationMs: Int = 83, // ~12 FPS
     val name: String = ""
 ) {
     fun copy(): FrameData {
         val newFrame = FrameData(
             strokes = strokes.map { it.copy() }.toMutableList(),
+            images = images.map { it.copy() }.toMutableList(),
             durationMs = durationMs,
             name = name
         )
@@ -43,9 +87,10 @@ class FrameData(
 
     fun clear() {
         strokes.clear()
+        images.clear()
     }
 
-    fun isEmpty(): Boolean = strokes.isEmpty()
+    fun isEmpty(): Boolean = strokes.isEmpty() && images.isEmpty()
 }
 
 /**

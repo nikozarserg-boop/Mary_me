@@ -2,10 +2,12 @@ package org.example.animation.ui.components
 
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
@@ -20,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.geometry.Offset
@@ -27,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import org.example.animation.engine.AnimationEngine
+import org.example.animation.engine.ProjectManager
 import org.example.animation.io.AppSettingsManager
 import org.example.animation.io.RecentProject
 import org.example.animation.localization.EditorStrings
@@ -35,6 +39,7 @@ import org.example.animation.ui.theme.*
 @Composable
 fun EditorScreen(
     engine: AnimationEngine,
+    projectManager: ProjectManager,
     uiScale: Float,
     onSave: () -> Unit,
     onLoad: () -> Unit,
@@ -44,39 +49,49 @@ fun EditorScreen(
     onExportMp4: () -> Unit,
     onNewProject: () -> Unit,
     onSettings: () -> Unit = {},
+    onImportImage: () -> Unit = {},
     currentTheme: ThemeType,
-    onThemeChange: (ThemeType) -> Unit
+    onThemeChange: (ThemeType) -> Unit,
+    onCloseTab: (Int) -> Unit
 ) {
     val project by engine.project.collectAsState()
     val isPlaying by engine.isPlaying.collectAsState()
     val currentFrameIndex by engine.currentFrameIndex.collectAsState()
     val zoom by engine.zoom.collectAsState()
+    val rotation by engine.rotation.collectAsState()
     val canUndo by engine.canUndo.collectAsState()
     val canRedo by engine.canRedo.collectAsState()
 
-    // Состояния видимости панелей из движка
     val toolsVisible by engine.isToolsVisible.collectAsState()
     val layersVisible by engine.isLayersVisible.collectAsState()
     val colorPickerVisible by engine.isColorPickerVisible.collectAsState()
     val timelineVisible by engine.isTimelineVisible.collectAsState()
     val propertiesVisible by engine.isPropertiesVisible.collectAsState()
+    
+    val toolsCollapsed by engine.isToolsCollapsed.collectAsState()
+    val layersCollapsed by engine.isLayersCollapsed.collectAsState()
+    val colorPickerCollapsed by engine.isColorPickerCollapsed.collectAsState()
+    val timelineCollapsed by engine.isTimelineCollapsed.collectAsState()
+    val propertiesCollapsed by engine.isPropertiesCollapsed.collectAsState()
 
-    var leftPanelWidth by remember { mutableStateOf(UiDimensions.MinSidePanelWidth.scaled() * 1.2f) }
-    var rightPanelWidth by remember { mutableStateOf(UiDimensions.MinSidePanelWidth.scaled() * 1.4f) }
-    var timelineHeight by remember { mutableStateOf(UiDimensions.MinTimelineHeight.scaled() * 1.5f) }
+    var leftPanelWidth by remember { mutableStateOf(UiDimensions.MinSidePanelWidth.scaledNonReactive() * 1.2f) }
+    var rightPanelWidth by remember { mutableStateOf(UiDimensions.MinSidePanelWidth.scaledNonReactive() * 1.4f) }
+    var timelineHeight by remember { mutableStateOf(UiDimensions.MinTimelineHeight.scaledNonReactive() * 1.5f) }
+    
+    var rightPanelSplitRatio by remember { mutableStateOf(0.5f) }
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(EditorColors.background)
     ) {
-        val isCompactLayout = maxWidth < 700.dp
+        val isCompactLayout = maxWidth < 750.dp.scaled()
         Column(modifier = Modifier.fillMaxSize()) {
-            // Command Bar (Верхняя панель)
             EditorMenuBar(
                 engine = engine,
                 projectName = project.name,
                 zoom = zoom,
+                rotation = rotation,
                 isPlaying = isPlaying,
                 canUndo = canUndo,
                 canRedo = canRedo,
@@ -94,62 +109,104 @@ fun EditorScreen(
                 isPropertiesVisible = propertiesVisible
             )
 
+            // Панель вкладок (отображается если проектов > 1)
+            TabsPanel(
+                projectManager = projectManager,
+                onCloseRequested = onCloseTab
+            )
+
             Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                // Тулбар (Слева)
                 if (toolsVisible) {
-                    ToolsPanel(engine = engine)
+                    ToolsPanel(engine = engine, onImportImage = onImportImage)
                 }
 
-                // Панель свойств (Слева)
                 if (propertiesVisible) {
-                    GlassPanel(modifier = Modifier.width(leftPanelWidth).fillMaxHeight()) {
+                    GlassPanel(modifier = Modifier.width(if (propertiesCollapsed) 40.dp.scaled() else leftPanelWidth).fillMaxHeight()) {
                         Column {
                             PanelHeader(
-                                title = EditorStrings.observeString("panel.tools"),
+                                title = if (propertiesCollapsed) "" else EditorStrings.observeString("panel.tools"),
+                                isCollapsed = propertiesCollapsed,
+                                onToggleCollapse = { engine.setPropertiesCollapsed(!propertiesCollapsed) },
                                 onClose = { engine.setPropertiesVisible(false) }
                             )
-                            ToolPropertiesPanel(engine = engine)
+                            if (!propertiesCollapsed) {
+                                ToolPropertiesPanel(engine = engine)
+                            }
                         }
                     }
-                    VerticalSplitter { delta -> 
-                        leftPanelWidth = (leftPanelWidth + delta.dp).coerceIn(UiDimensions.MinSidePanelWidth.scaled(), UiDimensions.MaxSidePanelWidth.scaled())
+                    if (!propertiesCollapsed) {
+                        VerticalSplitter { delta -> 
+                            leftPanelWidth = (leftPanelWidth + delta.dp).coerceIn(UiDimensions.MinSidePanelWidth.scaledNonReactive(), UiDimensions.MaxSidePanelWidth.scaledNonReactive())
+                        }
                     }
                 }
 
-                // Центральная область холста
                 Box(modifier = Modifier.weight(1f).fillMaxHeight().background(EditorColors.canvasBackground)) {
                     DrawingCanvas(engine = engine, modifier = Modifier.fillMaxSize())
                 }
 
-                // Слои и Цвет (Справа)
                 if (layersVisible || colorPickerVisible) {
-                    VerticalSplitter { delta -> 
-                        rightPanelWidth = (rightPanelWidth - delta.dp).coerceIn(UiDimensions.MinSidePanelWidth.scaled(), UiDimensions.MaxSidePanelWidth.scaled())
+                    val isRightSideCollapsed = (layersCollapsed || !layersVisible) && (colorPickerCollapsed || !colorPickerVisible)
+                    
+                    if (!isRightSideCollapsed) {
+                        VerticalSplitter { delta -> 
+                            rightPanelWidth = (rightPanelWidth - delta.dp).coerceIn(UiDimensions.MinSidePanelWidth.scaledNonReactive(), UiDimensions.MaxSidePanelWidth.scaledNonReactive())
+                        }
                     }
-                    GlassPanel(modifier = Modifier.width(rightPanelWidth).fillMaxHeight()) {
-                        Column(modifier = Modifier.fillMaxSize()) {
+                    
+                    var rightPanelHeightPx by remember { mutableStateOf(1f) }
+                    
+                    GlassPanel(modifier = Modifier.width(if (isRightSideCollapsed) 40.dp.scaled() else rightPanelWidth).fillMaxHeight()) {
+                        Column(
+                            modifier = Modifier.fillMaxSize().onGloballyPositioned { 
+                                if (it.size.height > 0) rightPanelHeightPx = it.size.height.toFloat() 
+                            }
+                        ) {
                             if (layersVisible) {
-                                Box(modifier = Modifier.weight(0.6f)) {
+                                val layerWeight = when {
+                                    !colorPickerVisible || colorPickerCollapsed -> 1f
+                                    layersCollapsed -> 0.05f
+                                    else -> rightPanelSplitRatio
+                                }
+                                Box(modifier = Modifier.weight(layerWeight, fill = !layersCollapsed)) {
                                     Column {
                                         PanelHeader(
-                                            title = EditorStrings.observeString("panel.layers"),
+                                            title = if (layersCollapsed && isRightSideCollapsed) "" else EditorStrings.observeString("panel.layers"),
+                                            isCollapsed = layersCollapsed,
+                                            onToggleCollapse = { engine.setLayersCollapsed(!layersCollapsed) },
                                             onClose = { engine.setLayersVisible(false) }
                                         )
-                                        LayersPanel(engine = engine)
+                                        if (!layersCollapsed) {
+                                            LayersPanel(engine = engine)
+                                        }
                                     }
                                 }
                             }
-                            if (layersVisible && colorPickerVisible) {
-                                Divider(color = EditorColors.divider.copy(alpha = 0.1f))
+                            
+                            if (layersVisible && colorPickerVisible && !layersCollapsed && !colorPickerCollapsed) {
+                                HorizontalSplitter { delta ->
+                                    val deltaRatio = delta / rightPanelHeightPx
+                                    rightPanelSplitRatio = (rightPanelSplitRatio + deltaRatio).coerceIn(0.1f, 0.9f)
+                                }
                             }
+                            
                             if (colorPickerVisible) {
-                                Box(modifier = Modifier.weight(0.4f)) {
+                                val colorWeight = when {
+                                    !layersVisible || layersCollapsed -> 1f
+                                    colorPickerCollapsed -> 0.05f
+                                    else -> (1f - rightPanelSplitRatio)
+                                }
+                                Box(modifier = Modifier.weight(colorWeight, fill = !colorPickerCollapsed)) {
                                     Column {
                                         PanelHeader(
-                                            title = EditorStrings.observeString("panel.color"),
+                                            title = if (colorPickerCollapsed && isRightSideCollapsed) "" else EditorStrings.observeString("panel.color"),
+                                            isCollapsed = colorPickerCollapsed,
+                                            onToggleCollapse = { engine.setColorPickerCollapsed(!colorPickerCollapsed) },
                                             onClose = { engine.setColorPickerVisible(false) }
                                         )
-                                        ColorPicker(engine = engine, modifier = Modifier.fillMaxSize())
+                                        if (!colorPickerCollapsed) {
+                                            ColorPicker(engine = engine, modifier = Modifier.fillMaxSize())
+                                        }
                                     }
                                 }
                             }
@@ -158,18 +215,35 @@ fun EditorScreen(
                 }
             }
 
-            // Timeline (Снизу)
             if (timelineVisible) {
-                HorizontalSplitter { delta -> 
-                    timelineHeight = (timelineHeight - delta.dp).coerceIn(UiDimensions.MinTimelineHeight.scaled(), UiDimensions.MaxTimelineHeight.scaled())
+                if (!timelineCollapsed) {
+                    HorizontalSplitter { delta -> 
+                        timelineHeight = (timelineHeight - delta.dp).coerceIn(UiDimensions.MinTimelineHeight.scaledNonReactive(), UiDimensions.MaxTimelineHeight.scaledNonReactive())
+                    }
                 }
-                Box(modifier = Modifier.fillMaxWidth().height(timelineHeight)) {
-                    TimelinePanel(engine = engine, modifier = Modifier.fillMaxSize())
-                    IconButton(
-                        onClick = { engine.setTimelineVisible(false) },
-                        modifier = Modifier.align(Alignment.TopEnd).padding(UiDimensions.PaddingSmall.scaled()).size(UiDimensions.IconButtonSize.scaled())
-                    ) {
-                        Icon(EditorIcons.iconClose, null, tint = EditorColors.textSecondary, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
+                
+                Box(modifier = Modifier.fillMaxWidth().height(if (timelineCollapsed) 30.dp.scaled() else timelineHeight)) {
+                    Column(Modifier.fillMaxSize()) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().height(30.dp.scaled()).background(EditorColors.panelHeader),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            PanelStyledIconButton(
+                                icon = if (timelineCollapsed) EditorIcons.iconKeyboardArrowUp else EditorIcons.iconKeyboardArrowDown,
+                                onClick = { engine.setTimelineCollapsed(!timelineCollapsed) },
+                                modifier = Modifier.padding(horizontal = 4.dp.scaled())
+                            )
+                            Text(EditorStrings.observeString("panel.timeline").uppercase(), style = EditorTypography.panelTitle())
+                            Spacer(Modifier.weight(1f))
+                            PanelStyledIconButton(
+                                icon = EditorIcons.iconClose,
+                                onClick = { engine.setTimelineVisible(false) },
+                                modifier = Modifier.padding(horizontal = 4.dp.scaled())
+                            )
+                        }
+                        if (!timelineCollapsed) {
+                            TimelinePanel(engine = engine, modifier = Modifier.fillMaxSize())
+                        }
                     }
                 }
             } else {
@@ -190,16 +264,78 @@ fun EditorScreen(
 }
 
 @Composable
-private fun PanelHeader(title: String, onClose: () -> Unit) {
+private fun PanelHeader(
+    title: String, 
+    isCollapsed: Boolean = false,
+    onToggleCollapse: (() -> Unit)? = null,
+    onClose: () -> Unit
+) {
     Row(
-        modifier = Modifier.fillMaxWidth().background(EditorColors.panelHeader.copy(alpha = 0.5f)).padding(horizontal = 8.dp.scaled(), vertical = 2.dp.scaled()),
+        modifier = Modifier.fillMaxWidth().background(EditorColors.panelHeader.copy(alpha = 0.5f)).padding(horizontal = 4.dp.scaled(), vertical = 4.dp.scaled()),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        Text(title.uppercase(), style = EditorTypography.panelTitle())
-        IconButton(onClick = onClose, modifier = Modifier.size(16.dp.scaled())) {
-            Icon(EditorIcons.iconClose, null, tint = EditorColors.textMuted, modifier = Modifier.size(10.dp.scaled()))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (onToggleCollapse != null) {
+                PanelStyledIconButton(
+                    icon = if (isCollapsed) EditorIcons.iconKeyboardArrowDown else EditorIcons.iconKeyboardArrowUp,
+                    onClick = onToggleCollapse
+                )
+            }
+            if (title.isNotEmpty()) {
+                Spacer(Modifier.width(4.dp.scaled()))
+                Text(title.uppercase(), style = EditorTypography.panelTitle(), maxLines = 1)
+            }
         }
+        PanelStyledIconButton(
+            icon = EditorIcons.iconClose,
+            onClick = onClose
+        )
+    }
+}
+
+@Composable
+private fun PanelStyledIconButton(
+    icon: ImageVector,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    iconSize: androidx.compose.ui.unit.Dp = 14.dp
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    val isPressed by interactionSource.collectIsPressedAsState()
+
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.9f else if (isHovered) 1.1f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f)
+    )
+
+    Box(
+        modifier = modifier
+            .size(24.dp.scaled())
+            .graphicsLayer(scaleX = scale, scaleY = scale)
+            .clip(RoundedCornerShape(4.dp.scaled()))
+            .background(if (isHovered) EditorColors.hover else Color.Transparent)
+            .border(
+                width = 1.dp.scaled(), 
+                color = if (isPressed) EditorColors.accent 
+                        else if (isHovered) EditorColors.accent.copy(alpha = 0.6f) 
+                        else Color.Transparent,
+                shape = RoundedCornerShape(4.dp.scaled())
+            )
+            .pointerHoverIcon(PointerIcon.Hand)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon, null,
+            tint = if (isHovered) EditorColors.textPrimary else EditorColors.textMuted,
+            modifier = Modifier.size(iconSize.scaled())
+        )
     }
 }
 
@@ -224,7 +360,7 @@ private fun VerticalSplitter(onDrag: (Float) -> Unit) {
             .zIndex(100f), 
         contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.fillMaxHeight().width(0.5.dp.scaled()).background(EditorColors.divider))
+        Box(modifier = Modifier.fillMaxHeight().width(1.dp.scaled()).background(EditorColors.divider))
     }
 }
 
@@ -237,7 +373,7 @@ private fun HorizontalSplitter(onDrag: (Float) -> Unit) {
             .zIndex(100f), 
         contentAlignment = Alignment.Center
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(0.5.dp.scaled()).background(EditorColors.divider))
+        Box(modifier = Modifier.fillMaxWidth().height(1.dp.scaled()).background(EditorColors.divider))
     }
 }
 
@@ -246,6 +382,7 @@ private fun EditorMenuBar(
     engine: AnimationEngine,
     projectName: String,
     zoom: Float,
+    rotation: Float,
     isPlaying: Boolean,
     canUndo: Boolean,
     canRedo: Boolean,
@@ -262,8 +399,14 @@ private fun EditorMenuBar(
     isTimelineVisible: Boolean,
     isPropertiesVisible: Boolean
 ) {
-    Surface(modifier = Modifier.fillMaxWidth().height(UiDimensions.TopBarHeight.scaled()), color = EditorColors.panelHeader, elevation = 1.dp) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = UiDimensions.PaddingMedium.scaled()), verticalAlignment = Alignment.CenterVertically) {
+    Surface(modifier = Modifier.fillMaxWidth().height(UiDimensions.TopBarHeight.scaled()), color = EditorColors.panelHeader, elevation = 1.dp.scaled()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = UiDimensions.PaddingMedium.scaled()), 
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Icon(EditorIcons.iconAppIcon, null, tint = EditorColors.accent, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
             
             Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
@@ -276,7 +419,6 @@ private fun EditorMenuBar(
             VerticalDivider()
             Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
-            // Меню Файл
             DropdownMenuButton(EditorStrings.observeString("menu.file"), listOf(
                 EditorStrings.observeString("file.new") to onNew,
                 EditorStrings.observeString("file.open") to onLoad,
@@ -287,15 +429,14 @@ private fun EditorMenuBar(
                 EditorStrings.observeString("export.mp4") to onExportMp4
             ))
 
-            // Меню Вид (Windows)
             DropdownMenuButton(EditorStrings.observeString("menu.view"), listOf(
                 EditorStrings.observeString("view.resetZoom") to { engine.setZoom(1f) },
                 null,
-                (if (isToolsVisible) "Hide Tools" else "Show Tools") to { engine.toggleTools() },
-                (if (isLayersVisible) "Hide Layers" else "Show Layers") to { engine.toggleLayers() },
-                (if (isColorPickerVisible) "Hide Color Picker" else "Show Color Picker") to { engine.toggleColorPicker() },
-                (if (isTimelineVisible) "Hide Timeline" else "Show Timeline") to { engine.toggleTimeline() },
-                (if (isPropertiesVisible) "Hide Properties" else "Show Properties") to { engine.toggleProperties() }
+                (if (isToolsVisible) EditorStrings.observeString("view.hideTools") else EditorStrings.observeString("view.showTools")) to { engine.toggleTools() },
+                (if (isLayersVisible) EditorStrings.observeString("view.hideLayers") else EditorStrings.observeString("view.showLayers")) to { engine.toggleLayers() },
+                (if (isColorPickerVisible) EditorStrings.observeString("view.hideColor") else EditorStrings.observeString("view.showColor")) to { engine.toggleColorPicker() },
+                (if (isTimelineVisible) EditorStrings.observeString("view.hideTimeline") else EditorStrings.observeString("view.showTimeline")) to { engine.toggleTimeline() },
+                (if (isPropertiesVisible) EditorStrings.observeString("view.hideProperties") else EditorStrings.observeString("view.showProperties")) to { engine.toggleProperties() }
             ))
 
             if (!isCompact) {
@@ -310,9 +451,19 @@ private fun EditorMenuBar(
                 VerticalDivider()
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
+                // Блок Зума
                 TopBarIconButton(EditorIcons.iconZoomOut, tooltip = EditorStrings.observeString("view.zoomOut")) { engine.setZoom((zoom * 0.8f).coerceIn(0.1f, 20f)) }
-                Text("${(zoom * 100).toInt()}%", style = EditorTypography.mono(), color = EditorColors.textSecondary, modifier = Modifier.width(40.dp.scaled()), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text("${(zoom * 100).toInt()}%", style = EditorTypography.mono(), color = EditorColors.textSecondary, modifier = Modifier.width(45.dp.scaled()).clickable { engine.setZoom(1f) }, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                 TopBarIconButton(EditorIcons.iconZoomIn, tooltip = EditorStrings.observeString("view.zoomIn")) { engine.setZoom((zoom * 1.25f).coerceIn(0.1f, 20f)) }
+
+                Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
+                VerticalDivider()
+                Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
+
+                // Блок Поворота
+                TopBarIconButton(EditorIcons.iconRotateLeft, tooltip = "Повернуть влево") { engine.setRotation(rotation - 15f) }
+                Text("${rotation.toInt()}°", style = EditorTypography.mono(), color = EditorColors.textSecondary, modifier = Modifier.width(40.dp.scaled()).clickable { engine.setRotation(0f); engine.setPanOffset(Offset.Zero) }, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                TopBarIconButton(EditorIcons.iconRotateRight, tooltip = "Повернуть вправо") { engine.setRotation(rotation + 15f) }
 
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
                 VerticalDivider()
@@ -325,7 +476,7 @@ private fun EditorMenuBar(
 
             Spacer(Modifier.weight(1f))
             
-            if (!isCompact) Text(projectName, style = EditorTypography.panelTitle(), color = EditorColors.textMuted)
+            if (!isCompact) Text(projectName, style = EditorTypography.panelTitle(), color = EditorColors.textMuted, maxLines = 1)
 
             Spacer(Modifier.weight(1f))
 
@@ -336,7 +487,7 @@ private fun EditorMenuBar(
 
 @Composable
 private fun VerticalDivider() {
-    Box(modifier = Modifier.width(1.dp.scaled()).height(14.dp.scaled()).background(EditorColors.divider))
+    Box(modifier = Modifier.width(1.dp.scaled()).height(16.dp.scaled()).background(EditorColors.divider))
 }
 
 @Composable
@@ -350,13 +501,13 @@ private fun TopBarIconButton(icon: ImageVector, enabled: Boolean = true, tooltip
 private fun DropdownMenuButton(title: String, items: List<Pair<String, () -> Unit>?>) {
     var expanded by remember { mutableStateOf(false) }
     Box {
-        TextButton(onClick = { expanded = true }, modifier = Modifier.height(26.dp.scaled()), contentPadding = PaddingValues(horizontal = 8.dp.scaled())) { 
+        TextButton(onClick = { expanded = true }, modifier = Modifier.height(28.dp.scaled()), contentPadding = PaddingValues(horizontal = 8.dp.scaled())) { 
             Text(title, style = EditorTypography.menu())
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.background(EditorColors.surface).border(1.dp.scaled(), EditorColors.divider)) { 
             items.forEach { item -> 
                 if (item == null) Divider(color = EditorColors.divider) 
-                else DropdownMenuItem(onClick = { expanded = false; item.second() }, modifier = Modifier.height(28.dp.scaled())) { 
+                else DropdownMenuItem(onClick = { expanded = false; item.second() }, modifier = Modifier.height(32.dp.scaled())) { 
                     Text(item.first, style = EditorTypography.menu()) 
                 } 
             } 
@@ -367,21 +518,27 @@ private fun DropdownMenuButton(title: String, items: List<Pair<String, () -> Uni
 @Composable
 private fun EditorStatusBar(projectName: String, size: String, frame: Int, total: Int, fps: Int, playing: Boolean) {
     Surface(modifier = Modifier.fillMaxWidth().height(UiDimensions.StatusBarHeight.scaled()), color = EditorColors.panelHeader) {
-        Row(modifier = Modifier.fillMaxWidth().padding(horizontal = UiDimensions.PaddingMedium.scaled()), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = UiDimensions.PaddingMedium.scaled()), 
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             StatusItem(projectName, EditorIcons.iconAppIcon)
             StatusItem(size, null)
             StatusItem("${EditorStrings.observeString("status.frame")} $frame/$total", EditorIcons.iconTimeline)
-            StatusItem("FPS: $fps", null)
+            StatusItem("${EditorStrings.observeString("status.fps")}: $fps", null)
             Spacer(Modifier.weight(1f))
-            Box(modifier = Modifier.size(5.dp.scaled()).clip(RoundedCornerShape(2.5.dp.scaled())).background(if (playing) EditorColors.accentGreen else EditorColors.accentRed))
+            Box(modifier = Modifier.size(6.dp.scaled()).clip(RoundedCornerShape(3.dp.scaled())).background(if (playing) EditorColors.accentGreen else EditorColors.accentRed))
         }
     }
 }
 
 @Composable
 private fun StatusItem(text: String, icon: ImageVector?) {
-    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 10.dp.scaled())) {
-        if (icon != null) { Icon(icon, null, tint = EditorColors.textMuted, modifier = Modifier.size(9.dp.scaled())); Spacer(Modifier.width(3.dp.scaled())) }
-        Text(text, style = EditorTypography.statusBar())
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(end = 12.dp.scaled())) {
+        if (icon != null) { Icon(icon, null, tint = EditorColors.textMuted, modifier = Modifier.size(10.dp.scaled())); Spacer(Modifier.width(4.dp.scaled())) }
+        Text(text, style = EditorTypography.statusBar(), maxLines = 1)
     }
 }

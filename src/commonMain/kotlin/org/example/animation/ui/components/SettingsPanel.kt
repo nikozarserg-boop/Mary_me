@@ -18,6 +18,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.example.animation.APP_VERSION
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
 import org.example.animation.model.AnimationProject
@@ -220,10 +221,10 @@ private fun InterfaceSettingsContent(scale: Float, theme: ThemeType, onScale: (F
         Text(EditorStrings.observeString("interface.theme"), style = EditorTypography.caption())
         Spacer(Modifier.height(6.dp.scaled()))
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp.scaled())) {
-            ThemeCircleBtn("DARK", EditorColors.accent, theme == ThemeType.DARK) { onTheme(ThemeType.DARK) }
-            ThemeCircleBtn("LIGHT", Color.White, theme == ThemeType.LIGHT) { onTheme(ThemeType.LIGHT) }
-            ThemeCircleBtn("GREY", Color.Gray, theme == ThemeType.GREY) { onTheme(ThemeType.GREY) }
-            ThemeCircleBtn("GLASS", EditorColors.accentGreen, theme == ThemeType.GLASS) { onTheme(ThemeType.GLASS) }
+            ThemeCircleBtn(EditorStrings.observeString("theme.dark"), EditorColors.accent, theme == ThemeType.DARK) { onTheme(ThemeType.DARK) }
+            ThemeCircleBtn(EditorStrings.observeString("theme.light"), Color.White, theme == ThemeType.LIGHT) { onTheme(ThemeType.LIGHT) }
+            ThemeCircleBtn(EditorStrings.observeString("theme.grey"), Color.Gray, theme == ThemeType.GREY) { onTheme(ThemeType.GREY) }
+            ThemeCircleBtn(EditorStrings.observeString("theme.glass"), EditorColors.accentGreen, theme == ThemeType.GLASS) { onTheme(ThemeType.GLASS) }
         }
 
         Spacer(Modifier.height(20.dp.scaled()))
@@ -258,7 +259,7 @@ private fun ThemeCircleBtn(label: String, color: Color, isSelected: Boolean, onC
                 .background(color)
                 .border(if (isSelected) 2.dp.scaled() else 0.dp, Color.White, RoundedCornerShape(12.dp.scaled()))
         )
-        Text(label, style = EditorTypography.toolText(), color = if (isSelected) EditorColors.accent else EditorColors.textSecondary)
+        Text(label.uppercase(), style = EditorTypography.toolText(), color = if (isSelected) EditorColors.accent else EditorColors.textSecondary, maxLines = 1)
     }
 }
 
@@ -290,11 +291,15 @@ private fun PerformanceSettingsContent(engine: AnimationEngine) {
     val after by engine.ghostFramesAfter.collectAsState()
     Column {
         Text(EditorStrings.observeString("settings.performance"), style = EditorTypography.body(), fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp.scaled()))
-        Text("Ghost Frames (ex Onion Skin)", style = EditorTypography.body())
-        Spacer(Modifier.height(10.dp.scaled()))
-        Text("Frames Before: $before", style = EditorTypography.caption())
+        Text(EditorStrings.observeString("perf.ghostFrames"), style = EditorTypography.body())
+        Text(EditorStrings.observeString("anim.ghostDesc"), style = EditorTypography.caption(), color = EditorColors.textMuted)
+        
+        Spacer(Modifier.height(16.dp.scaled()))
+        
+        Text("${EditorStrings.observeString("anim.ghostBefore")} $before", style = EditorTypography.caption())
         Slider(value = before.toFloat(), onValueChange = { engine.setGhostFramesFramesBefore(it.toInt()) }, valueRange = 0f..10f, steps = 9)
-        Text("Frames After: $after", style = EditorTypography.caption())
+        
+        Text("${EditorStrings.observeString("anim.ghostAfter")} $after", style = EditorTypography.caption())
         Slider(value = after.toFloat(), onValueChange = { engine.setGhostFramesFramesAfter(it.toInt()) }, valueRange = 0f..10f, steps = 9)
     }
 }
@@ -312,7 +317,9 @@ private fun AboutSettingsContent(project: AnimationProject) {
         }
         Spacer(Modifier.height(12.dp.scaled()))
         Text("MaryMe Animator", style = EditorTypography.body(), fontWeight = FontWeight.Bold)
-        Text(EditorStrings.observeString("about.version"), style = EditorTypography.caption(), color = EditorColors.accentGreen)
+        Text("${EditorStrings.observeString("about.version")} $APP_VERSION", style = EditorTypography.caption(), color = EditorColors.accentGreen)
+        Spacer(Modifier.height(8.dp.scaled()))
+        Text(EditorStrings.observeString("about.desc"), style = EditorTypography.caption(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }
 

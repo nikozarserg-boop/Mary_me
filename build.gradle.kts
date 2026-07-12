@@ -22,6 +22,24 @@ val appVersionCode: Int = (versionMap["APP_VERSION_CODE"] ?: "1").toInt()
 
 version = appVersion
 
+// Генерация константы APP_VERSION в commonMain из version.txt
+val generateAppVersion by tasks.registering {
+    val outFile = layout.projectDirectory.file("src/commonMain/kotlin/org/example/animation/AppVersion.kt")
+    inputs.property("appVersion", appVersion)
+    outputs.file(outFile)
+    doLast {
+        outFile.asFile.writeText(
+            "package org.example.animation\n\n" +
+            "// Файл генерируется Gradle из version.txt. Не редактировать вручную.\n" +
+            "const val APP_VERSION = \"$appVersion\"\n"
+        )
+    }
+}
+
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    dependsOn(generateAppVersion)
+}
+
 repositories {
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")

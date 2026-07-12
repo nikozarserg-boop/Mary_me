@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
 import kotlinx.coroutines.delay
 import org.example.animation.ui.theme.EditorColors
+import org.example.animation.ui.theme.scaled
 
 /**
  * Кнопка-инструмент с тултипом при наведении
@@ -47,25 +48,25 @@ fun TooltipToolButton(
     Box(modifier = modifier) {
         Box(
             modifier = Modifier
-                .size(36.dp)
-                .clip(RoundedCornerShape(6.dp))
+                .size(36.dp.scaled())
+                .clip(RoundedCornerShape(6.dp.scaled()))
                 .background(if (isActive) EditorColors.accentBlue.copy(alpha = 0.3f) else Color.Transparent)
                 .hoverable(interactionSource)
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, tooltip, tint = if (isActive) EditorColors.accentBlue else EditorColors.textSecondary, modifier = Modifier.size(20.dp))
+            Icon(icon, tooltip, tint = if (isActive) EditorColors.accentBlue else EditorColors.textSecondary, modifier = Modifier.size(20.dp.scaled()))
         }
 
         if (showTooltip) {
             Box(
-                modifier = Modifier.offset(x = 42.dp, y = 0.dp).zIndex(500f)
-                    .clip(RoundedCornerShape(4.dp))
+                modifier = Modifier.offset(x = 42.dp.scaled(), y = 0.dp).zIndex(500f)
+                    .clip(RoundedCornerShape(4.dp.scaled()))
                     .background(EditorColors.darkSurfaceVariant.copy(alpha = 0.98f))
-                    .border(0.5.dp, EditorColors.dividerColor, RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .border(0.5.dp.scaled(), EditorColors.dividerColor, RoundedCornerShape(4.dp.scaled()))
+                    .padding(horizontal = 8.dp.scaled(), vertical = 4.dp.scaled())
             ) {
-                Text(tooltip, color = EditorColors.textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                Text(tooltip, color = EditorColors.textPrimary, fontSize = 11.sp.scaled(), fontWeight = FontWeight.Normal)
             }
         }
     }
@@ -98,22 +99,22 @@ fun TooltipSmallButton(
 
     Box(modifier = modifier) {
         Box(
-            modifier = Modifier.size(24.dp).clip(RoundedCornerShape(3.dp)).background(bgColor)
+            modifier = Modifier.size(24.dp.scaled()).clip(RoundedCornerShape(3.dp.scaled())).background(bgColor)
                 .hoverable(interactionSource).clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            Icon(icon, tooltip, tint = tint, modifier = Modifier.size(14.dp))
+            Icon(icon, tooltip, tint = tint, modifier = Modifier.size(14.dp.scaled()))
         }
 
         if (showTooltip) {
             Box(
-                modifier = Modifier.offset(x = 28.dp, y = 0.dp).zIndex(500f)
-                    .clip(RoundedCornerShape(4.dp))
+                modifier = Modifier.offset(x = 28.dp.scaled(), y = 0.dp).zIndex(500f)
+                    .clip(RoundedCornerShape(4.dp.scaled()))
                     .background(EditorColors.darkSurfaceVariant.copy(alpha = 0.98f))
-                    .border(0.5.dp, EditorColors.dividerColor, RoundedCornerShape(4.dp))
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                    .border(0.5.dp.scaled(), EditorColors.dividerColor, RoundedCornerShape(4.dp.scaled()))
+                    .padding(horizontal = 8.dp.scaled(), vertical = 4.dp.scaled())
             ) {
-                Text(tooltip, color = EditorColors.textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Normal)
+                Text(tooltip, color = EditorColors.textPrimary, fontSize = 11.sp.scaled(), fontWeight = FontWeight.Normal)
             }
         }
     }

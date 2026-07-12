@@ -15,54 +15,48 @@ import androidx.compose.ui.unit.sp
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.model.ToolType
 import org.example.animation.localization.EditorStrings
-import org.example.animation.ui.theme.EditorColors
-import org.example.animation.ui.theme.EditorIcons
-import org.example.animation.ui.theme.EditorTypography
+import org.example.animation.ui.theme.*
+import kotlin.math.roundToInt
 
 @Composable
 fun ToolPropertiesPanel(engine: AnimationEngine) {
     val currentTool by engine.currentTool.collectAsState()
     val brushSize by engine.brushSize.collectAsState()
     val opacity by engine.opacity.collectAsState()
+    val smoothingLevel by engine.smoothingLevel.collectAsState()
+    val antiAliasing by engine.antiAliasingEnabled.collectAsState()
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(EditorColors.panelBackground)
-            .padding(12.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(UiDimensions.PaddingMedium.scaled())
     ) {
-        Text(
-            text = EditorStrings.observeString("panel.tools").uppercase(),
-            style = EditorTypography.panelTitle(),
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
         // Tool Icon and Name
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
-                    .size(32.dp)
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(EditorColors.darkSurfaceVariant),
+                    .size(UiDimensions.IconButtonSize.scaled())
+                    .clip(RoundedCornerShape(4.dp.scaled()))
+                    .background(EditorColors.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     getToolIcon(currentTool),
                     null,
-                    tint = EditorColors.accentBlue,
-                    modifier = Modifier.size(18.dp)
+                    tint = EditorColors.accent,
+                    modifier = Modifier.size(UiDimensions.IconSize.scaled())
                 )
             }
-            Spacer(Modifier.width(12.dp))
+            Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
             Text(
                 text = getToolName(currentTool),
-                color = EditorColors.textPrimary,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium
+                style = EditorTypography.body().copy(fontWeight = FontWeight.Medium)
             )
         }
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(UiDimensions.PaddingLarge.scaled()))
 
         // Properties common for most tools
         if (currentTool != ToolType.MOVE && currentTool != ToolType.EYEDROPPER) {
@@ -73,7 +67,7 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
                 onValueChange = { engine.setBrushSize(it) }
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(UiDimensions.PaddingMedium.scaled()))
 
             PropertySlider(
                 label = EditorStrings.observeString("brush.opacity"),
@@ -81,9 +75,59 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
                 range = 0f..1f,
                 onValueChange = { engine.setOpacity(it) }
             )
+
+            Spacer(Modifier.height(UiDimensions.PaddingMedium.scaled()))
+
+            // Smoothing Level
+            Column(modifier = Modifier.padding(vertical = 4.dp.scaled())) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(EditorStrings.observeString("brush.smoothing"), style = EditorTypography.caption())
+                    Text(
+                        EditorStrings.observeString("brush.smoothing.$smoothingLevel"),
+                        color = EditorColors.accent,
+                        style = EditorTypography.mono().copy(fontWeight = FontWeight.Bold)
+                    )
+                }
+                Slider(
+                    value = smoothingLevel.toFloat(),
+                    onValueChange = { engine.setSmoothingLevel(it.roundToInt()) },
+                    valueRange = 0f..3f,
+                    steps = 2,
+                    modifier = Modifier.height(32.dp.scaled()),
+                    colors = SliderDefaults.colors(
+                        thumbColor = EditorColors.accent,
+                        activeTrackColor = EditorColors.accent,
+                        inactiveTrackColor = EditorColors.surfaceVariant
+                    )
+                )
+            }
         }
 
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(UiDimensions.PaddingLarge.scaled()))
+        
+        // Дополнительные параметры
+        Text(
+            text = EditorStrings.observeString("settings.performance"), 
+            style = EditorTypography.caption(),
+            modifier = Modifier.padding(bottom = 8.dp.scaled())
+        )
+        
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable { engine.setAntiAliasingEnabled(!antiAliasing) }
+        ) {
+            Checkbox(
+                checked = antiAliasing, 
+                onCheckedChange = { engine.setAntiAliasingEnabled(it) }, 
+                colors = CheckboxDefaults.colors(checkedColor = EditorColors.accent),
+                modifier = Modifier.size(24.dp.scaled())
+            )
+            Spacer(Modifier.width(8.dp.scaled()))
+            Text(EditorStrings.observeString("brush.antiAliasing"), style = EditorTypography.body())
+        }
     }
 }
 
@@ -94,27 +138,27 @@ private fun PropertySlider(
     range: ClosedFloatingPointRange<Float>,
     onValueChange: (Float) -> Unit
 ) {
-    Column {
+    Column(modifier = Modifier.padding(vertical = 4.dp.scaled())) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text(label, color = EditorColors.textSecondary, fontSize = 11.sp)
+            Text(label, style = EditorTypography.caption())
             Text(
                 if (range.endInclusive == 1f) "${(value * 100).toInt()}%" else value.toInt().toString(),
-                color = EditorColors.accentBlue,
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
+                color = EditorColors.accent,
+                style = EditorTypography.mono().copy(fontWeight = FontWeight.Bold)
             )
         }
         Slider(
             value = value,
             onValueChange = onValueChange,
             valueRange = range,
+            modifier = Modifier.height(32.dp.scaled()),
             colors = SliderDefaults.colors(
-                thumbColor = EditorColors.accentBlue,
-                activeTrackColor = EditorColors.accentBlue,
-                inactiveTrackColor = EditorColors.darkSurfaceVariant
+                thumbColor = EditorColors.accent,
+                activeTrackColor = EditorColors.accent,
+                inactiveTrackColor = EditorColors.surfaceVariant
             )
         )
     }

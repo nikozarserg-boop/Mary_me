@@ -14,7 +14,7 @@ data class RecentProject(
 
 @Serializable
 data class AppSettings(
-    var uiScale: Float = 1.0f,
+    var uiScale: Float = 0.0f, // 0.0 means Auto
     var language: String = "ru",
     var recentProjects: MutableList<RecentProject> = mutableListOf(),
     var autoSaveEnabled: Boolean = true,

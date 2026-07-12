@@ -16,16 +16,11 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
-import org.example.animation.model.BrushManager
-import org.example.animation.model.BrushPreset
-import org.example.animation.ui.theme.EditorColors
-import org.example.animation.ui.theme.EditorIcons
-import org.example.animation.ui.theme.EditorTypography
+import org.example.animation.ui.theme.*
 import kotlin.math.*
 
 @Composable
@@ -39,20 +34,14 @@ fun ColorPicker(engine: AnimationEngine, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(8.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(UiDimensions.PaddingMedium.scaled())
     ) {
-        Text(
-            EditorStrings.observeString("panel.color").uppercase(),
-            style = EditorTypography.panelTitle(),
-            fontSize = 9.sp,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(1f)
-                .padding(bottom = 8.dp),
+                .padding(bottom = UiDimensions.PaddingMedium.scaled()),
             contentAlignment = Alignment.Center
         ) {
             HueCircle(
@@ -72,18 +61,23 @@ fun ColorPicker(engine: AnimationEngine, modifier: Modifier = Modifier) {
             )
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-            Box(modifier = Modifier.size(24.dp).clip(RoundedCornerShape(4.dp)).background(ulongToColor(currentColorULong).copy(alpha = opacity)).border(1.dp, EditorColors.dividerColor, RoundedCornerShape(4.dp)))
-            Spacer(Modifier.width(8.dp))
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = UiDimensions.PaddingMedium.scaled())) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp.scaled())
+                    .clip(RoundedCornerShape(4.dp.scaled()))
+                    .background(ulongToColor(currentColorULong).copy(alpha = opacity))
+                    .border(0.5.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
+            )
+            Spacer(Modifier.width(8.dp.scaled()))
             Text(
                 "#${currentColorULong.toString(16).padStart(8, '0').uppercase().takeLast(6)}",
                 color = EditorColors.textPrimary,
-                fontSize = 11.sp,
-                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                style = EditorTypography.mono()
             )
         }
 
-        Divider(color = EditorColors.dividerColor.copy(alpha = 0.3f), modifier = Modifier.padding(bottom = 8.dp))
+        Divider(color = EditorColors.divider.copy(alpha = 0.3f), modifier = Modifier.padding(bottom = UiDimensions.PaddingMedium.scaled()))
 
         // Sliders
         CompactSlider(EditorStrings.observeString("brush.size"), brushSize, 1f..100f) { engine.setBrushSize(it) }
@@ -93,15 +87,23 @@ fun ColorPicker(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
 @Composable
 private fun CompactSlider(label: String, value: Float, range: ClosedFloatingPointRange<Float>, onValueChange: (Float) -> Unit) {
-    Column(modifier = Modifier.padding(vertical = 1.dp)) {
+    Column(modifier = Modifier.padding(vertical = 2.dp.scaled())) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, color = EditorColors.textSecondary, fontSize = 9.sp)
-            Text(if (range.endInclusive == 1f) "${(value * 100).toInt()}%" else value.toInt().toString(), color = EditorColors.accentBlue, fontSize = 9.sp, fontWeight = FontWeight.Bold, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+            Text(label, style = EditorTypography.caption())
+            Text(
+                if (range.endInclusive == 1f) "${(value * 100).toInt()}%" else value.toInt().toString(), 
+                color = EditorColors.accent, 
+                style = EditorTypography.mono().copy(fontWeight = FontWeight.Bold)
+            )
         }
         Slider(
             value = value, onValueChange = onValueChange, valueRange = range, 
-            modifier = Modifier.height(16.dp),
-            colors = SliderDefaults.colors(thumbColor = EditorColors.accentBlue, activeTrackColor = EditorColors.accentBlue, inactiveTrackColor = EditorColors.dividerColor)
+            modifier = Modifier.height(24.dp.scaled()),
+            colors = SliderDefaults.colors(
+                thumbColor = EditorColors.accent, 
+                activeTrackColor = EditorColors.accent, 
+                inactiveTrackColor = EditorColors.divider
+            )
         )
     }
 }
@@ -115,13 +117,13 @@ fun HueCircle(hue: Float, onHueChange: (Float) -> Unit) {
             var newHue = angle.toFloat(); if (newHue < 0) newHue += 360f; onHueChange(newHue)
         }
     }) {
-        val radius = size.minDimension / 2f; val thickness = 10.dp.toPx()
+        val radius = size.minDimension / 2f; val thickness = 10.dp.scaledNonReactive().toPx()
         val sweep = Brush.sweepGradient(listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red), center = center)
         drawCircle(brush = sweep, radius = radius - thickness / 2, style = Stroke(width = thickness))
         val angleRad = hue * PI / 180f
         val pos = Offset(center.x + (radius - thickness / 2) * cos(angleRad).toFloat(), center.y + (radius - thickness / 2) * sin(angleRad).toFloat())
-        drawCircle(Color.White, radius = 4.dp.toPx(), center = pos)
-        drawCircle(Color.Black, radius = 3.dp.toPx(), center = pos, style = Stroke(1.dp.toPx()))
+        drawCircle(Color.White, radius = 4.dp.scaledNonReactive().toPx(), center = pos)
+        drawCircle(Color.Black, radius = 3.dp.scaledNonReactive().toPx(), center = pos, style = Stroke(1.dp.scaledNonReactive().toPx()))
     }
 }
 
@@ -135,7 +137,7 @@ fun SaturationValueBox(hue: Float, saturation: Float, value: Float, onValueChang
         drawRect(brush = Brush.horizontalGradient(listOf(Color.White, Color.hsv(hue, 1f, 1f))))
         drawRect(brush = Brush.verticalGradient(listOf(Color.Transparent, Color.Black)))
         val pos = Offset(saturation * size.width, (1f - value) * size.height)
-        drawCircle(if (value > 0.5f) Color.Black else Color.White, radius = 3.dp.toPx(), center = pos, style = Stroke(1.dp.toPx()))
+        drawCircle(if (value > 0.5f) Color.Black else Color.White, radius = 3.dp.scaledNonReactive().toPx(), center = pos, style = Stroke(1.dp.scaledNonReactive().toPx()))
     }
 }
 
@@ -146,5 +148,5 @@ private fun colorToHSV(color: Color): FloatArray {
     return floatArrayOf(h, if (max == 0f) 0f else delta / max, max)
 }
 private fun hsvToColor(hsv: FloatArray): Color = Color.hsv(hsv[0], hsv[1], hsv[2])
-private fun ulongToColor(c: ULong): Color = Color((c shr 16 and 0xFFuL).toInt(), (c shr 8 and 0xFFuL).toInt(), (c and 0xFFuL).toInt(), (c shr 24 and 0xFFuL).toInt())
+private fun ulongToColor(c: ULong): Color = Color((c shr 16 and 0xFFuL).toInt() / 255f, (c shr 8 and 0xFFuL).toInt() / 255f, (c and 0xFFuL).toInt() / 255f, (c shr 24 and 0xFFuL).toInt() / 255f)
 private fun Color.toULong(): ULong = ((alpha * 255).toULong() shl 24) or ((red * 255).toULong() shl 16) or ((green * 255).toULong() shl 8) or (blue * 255).toULong()

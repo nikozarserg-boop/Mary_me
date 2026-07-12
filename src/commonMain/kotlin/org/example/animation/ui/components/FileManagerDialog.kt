@@ -75,7 +75,7 @@ fun FileManagerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
-                        if (mode == FileDialogMode.SAVE) EditorIcons.iconFileDownload else EditorIcons.iconFileUpload, 
+                        if (mode == FileDialogMode.SAVE) EditorIcons.iconSave else EditorIcons.iconFolderOpen, 
                         null, 
                         tint = EditorColors.accent, 
                         modifier = Modifier.size(20.dp.scaled())
@@ -165,7 +165,7 @@ fun FileManagerDialog(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            text = if (mode == FileDialogMode.SAVE) "Имя:" else "Файл:", 
+                            text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.name") else EditorStrings.observeString("file.file"), 
                             color = EditorColors.textSecondary, 
                             fontSize = 13.sp.scaled(),
                             modifier = Modifier.width(60.dp.scaled())
@@ -197,6 +197,10 @@ fun FileManagerDialog(
                         Button(
                             onClick = {
                                 if (mode == FileDialogMode.SAVE) {
+                                    if (fileName.isEmpty()) {
+                                        errorMsg = EditorStrings["file.selectError"]
+                                        return@Button
+                                    }
                                     val fullFileName = if (fileName.contains(".")) fileName else "$fileName.$extension"
                                     val separator = if (currentPath.endsWith("/") || currentPath.endsWith("\\")) "" else "/"
                                     val fullPath = "$currentPath$separator$fullFileName"
@@ -207,7 +211,7 @@ fun FileManagerDialog(
                                         onResult(fullPath)
                                     }
                                 } else {
-                                    selectedEntry?.let { onResult(it.path) } ?: run { errorMsg = "Выберите файл" }
+                                    selectedEntry?.let { onResult(it.path) } ?: run { errorMsg = EditorStrings["file.selectError"] }
                                 }
                             },
                             colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
@@ -215,7 +219,7 @@ fun FileManagerDialog(
                             modifier = Modifier.height(40.dp.scaled()).width(120.dp.scaled())
                         ) {
                             Text(
-                                if (mode == FileDialogMode.SAVE) "Сохранить" else "Открыть", 
+                                if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveBtn") else EditorStrings.observeString("file.openBtn"), 
                                 color = Color.White, 
                                 fontWeight = FontWeight.Bold
                             )

@@ -64,7 +64,7 @@ object EditorColors {
     var canvasBackground by mutableStateOf(Color(0xFF181818))
     val canvasBorder = Color(0xFF444444)
 
-    // Aliases and extra UI colors used across panels
+    // Aliases
     val dividerColor: Color get() = _divider.value
     val accentBlue: Color get() = _accent.value
     val darkSurface: Color get() = _surface.value
@@ -88,19 +88,10 @@ object EditorColors {
                 canvasBackground = Color(0xFF181818)
             }
             ThemeType.LIGHT -> {
-                // Professional Light Theme: "Modern Paper"
-                background = Color(0xFFF0F0F0)
-                surface = Color(0xFFFFFFFF)
-                surfaceVariant = Color(0xFFE5E5E5)
-                panelBackground = Color(0xFFFAFAFA)
-                panelHeader = Color(0xFFE0E0E0)
-                accent = Color(0xFF0066CC)
-                textPrimary = Color(0xFF222222)
-                textSecondary = Color(0xFF444444)
-                textMuted = Color(0xFF999999)
-                divider = Color(0xFFDCDCDC)
-                selection = Color(0xFFB3D7FF)
-                hover = Color(0xFFF0F0F0)
+                background = Color(0xFFF0F0F0); surface = Color(0xFFFFFFFF); surfaceVariant = Color(0xFFE5E5E5)
+                panelBackground = Color(0xFFFAFAFA); panelHeader = Color(0xFFE0E0E0); accent = Color(0xFF0066CC)
+                textPrimary = Color(0xFF222222); textSecondary = Color(0xFF444444); textMuted = Color(0xFF999999)
+                divider = Color(0xFFDCDCDC); selection = Color(0xFFB3D7FF); hover = Color(0xFFF0F0F0)
                 canvasBackground = Color(0xFFD8D8D8)
             }
             ThemeType.GREY -> {
@@ -124,20 +115,26 @@ object EditorColors {
 // Global UI Scaling System
 val LocalUiScale = compositionLocalOf { 1.0f }
 
-// Non-composable global scale so scaled() can be used inside non-composable lambdas
-private var _uiScale = 1.0f
+// Non-composable global scale for edge cases
+private val _uiScaleState = mutableStateOf(1.0f)
 var currentUiScale: Float
-    get() = _uiScale
-    set(value) { _uiScale = value }
+    get() = _uiScaleState.value
+    set(value) { _uiScaleState.value = value }
 
-fun Dp.scaled(): Dp = this * _uiScale
+@Composable
+fun Dp.scaled(): Dp = this * LocalUiScale.current
 
-fun TextUnit.scaled(): TextUnit = this * _uiScale
+@Composable
+fun TextUnit.scaled(): TextUnit = this * LocalUiScale.current
+
+// Helper for non-composable contexts
+fun Dp.scaledNonReactive(): Dp = this * _uiScaleState.value
+fun TextUnit.scaledNonReactive(): TextUnit = this * _uiScaleState.value
 
 object EditorShapes {
-    val small = RoundedCornerShape(2.dp)
-    val medium = RoundedCornerShape(4.dp)
-    val large = RoundedCornerShape(8.dp)
+    val small @Composable get() = RoundedCornerShape(2.dp.scaled())
+    val medium @Composable get() = RoundedCornerShape(4.dp.scaled())
+    val large @Composable get() = RoundedCornerShape(8.dp.scaled())
 }
 
 object EditorTypography {
@@ -159,7 +156,6 @@ object EditorTypography {
     fun layerName() = TextStyle(fontSize = 11.sp.scaled(), fontWeight = FontWeight.Normal, color = EditorColors.textPrimary)
 }
 
-// Base sizes for scaling reference
 object UiDimensions {
     val ToolBarWidth = 32.dp
     val IconButtonSize = 24.dp
@@ -170,7 +166,6 @@ object UiDimensions {
     val TopBarHeight = 36.dp
     val StatusBarHeight = 22.dp
     
-    // Panel constraints (Base values, will be scaled in UI)
     val MinSidePanelWidth = 120.dp
     val MaxSidePanelWidth = 400.dp
     val MinTimelineHeight = 100.dp
@@ -185,22 +180,15 @@ fun EditorTheme(
     uiScale: Float = 1.0f,
     content: @Composable () -> Unit
 ) {
-    SideEffect { EditorColors.applyTheme(themeType); _uiScale = uiScale }
+    SideEffect { 
+        EditorColors.applyTheme(themeType)
+        _uiScaleState.value = uiScale 
+    }
     
     val colors = if (themeType == ThemeType.LIGHT) {
-        lightColors(
-            primary = EditorColors.accent,
-            background = EditorColors.background,
-            surface = EditorColors.surface,
-            onPrimary = Color.White
-        )
+        lightColors(primary = EditorColors.accent, background = EditorColors.background, surface = EditorColors.surface, onPrimary = Color.White)
     } else {
-        darkColors(
-            primary = EditorColors.accent,
-            background = EditorColors.background,
-            surface = EditorColors.surface,
-            onPrimary = Color.White
-        )
+        darkColors(primary = EditorColors.accent, background = EditorColors.background, surface = EditorColors.surface, onPrimary = Color.White)
     }
     
     CompositionLocalProvider(
@@ -209,10 +197,10 @@ fun EditorTheme(
     ) {
         MaterialTheme(
             colors = colors, 
-            shapes = MaterialTheme.shapes.copy(
-                small = EditorShapes.small, 
-                medium = EditorShapes.medium, 
-                large = EditorShapes.large
+            shapes = Shapes(
+                small = RoundedCornerShape(2.dp.scaled()),
+                medium = RoundedCornerShape(4.dp.scaled()),
+                large = RoundedCornerShape(8.dp.scaled())
             ), 
             content = content
         )

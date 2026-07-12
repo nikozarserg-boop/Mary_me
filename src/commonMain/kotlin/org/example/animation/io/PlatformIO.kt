@@ -1,5 +1,7 @@
 package org.example.animation.io
 
+import androidx.compose.ui.graphics.ImageBitmap
+
 /**
  * Описание записи файла или папки для кроссплатформенного менеджера
  */
@@ -14,6 +16,11 @@ data class FileEntry(
  * Платформенно-зависимые операции ввода/вывода
  */
 expect fun createPlatformFileHandler(): PlatformFileHandler
+
+/**
+ * Декодирование изображения из байтов в ImageBitmap
+ */
+expect fun decodeImage(data: ByteArray): ImageBitmap?
 
 interface PlatformFileHandler {
     fun saveFile(defaultName: String, extension: String, data: ByteArray): Boolean

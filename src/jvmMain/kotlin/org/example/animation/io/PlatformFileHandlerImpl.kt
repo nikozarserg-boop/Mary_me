@@ -4,11 +4,27 @@ import java.io.File
 import java.awt.Desktop
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.toComposeImageBitmap
+import org.jetbrains.skia.Image
+import java.io.ByteArrayInputStream
 
 /**
  * JVM реализация платформенно-зависимого файлового ввода/вывода
  */
 actual fun createPlatformFileHandler(): PlatformFileHandler = JvmPlatformFileHandler()
+
+/**
+ * Декодирование изображения для JVM (используя Skia)
+ */
+actual fun decodeImage(data: ByteArray): ImageBitmap? {
+    return try {
+        Image.makeFromEncoded(data).toComposeImageBitmap()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
 
 class JvmPlatformFileHandler : PlatformFileHandler {
     private var lastDirectory: String? = null
@@ -51,14 +67,17 @@ class JvmPlatformFileHandler : PlatformFileHandler {
         return try {
             val chooser = JFileChooser(lastDirectory ?: getDocumentsDirectory())
             chooser.dialogTitle = "Открыть файл"
-            
+
             val filter = when (extension.lowercase()) {
                 "maryme" -> FileNameExtensionFilter("MaryMe Project (*.maryme)", "maryme")
                 "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
                 "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
+                "jpg", "jpeg" -> FileNameExtensionFilter("JPEG Image (*.jpg, *.jpeg)", "jpg", "jpeg")
                 "avi" -> FileNameExtensionFilter("AVI Video (*.avi)", "avi")
                 "mp4" -> FileNameExtensionFilter("MP4 Video (*.mp4)", "mp4")
-                else -> FileNameExtensionFilter("All supported files", "maryme", "gif", "png", "avi", "mp4")
+                "brush" -> FileNameExtensionFilter("Brush Preset (*.brush)", "brush")
+                "json" -> FileNameExtensionFilter("JSON files (*.json)", "json")
+                else -> FileNameExtensionFilter("All supported files", "maryme", "gif", "png", "jpg", "jpeg", "avi", "mp4", "brush", "json")
             }
             chooser.fileFilter = filter
 

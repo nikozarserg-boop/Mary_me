@@ -3,6 +3,7 @@ package org.example.animation.ui.theme
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object EditorIcons {
@@ -69,7 +70,6 @@ object EditorIcons {
     val iconDateRange: ImageVector = Icons.Filled.DateRange
     val iconColorize: ImageVector = Icons.Filled.Colorize
     
-    // Fixed: Use Icons.Filled for these if AutoMirrored version is not available or mismatching
     val iconFirstPage: ImageVector = Icons.Filled.FirstPage
     val iconLastPage: ImageVector = Icons.Filled.LastPage
     val iconSkipPrevious: ImageVector = Icons.Filled.SkipPrevious
@@ -104,4 +104,10 @@ object EditorIcons {
     val iconLockOpen: ImageVector = Icons.Filled.LockOpen
     val iconRemove: ImageVector = Icons.Filled.Remove
     val iconRemoveCircleOutline: ImageVector = Icons.Filled.RemoveCircleOutline
+    
+    val iconPushPin: ImageVector = Icons.Filled.PushPin
+    val iconPushPinOutlined: ImageVector = Icons.Outlined.PushPin
+
+    val iconRotateLeft: ImageVector = Icons.Filled.RotateLeft
+    val iconRotateRight: ImageVector = Icons.Filled.RotateRight
 }
