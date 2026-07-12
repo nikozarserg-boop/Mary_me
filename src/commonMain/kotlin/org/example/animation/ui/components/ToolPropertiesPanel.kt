@@ -33,7 +33,7 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
     ) {
         Text(
             text = EditorStrings.observeString("panel.tools").uppercase(),
-            style = EditorTypography.panelTitle,
+            style = EditorTypography.panelTitle(),
             modifier = Modifier.padding(bottom = 16.dp)
         )
 

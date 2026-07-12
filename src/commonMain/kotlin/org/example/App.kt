@@ -20,9 +20,7 @@ import org.example.animation.io.ProjectSerializer
 import org.example.animation.io.createPlatformFileHandler
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.components.*
-import org.example.animation.ui.theme.EditorColors
-import org.example.animation.ui.theme.EditorIcons
-import org.example.animation.ui.theme.EditorTheme
+import org.example.animation.ui.theme.*
 import org.jetbrains.compose.resources.ExperimentalResourceApi
 
 @OptIn(ExperimentalResourceApi::class)
@@ -46,10 +44,10 @@ fun App(
     val lastAutosave by engine.lastAutosaveTime.collectAsState()
     var showAutosaveToast by remember { mutableStateOf(false) }
 
-    // Глобальный масштаб
+    // Глобальный масштаб и тема
     var uiScale by remember { mutableStateOf(AppSettingsManager.getUiScale()) }
+    var currentTheme by remember { mutableStateOf(ThemeType.DARK) }
 
-    // Показ уведомления об автосохранении
     LaunchedEffect(lastAutosave) {
         if (lastAutosave > 0) {
             showAutosaveToast = true
@@ -58,36 +56,23 @@ fun App(
         }
     }
 
-    // Инициализация и загрузка локализации
     LaunchedEffect(Unit) {
         AppSettingsManager.load()
         uiScale = AppSettingsManager.getUiScale()
         
         try {
-            // Исправленные пути к ресурсам: файлы в папке files/ должны иметь префикс "files/"
-            val ruBytes = try { 
-                Res.readBytes("files/locales/strings_ru.json") 
-            } catch (e: Exception) { 
-                Res.readBytes("locales/strings_ru.json") // Fallback
-            }
-            
-            val enBytes = try { 
-                Res.readBytes("files/locales/strings_en.json") 
-            } catch (e: Exception) { 
-                Res.readBytes("locales/strings_en.json") // Fallback
-            }
+            val ruBytes = try { Res.readBytes("files/locales/strings_ru.json") } catch (e: Exception) { try { Res.readBytes("locales/strings_ru.json") } catch (e2: Exception) { null } }
+            val enBytes = try { Res.readBytes("files/locales/strings_en.json") } catch (e: Exception) { try { Res.readBytes("locales/strings_en.json") } catch (e2: Exception) { null } }
 
-            EditorStrings.loadStrings("ru", ruBytes.decodeToString())
-            EditorStrings.loadStrings("en", enBytes.decodeToString())
+            ruBytes?.let { EditorStrings.loadStrings("ru", it.decodeToString()) }
+            enBytes?.let { EditorStrings.loadStrings("en", it.decodeToString()) }
         } catch (e: Exception) {
             println("Localization loading error: ${e.message}")
-            e.printStackTrace()
         } finally {
             stringsLoaded = true
         }
     }
 
-    // Системный выход (Desktop)
     LaunchedEffect(exitRequested) {
         if (exitRequested) {
             if (hasUnsavedChanges) showExitConfirm = true else onExitConfirm()
@@ -103,9 +88,9 @@ fun App(
             onDispose { engine.cleanup() }
         }
 
-        EditorTheme {
+        EditorTheme(themeType = currentTheme, uiScale = effectiveScale) {
             Box(modifier = Modifier.fillMaxSize()) {
-                Surface(modifier = Modifier.fillMaxSize()) {
+                Surface(modifier = Modifier.fillMaxSize(), color = EditorColors.background) {
                     if (stringsLoaded) {
                         EditorScreen(
                             engine = engine,
@@ -115,18 +100,23 @@ fun App(
                             onExportGif = { pendingExportFormat = "gif" },
                             onExportPng = { pendingExportFormat = "png" },
                             onExportAvi = { pendingExportFormat = "avi" },
+                            onExportMp4 = { pendingExportFormat = "mp4" },
                             onNewProject = { showNewProject = true },
-                            onSettings = { showSettings = true }
+                            onSettings = { showSettings = true },
+                            currentTheme = currentTheme,
+                            onThemeChange = { currentTheme = it }
                         )
 
                         if (showSettings) {
                             SettingsDialog(
                                 engine = engine,
                                 uiScale = uiScale,
+                                currentTheme = currentTheme,
                                 onUiScaleChange = { 
                                     uiScale = it
                                     AppSettingsManager.setUiScale(it)
                                 },
+                                onThemeChange = { currentTheme = it },
                                 onClose = { showSettings = false }
                             )
                         }
@@ -143,18 +133,9 @@ fun App(
 
                         if (showExitConfirm) {
                             ConfirmExitDialog(
-                                onSaveAndExit = { 
-                                    pendingFileAction = "save"
-                                    showExitConfirm = false
-                                },
-                                onExitWithoutSaving = { 
-                                    showExitConfirm = false
-                                    onExitConfirm()
-                                },
-                                onDismiss = { 
-                                    showExitConfirm = false
-                                    onExitCancel()
-                                }
+                                onSaveAndExit = { pendingFileAction = "save"; showExitConfirm = false },
+                                onExitWithoutSaving = { showExitConfirm = false; onExitConfirm() },
+                                onDismiss = { showExitConfirm = false; onExitCancel() }
                             )
                         }
 
@@ -170,7 +151,6 @@ fun App(
                             )
                         }
 
-                        // Файловые операции
                         when {
                             pendingFileAction == "save" -> {
                                 FileManagerDialog(FileDialogMode.SAVE, engine.project.value.name, "maryme") { path ->
@@ -204,12 +184,18 @@ fun App(
                                 val name = parts[1]; val fmt = parts[4]
                                 FileManagerDialog(FileDialogMode.SAVE, name, fmt) { path ->
                                     if (path != null) {
+                                        // Здесь должна быть логика видео-рендеринга, 
+                                        // пока сохраняем как проект для демонстрации структуры
                                         val data = ProjectSerializer.serializeToBytes(engine.project.value)
                                         fileHandler.saveToPath(path, data)
                                     }
                                     pendingFileAction = null
                                 }
                             }
+                        }
+                    } else {
+                        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            CircularProgressIndicator(color = EditorColors.accent)
                         }
                     }
                 }

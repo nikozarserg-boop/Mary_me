@@ -1,5 +1,7 @@
 package org.example.animation.ui.components
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
@@ -12,6 +14,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -22,44 +25,43 @@ import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.model.ToolType
 import org.example.animation.localization.EditorStrings
-import org.example.animation.ui.theme.EditorColors
-import org.example.animation.ui.theme.EditorIcons
-import org.example.animation.ui.theme.EditorShapes
+import org.example.animation.ui.theme.*
 
 @Composable
 fun ToolsPanel(engine: AnimationEngine) {
     val currentTool by engine.currentTool.collectAsState()
-    val canUndo by engine.canUndo.collectAsState()
-    val canRedo by engine.canRedo.collectAsState()
+    val isVisible by engine.isToolsVisible.collectAsState()
+    
+    if (!isVisible) return
+
+    val theme = LocalThemeType.current
+    val background = if (theme == ThemeType.GLASS) EditorColors.glassBackground else EditorColors.panelBackground
 
     Column(
         modifier = Modifier
             .fillMaxHeight()
-            .width(52.dp)
-            .background(EditorColors.panelBackground)
-            .border(1.dp, EditorColors.dividerColor)
-            .padding(vertical = 8.dp),
+            .width(UiDimensions.ToolBarWidth.scaled())
+            .background(background)
+            .border(if (theme == ThemeType.GLASS) 0.dp else 1.dp.scaled(), EditorColors.divider)
+            .padding(vertical = UiDimensions.PaddingSmall.scaled()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Секция Рисования
         ToolGroup {
             ToolButton(EditorIcons.iconBrush, EditorStrings.observeString("tool.brush"), currentTool == ToolType.BRUSH) { engine.setTool(ToolType.BRUSH) }
             ToolButton(EditorIcons.iconPencil, EditorStrings.observeString("tool.pencil"), currentTool == ToolType.PENCIL) { engine.setTool(ToolType.PENCIL) }
             ToolButton(EditorIcons.iconEraser, EditorStrings.observeString("tool.eraser"), currentTool == ToolType.ERASER) { engine.setTool(ToolType.ERASER) }
         }
         
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
         
-        // Секция Фигур
         ToolGroup {
             ToolButton(EditorIcons.iconLine, EditorStrings.observeString("tool.line"), currentTool == ToolType.LINE) { engine.setTool(ToolType.LINE) }
             ToolButton(EditorIcons.iconRectangle, EditorStrings.observeString("tool.rectangle"), currentTool == ToolType.RECTANGLE) { engine.setTool(ToolType.RECTANGLE) }
             ToolButton(EditorIcons.iconEllipse, EditorStrings.observeString("tool.ellipse"), currentTool == ToolType.ELLIPSE) { engine.setTool(ToolType.ELLIPSE) }
         }
 
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
 
-        // Секция Вспомогательных
         ToolGroup {
             ToolButton(EditorIcons.iconFill, EditorStrings.observeString("tool.fill"), currentTool == ToolType.FILL) { engine.setTool(ToolType.FILL) }
             ToolButton(EditorIcons.iconEyedropper, EditorStrings.observeString("tool.eyedropper"), currentTool == ToolType.EYEDROPPER) { engine.setTool(ToolType.EYEDROPPER) }
@@ -69,16 +71,11 @@ fun ToolsPanel(engine: AnimationEngine) {
 
         Spacer(Modifier.weight(1f))
         
-        // Секция Истории (Undo/Redo)
-        ToolGroup {
-            ToolButton(EditorIcons.iconUndo, EditorStrings.observeString("edit.undo"), false, enabled = canUndo) { engine.undo() }
-            ToolButton(EditorIcons.iconRedo, EditorStrings.observeString("edit.redo"), false, enabled = canRedo) { engine.redo() }
-        }
+        ToolButton(EditorIcons.iconDeleteSweep, EditorStrings.observeString("edit.clearFrame"), false) { engine.clearFrame() }
         
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
         
-        // Кнопка очистки кадра
-        ToolButton(EditorIcons.iconClearAll, EditorStrings.observeString("edit.clearFrame"), false) { engine.clearFrame() }
+        ToolButton(EditorIcons.iconClose, EditorStrings.observeString("cancel"), false) { engine.setToolsVisible(false) }
     }
 }
 
@@ -86,10 +83,10 @@ fun ToolsPanel(engine: AnimationEngine) {
 private fun ToolGroup(content: @Composable ColumnScope.() -> Unit) {
     Column(
         modifier = Modifier
-            .padding(horizontal = 4.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(EditorColors.darkSurfaceVariant.copy(alpha = 0.3f))
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 1.dp.scaled())
+            .clip(RoundedCornerShape(3.dp.scaled()))
+            .background(Color.White.copy(alpha = 0.02f))
+            .padding(vertical = 1.dp.scaled()),
         horizontalAlignment = Alignment.CenterHorizontally,
         content = content
     )
@@ -105,68 +102,61 @@ private fun ToolButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val isPressed by interactionSource.collectIsPressedAsState()
     
-    // Статический профессиональный UI (согласно TODO удалены анимации)
+    val scale by animateFloatAsState(
+        targetValue = if (isHovered && enabled) 1.15f else 1.0f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 300f)
+    )
+
     val backgroundColor = when {
         !enabled -> Color.Transparent
-        isSelected -> EditorColors.selectionColor
-        isPressed -> EditorColors.selectionColor.copy(alpha = 0.8f)
-        isHovered -> EditorColors.hoverColor
+        isSelected -> EditorColors.accent.copy(alpha = 0.7f)
+        isHovered -> EditorColors.hover
         else -> Color.Transparent
     }
 
     var showTooltip by remember { mutableStateOf(false) }
-
     LaunchedEffect(isHovered) {
-        if (isHovered && enabled) {
-            delay(600)
-            showTooltip = true
-        } else {
-            showTooltip = false
-        }
+        if (isHovered && enabled) { delay(400); showTooltip = true } else { showTooltip = false }
     }
 
-    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 2.dp)) {
+    Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(vertical = 1.dp.scaled())) {
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .clip(EditorShapes.smallRounded)
+                .size(UiDimensions.IconButtonSize.scaled())
+                .graphicsLayer(scaleX = scale, scaleY = scale)
+                .clip(RoundedCornerShape(4.dp.scaled()))
                 .background(backgroundColor)
+                .border(
+                    width = 1.dp.scaled(),
+                    color = if (isHovered) EditorColors.accent.copy(alpha = 0.5f) else Color.Transparent,
+                    shape = RoundedCornerShape(4.dp.scaled())
+                )
                 .pointerHoverIcon(if (enabled) PointerIcon.Hand else PointerIcon.Default)
-                .clickable(
-                    enabled = enabled,
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClick = onClick
-                ),
+                .clickable(enabled = enabled, interactionSource = interactionSource, indication = null, onClick = onClick),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                icon,
-                null,
-                tint = when {
-                    !enabled -> EditorColors.textMuted
-                    isSelected -> Color.White
-                    else -> EditorColors.textSecondary
-                },
-                modifier = Modifier.size(20.dp)
+                icon, 
+                null, 
+                tint = if (isSelected) Color.White else EditorColors.textPrimary.copy(alpha = 0.6f), 
+                modifier = Modifier.size(UiDimensions.IconSize.scaled())
             )
         }
         
         if (showTooltip) {
             Surface(
-                modifier = Modifier.offset(x = 54.dp).zIndex(1000f),
-                color = EditorColors.darkSurfaceLight,
-                shape = RoundedCornerShape(4.dp),
-                elevation = 8.dp,
-                border = BorderStroke(1.dp, EditorColors.dividerColor)
+                modifier = Modifier.offset(x = (UiDimensions.ToolBarWidth + 4.dp).scaled()).zIndex(1000f),
+                color = EditorColors.surface,
+                shape = RoundedCornerShape(4.dp.scaled()),
+                elevation = 4.dp.scaled(),
+                border = BorderStroke(1.dp.scaled(), EditorColors.divider)
             ) {
                 Text(
                     tooltip, 
-                    color = Color.White, 
-                    fontSize = 11.sp, 
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp),
+                    style = EditorTypography.toolText(),
+                    color = EditorColors.textPrimary,
+                    modifier = Modifier.padding(horizontal = 6.dp.scaled(), vertical = 3.dp.scaled()), 
                     maxLines = 1
                 )
             }

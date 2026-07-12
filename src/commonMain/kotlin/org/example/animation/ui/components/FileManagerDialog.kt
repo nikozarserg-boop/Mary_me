@@ -4,6 +4,7 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -14,13 +15,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import org.example.animation.io.FileEntry
+import org.example.animation.io.PlatformFileHandler
+import org.example.animation.io.createPlatformFileHandler
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.EditorColors
 import org.example.animation.ui.theme.EditorIcons
-import java.io.File
+import org.example.animation.ui.theme.scaled
 
 /**
- * Кастомный файловый менеджер с эффектом полупрозрачности
+ * Кроссплатформенный файловый менеджер
  */
 @Composable
 fun FileManagerDialog(
@@ -29,15 +33,19 @@ fun FileManagerDialog(
     extension: String = "maryme",
     onResult: (String?) -> Unit
 ) {
-    var currentDir by remember { mutableStateOf(File(System.getProperty("user.home"))) }
+    val fileHandler = remember { createPlatformFileHandler() }
+    var currentPath by remember { mutableStateOf(fileHandler.getHomeDirectory()) }
     var fileName by remember { mutableStateOf(defaultName) }
-    var selectedFile by remember { mutableStateOf<File?>(null) }
+    var selectedEntry by remember { mutableStateOf<FileEntry?>(null) }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    val files = remember(currentDir) {
+    val entries = remember(currentPath) {
         try {
-            currentDir.listFiles()?.filter { !it.isHidden }?.sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() })) ?: emptyList()
-        } catch (e: Exception) { emptyList() }
+            fileHandler.listFiles(currentPath)
+                .sortedWith(compareBy({ !it.isDirectory }, { it.name.lowercase() }))
+        } catch (e: Exception) {
+            emptyList()
+        }
     }
 
     Box(
@@ -49,13 +57,13 @@ fun FileManagerDialog(
     ) {
         Surface(
             modifier = Modifier
-                .width(680.dp)
-                .height(500.dp)
+                .width(680.dp.scaled())
+                .height(500.dp.scaled())
                 .clickable(enabled = false) {},
-            color = EditorColors.darkSurface.copy(alpha = 0.92f), // Полупрозрачность
-            shape = RoundedCornerShape(12.dp), 
-            elevation = 16.dp,
-            border = BorderStroke(1.dp, EditorColors.dividerColor)
+            color = EditorColors.surface.copy(alpha = 0.95f),
+            shape = RoundedCornerShape(12.dp.scaled()), 
+            elevation = 16.dp.scaled(),
+            border = BorderStroke(1.dp.scaled(), EditorColors.divider)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Заголовок
@@ -63,60 +71,59 @@ fun FileManagerDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(EditorColors.panelHeader.copy(alpha = 0.5f))
-                        .padding(16.dp), 
+                        .padding(16.dp.scaled()), 
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         if (mode == FileDialogMode.SAVE) EditorIcons.iconFileDownload else EditorIcons.iconFileUpload, 
                         null, 
-                        tint = EditorColors.accentBlue, 
-                        modifier = Modifier.size(20.dp)
+                        tint = EditorColors.accent, 
+                        modifier = Modifier.size(20.dp.scaled())
                     )
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(12.dp.scaled()))
                     Text(
                         text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.saveTitle") else EditorStrings.observeString("file.openTitle"), 
                         color = EditorColors.textPrimary, 
-                        fontSize = 16.sp, 
+                        fontSize = 16.sp.scaled(), 
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.weight(1f))
-                    IconButton(onClick = { onResult(null) }, modifier = Modifier.size(24.dp)) {
-                        Text("✕", color = EditorColors.textSecondary, fontSize = 16.sp)
+                    IconButton(onClick = { onResult(null) }, modifier = Modifier.size(24.dp.scaled())) {
+                        Icon(EditorIcons.iconClose, null, tint = EditorColors.textSecondary, modifier = Modifier.size(16.dp.scaled()))
                     }
                 }
                 
-                Divider(color = EditorColors.dividerColor)
+                Divider(color = EditorColors.divider)
 
                 // Навигация
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(EditorColors.panelBackground.copy(alpha = 0.3f))
-                        .padding(12.dp), 
+                        .padding(12.dp.scaled()), 
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     NavButton(EditorIcons.iconArrowBack) {
-                        val parent = currentDir.parentFile
-                        if (parent != null) currentDir = parent
+                        fileHandler.getParentPath(currentPath)?.let { currentPath = it }
                     }
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(8.dp.scaled()))
                     NavButton(EditorIcons.iconHome) {
-                        currentDir = File(System.getProperty("user.home"))
+                        currentPath = fileHandler.getHomeDirectory()
                     }
-                    Spacer(Modifier.width(12.dp))
+                    Spacer(Modifier.width(12.dp.scaled()))
                     
                     Surface(
                         modifier = Modifier.weight(1f),
-                        color = EditorColors.darkSurfaceVariant.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(6.dp)
+                        color = EditorColors.background.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(6.dp.scaled())
                     ) {
                         Text(
-                            currentDir.absolutePath, 
+                            currentPath, 
                             color = EditorColors.textPrimary, 
-                            fontSize = 12.sp, 
+                            fontSize = 12.sp.scaled(), 
                             maxLines = 1, 
                             overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp.scaled(), vertical = 8.dp.scaled())
                         )
                     }
                 }
@@ -128,20 +135,20 @@ fun FileManagerDialog(
                         modifier = Modifier
                             .fillMaxSize()
                             .verticalScroll(scroll)
-                            .padding(horizontal = 12.dp)
+                            .padding(horizontal = 12.dp.scaled())
                     ) {
-                        files.forEach { file ->
+                        entries.forEach { entry ->
                             FileItem(
-                                file = file,
-                                isSelected = selectedFile == file,
+                                entry = entry,
+                                isSelected = selectedEntry?.path == entry.path,
                                 filterExt = extension,
                                 onClick = {
-                                    if (file.isDirectory) {
-                                        currentDir = file
-                                        selectedFile = null
+                                    if (entry.isDirectory) {
+                                        currentPath = entry.path
+                                        selectedEntry = null
                                     } else {
-                                        selectedFile = file
-                                        fileName = file.nameWithoutExtension
+                                        selectedEntry = entry
+                                        fileName = entry.name.substringBeforeLast(".")
                                     }
                                 }
                             )
@@ -149,58 +156,63 @@ fun FileManagerDialog(
                     }
                 }
 
-                Divider(color = EditorColors.dividerColor)
+                Divider(color = EditorColors.divider)
 
                 // Нижняя панель
-                Column(modifier = Modifier.padding(16.dp)) {
+                Column(modifier = Modifier.padding(16.dp.scaled())) {
                     if (errorMsg != null) {
-                        Text(errorMsg!!, color = EditorColors.accentRed, fontSize = 12.sp, modifier = Modifier.padding(bottom = 8.dp))
+                        Text(errorMsg!!, color = EditorColors.accentRed, fontSize = 12.sp.scaled(), modifier = Modifier.padding(bottom = 8.dp.scaled()))
                     }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             text = if (mode == FileDialogMode.SAVE) "Имя:" else "Файл:", 
                             color = EditorColors.textSecondary, 
-                            fontSize = 13.sp,
-                            modifier = Modifier.width(60.dp)
+                            fontSize = 13.sp.scaled(),
+                            modifier = Modifier.width(60.dp.scaled())
                         )
                         OutlinedTextField(
                             value = fileName,
                             onValueChange = { fileName = it },
                             singleLine = true,
-                            modifier = Modifier.weight(1f).height(48.dp),
-                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp, color = EditorColors.textPrimary),
+                            modifier = Modifier.weight(1f).height(48.dp.scaled()),
+                            textStyle = LocalTextStyle.current.copy(fontSize = 14.sp.scaled(), color = EditorColors.textPrimary),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = EditorColors.accentBlue, 
-                                unfocusedBorderColor = EditorColors.dividerColor,
-                                backgroundColor = EditorColors.darkSurfaceVariant.copy(alpha = 0.2f)
+                                focusedBorderColor = EditorColors.accent, 
+                                unfocusedBorderColor = EditorColors.divider,
+                                backgroundColor = EditorColors.background.copy(alpha = 0.2f)
                             )
                         )
                         if (mode == FileDialogMode.SAVE) {
-                            Text(".$extension", color = EditorColors.textMuted, modifier = Modifier.padding(start = 8.dp))
+                            Text(".$extension", color = EditorColors.textMuted, modifier = Modifier.padding(start = 8.dp.scaled()))
                         }
                     }
                     
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(16.dp.scaled()))
                     
                     Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = { onResult(null) }) {
                             Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary)
                         }
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(12.dp.scaled()))
                         Button(
                             onClick = {
-                                val target = if (mode == FileDialogMode.SAVE) {
-                                    val n = if (fileName.contains(".")) fileName else "$fileName.$extension"
-                                    val f = File(currentDir, n)
-                                    if (f.exists()) { errorMsg = "Файл уже существует"; null } else f.absolutePath
+                                if (mode == FileDialogMode.SAVE) {
+                                    val fullFileName = if (fileName.contains(".")) fileName else "$fileName.$extension"
+                                    val separator = if (currentPath.endsWith("/") || currentPath.endsWith("\\")) "" else "/"
+                                    val fullPath = "$currentPath$separator$fullFileName"
+                                    
+                                    if (fileHandler.fileExists(fullPath)) {
+                                        errorMsg = EditorStrings["file.exists"]
+                                    } else {
+                                        onResult(fullPath)
+                                    }
                                 } else {
-                                    selectedFile?.absolutePath
+                                    selectedEntry?.let { onResult(it.path) } ?: run { errorMsg = "Выберите файл" }
                                 }
-                                if (target != null) onResult(target) else if (mode == FileDialogMode.OPEN) errorMsg = "Выберите файл"
                             },
-                            colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accentBlue),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(40.dp).width(120.dp)
+                            colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
+                            shape = RoundedCornerShape(8.dp.scaled()),
+                            modifier = Modifier.height(40.dp.scaled()).width(120.dp.scaled())
                         ) {
                             Text(
                                 if (mode == FileDialogMode.SAVE) "Сохранить" else "Открыть", 
@@ -218,41 +230,41 @@ fun FileManagerDialog(
 @Composable
 private fun NavButton(icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.size(32.dp).clickable { onClick() },
-        color = EditorColors.buttonColor.copy(alpha = 0.4f),
-        shape = RoundedCornerShape(6.dp)
+        modifier = Modifier.size(32.dp.scaled()).clickable { onClick() },
+        color = EditorColors.divider.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(6.dp.scaled())
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Icon(icon, null, tint = EditorColors.textPrimary, modifier = Modifier.size(16.dp))
+            Icon(icon, null, tint = EditorColors.textPrimary, modifier = Modifier.size(16.dp.scaled()))
         }
     }
 }
 
 @Composable
-private fun FileItem(file: File, isSelected: Boolean, filterExt: String, onClick: () -> Unit) {
-    val isMatch = !file.isDirectory && file.extension.lowercase() == filterExt.lowercase()
+private fun FileItem(entry: FileEntry, isSelected: Boolean, filterExt: String, onClick: () -> Unit) {
+    val isMatch = !entry.isDirectory && entry.extension.lowercase() == filterExt.lowercase()
     
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(38.dp)
-            .clip(RoundedCornerShape(6.dp))
-            .background(if (isSelected) EditorColors.selectionColor.copy(alpha = 0.7f) else Color.Transparent)
+            .height(38.dp.scaled())
+            .clip(RoundedCornerShape(6.dp.scaled()))
+            .background(if (isSelected) EditorColors.selection.copy(alpha = 0.7f) else Color.Transparent)
             .clickable { onClick() }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp.scaled()),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Icon(
-            if (file.isDirectory) EditorIcons.iconFolderOpen else EditorIcons.iconFileDownload,
+            if (entry.isDirectory) EditorIcons.iconFolderOpen else EditorIcons.iconFileDownload,
             null,
-            tint = if (file.isDirectory) EditorColors.accentBlue else EditorColors.textSecondary,
-            modifier = Modifier.size(18.dp)
+            tint = if (entry.isDirectory) EditorColors.accent else EditorColors.textSecondary,
+            modifier = Modifier.size(18.dp.scaled())
         )
-        Spacer(Modifier.width(12.dp))
+        Spacer(Modifier.width(12.dp.scaled()))
         Text(
-            file.name, 
-            color = if (isSelected) Color.White else if (isMatch || file.isDirectory) EditorColors.textPrimary else EditorColors.textMuted,
-            fontSize = 13.sp,
+            entry.name, 
+            color = if (isSelected) Color.White else if (isMatch || entry.isDirectory) EditorColors.textPrimary else EditorColors.textMuted,
+            fontSize = 13.sp.scaled(),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)

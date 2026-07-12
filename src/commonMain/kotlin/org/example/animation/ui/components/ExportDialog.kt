@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.sp
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.EditorColors
+import org.example.animation.ui.theme.scaled
 
 @Composable
 fun ExportDialog(
@@ -31,86 +32,93 @@ fun ExportDialog(
     var selectedFormat by remember { mutableStateOf(format) }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)),
+        modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable { onCancel() },
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            modifier = Modifier.width(450.dp),
-            color = EditorColors.darkSurface,
-            shape = RoundedCornerShape(12.dp),
-            elevation = 16.dp
+            modifier = Modifier.width(400.dp.scaled()).clickable(enabled = false) {},
+            color = EditorColors.surface,
+            shape = RoundedCornerShape(12.dp.scaled()),
+            elevation = 16.dp.scaled(),
+            border = BorderStroke(1.dp.scaled(), EditorColors.divider)
         ) {
-            Column(modifier = Modifier.padding(24.dp)) {
+            Column(modifier = Modifier.padding(20.dp.scaled())) {
                 Text(
                     text = EditorStrings.observeString("export.title"),
-                    color = EditorColors.accentBlue,
-                    fontSize = 20.sp,
+                    color = EditorColors.accent,
+                    fontSize = 18.sp.scaled(),
                     fontWeight = FontWeight.Bold
                 )
                 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(20.dp.scaled()))
 
-                Text(EditorStrings.observeString("project.name"), color = EditorColors.textSecondary, fontSize = 12.sp)
+                Text(EditorStrings.observeString("project.name"), color = EditorColors.textSecondary, fontSize = 11.sp.scaled())
                 OutlinedTextField(
                     value = fileName,
                     onValueChange = { fileName = it },
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().height(48.dp.scaled()),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp.scaled(), color = EditorColors.textPrimary),
                     colors = TextFieldDefaults.outlinedTextFieldColors(
-                        focusedBorderColor = EditorColors.accentBlue,
-                        textColor = EditorColors.textPrimary,
-                        backgroundColor = EditorColors.darkSurfaceVariant
+                        focusedBorderColor = EditorColors.accent,
+                        backgroundColor = EditorColors.background,
+                        unfocusedBorderColor = EditorColors.divider
                     )
                 )
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp.scaled()))
 
                 Row(Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
-                        Text(EditorStrings.observeString("project.width"), color = EditorColors.textSecondary, fontSize = 12.sp)
+                        Text(EditorStrings.observeString("project.width"), color = EditorColors.textSecondary, fontSize = 11.sp.scaled())
                         OutlinedTextField(
                             value = exportWidth,
                             onValueChange = { exportWidth = it.filter { c -> c.isDigit() } },
                             singleLine = true,
+                            modifier = Modifier.height(48.dp.scaled()),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp.scaled(), color = EditorColors.textPrimary, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = EditorColors.accentBlue,
-                                textColor = EditorColors.textPrimary,
-                                backgroundColor = EditorColors.darkSurfaceVariant
+                                focusedBorderColor = EditorColors.accent,
+                                backgroundColor = EditorColors.background,
+                                unfocusedBorderColor = EditorColors.divider
                             )
                         )
                     }
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.width(12.dp.scaled()))
                     Column(Modifier.weight(1f)) {
-                        Text(EditorStrings.observeString("project.height"), color = EditorColors.textSecondary, fontSize = 12.sp)
+                        Text(EditorStrings.observeString("project.height"), color = EditorColors.textSecondary, fontSize = 11.sp.scaled())
                         OutlinedTextField(
                             value = exportHeight,
                             onValueChange = { exportHeight = it.filter { c -> c.isDigit() } },
                             singleLine = true,
+                            modifier = Modifier.height(48.dp.scaled()),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp.scaled(), color = EditorColors.textPrimary, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                             colors = TextFieldDefaults.outlinedTextFieldColors(
-                                focusedBorderColor = EditorColors.accentBlue,
-                                textColor = EditorColors.textPrimary,
-                                backgroundColor = EditorColors.darkSurfaceVariant
+                                focusedBorderColor = EditorColors.accent,
+                                backgroundColor = EditorColors.background,
+                                unfocusedBorderColor = EditorColors.divider
                             )
                         )
                     }
                 }
 
-                Spacer(Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp.scaled()))
                 
-                Text("Формат", color = EditorColors.textSecondary, fontSize = 12.sp)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(EditorStrings.observeString("export.format") ?: "Format", color = EditorColors.textSecondary, fontSize = 11.sp.scaled())
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp.scaled()), modifier = Modifier.padding(top = 4.dp.scaled())) {
                     FormatChip("PNG", selectedFormat == "png") { selectedFormat = "png" }
                     FormatChip("GIF", selectedFormat == "gif") { selectedFormat = "gif" }
+                    FormatChip("MP4", selectedFormat == "mp4") { selectedFormat = "mp4" }
                     FormatChip("AVI", selectedFormat == "avi") { selectedFormat = "avi" }
                 }
 
-                Spacer(Modifier.height(32.dp))
+                Spacer(Modifier.height(24.dp.scaled()))
 
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     TextButton(onClick = onCancel) {
-                        Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary)
+                        Text(EditorStrings.observeString("cancel"), color = EditorColors.textSecondary, fontSize = 13.sp.scaled())
                     }
-                    Spacer(Modifier.width(16.dp))
+                    Spacer(Modifier.width(12.dp.scaled()))
                     Button(
                         onClick = {
                             onExport(
@@ -120,9 +128,10 @@ fun ExportDialog(
                                 selectedFormat
                             )
                         },
-                        colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accentBlue)
+                        colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent),
+                        shape = RoundedCornerShape(6.dp.scaled())
                     ) {
-                        Text(EditorStrings.observeString("export.perform"), color = Color.White, fontWeight = FontWeight.Bold)
+                        Text(EditorStrings.observeString("export.perform"), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp.scaled())
                     }
                 }
             }
@@ -133,11 +142,13 @@ fun ExportDialog(
 @Composable
 fun FormatChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
     Surface(
-        modifier = Modifier.clickable { onClick() },
-        color = if (isSelected) EditorColors.accentBlue.copy(alpha = 0.2f) else EditorColors.buttonColor,
-        border = BorderStroke(1.dp, if (isSelected) EditorColors.accentBlue else EditorColors.dividerColor),
-        shape = RoundedCornerShape(4.dp)
+        modifier = Modifier.height(32.dp.scaled()).width(70.dp.scaled()).clickable { onClick() },
+        color = if (isSelected) EditorColors.accent.copy(alpha = 0.2f) else EditorColors.surfaceVariant,
+        border = BorderStroke(1.dp.scaled(), if (isSelected) EditorColors.accent else EditorColors.divider),
+        shape = RoundedCornerShape(4.dp.scaled())
     ) {
-        Text(text, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp), color = if (isSelected) EditorColors.accentBlue else EditorColors.textSecondary, fontSize = 12.sp)
+        Box(contentAlignment = Alignment.Center) {
+            Text(text, color = if (isSelected) EditorColors.accent else EditorColors.textPrimary, fontSize = 11.sp.scaled())
+        }
     }
 }

@@ -24,6 +24,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
                 "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
                 "avi" -> FileNameExtensionFilter("AVI Video (*.avi)", "avi")
+                "mp4" -> FileNameExtensionFilter("MP4 Video (*.mp4)", "mp4")
                 else -> FileNameExtensionFilter("$extension files (*.$extension)", extension)
             }
             chooser.fileFilter = filter
@@ -31,7 +32,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
             val result = chooser.showSaveDialog(null)
             if (result == JFileChooser.APPROVE_OPTION) {
                 var file = chooser.selectedFile
-                if (!file.name.contains(".")) {
+                if (!file.name.lowercase().endsWith(".$extension")) {
                     file = File(file.absolutePath + ".$extension")
                 }
                 lastDirectory = file.parent
@@ -56,7 +57,8 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
                 "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
                 "avi" -> FileNameExtensionFilter("AVI Video (*.avi)", "avi")
-                else -> FileNameExtensionFilter("All files", "*.*")
+                "mp4" -> FileNameExtensionFilter("MP4 Video (*.mp4)", "mp4")
+                else -> FileNameExtensionFilter("All supported files", "maryme", "gif", "png", "avi", "mp4")
             }
             chooser.fileFilter = filter
 
@@ -106,6 +108,28 @@ class JvmPlatformFileHandler : PlatformFileHandler {
         val dir = File(System.getProperty("user.home"), ".maryme/cache")
         if (!dir.exists()) dir.mkdirs()
         return dir.absolutePath
+    }
+
+    override fun listFiles(path: String): List<FileEntry> {
+        val dir = File(path)
+        if (!dir.exists() || !dir.isDirectory) return emptyList()
+        
+        return dir.listFiles()?.map {
+            FileEntry(
+                name = it.name,
+                path = it.absolutePath,
+                isDirectory = it.isDirectory,
+                extension = it.extension
+            )
+        } ?: emptyList()
+    }
+
+    override fun getParentPath(path: String): String? {
+        return File(path).parent
+    }
+
+    override fun getHomeDirectory(): String {
+        return System.getProperty("user.home")
     }
 
     override fun openInExplorer(path: String) {

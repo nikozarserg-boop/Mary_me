@@ -1,5 +1,6 @@
 package org.example.animation.ui.components
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -8,16 +9,20 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.Icon
+import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.*
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.text.font.FontWeight
@@ -27,7 +32,7 @@ import androidx.compose.ui.unit.toSize
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.model.Stroke
 import org.example.animation.model.ToolType
-import org.example.animation.ui.theme.EditorColors
+import org.example.animation.ui.theme.*
 
 @Composable
 fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
@@ -39,11 +44,9 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
     val framesForRender = engine.getFramesForRendering()
 
-    // Выбор курсора в зависимости от инструмента
     val toolCursor = when (currentTool) {
         ToolType.MOVE -> PointerIcon.Hand
         ToolType.EYEDROPPER -> PointerIcon.Crosshair
-        ToolType.SELECT -> PointerIcon.Text // Или какой-то другой
         else -> PointerIcon.Default
     }
 
@@ -69,7 +72,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                             if (event.type == PointerEventType.Scroll) {
                                 val change = event.changes.first()
                                 val zoomFactor = if (change.scrollDelta.y > 0) 0.9f else 1.1f
-                                engine.setZoom((zoom * zoomFactor).coerceIn(0.1f, 10f))
+                                engine.setZoom((zoom * zoomFactor).coerceIn(0.1f, 20f))
                                 change.consume()
                             }
                         }
@@ -77,7 +80,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 }
                 .pointerInput(Unit) {
                     detectTransformGestures { _, pan, zoomDelta, _ ->
-                        engine.setZoom((zoom * zoomDelta).coerceIn(0.1f, 10f))
+                        engine.setZoom((zoom * zoomDelta).coerceIn(0.1f, 20f))
                         engine.setPanOffset(panOffset + pan)
                     }
                 }
@@ -111,12 +114,21 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
             val cx = size.width / 2f
             val cy = size.height / 2f
 
-            drawBackgroundCheckerboard(size, zoom, panOffset)
-
+            // Рисуем тень под холстом
             translate(left = cx + panOffset.x, top = cy + panOffset.y) {
                 scale(scaleX = zoom, scaleY = zoom, pivot = Offset.Zero) {
                     translate(left = -cw/2f, top = -ch/2f) {
+                        // Тень
+                        drawRect(
+                            color = Color.Black.copy(alpha = 0.2f),
+                            topLeft = Offset(4f/zoom, 4f/zoom),
+                            size = Size(cw, ch)
+                        )
+                        
+                        // Белый лист холста
                         drawRect(color = Color.White, topLeft = Offset.Zero, size = Size(cw, ch))
+                        
+                        // Граница холста
                         drawRect(
                             color = EditorColors.canvasBorder, 
                             topLeft = Offset.Zero, 
@@ -127,7 +139,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                         for (frame in framesForRender) {
                             val alpha = if (frame.isCurrent) 1f else frame.opacity
                             for (stroke in frame.strokes) {
-                                drawStrokeWithColor(stroke, if (frame.isCurrent) null else EditorColors.onionSkinColor, alpha)
+                                drawStrokeWithColor(stroke, if (frame.isCurrent) null else Color(0x440099FF), alpha)
                             }
                         }
                     }
@@ -135,43 +147,57 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
             }
         }
 
-        Row(
+        // Индикатор зума (Glass UI) - scaled
+        Surface(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(12.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(EditorColors.darkSurface.copy(alpha = 0.9f))
-                .border(1.dp, EditorColors.dividerColor, RoundedCornerShape(8.dp)),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(UiDimensions.PaddingLarge.scaled())
+                .shadow(8.dp.scaled(), EditorShapes.large),
+            color = EditorColors.glassBackground.copy(alpha = 0.8f),
+            shape = EditorShapes.large,
+            border = BorderStroke(1.dp.scaled(), EditorColors.glassBorder)
         ) {
-            ZoomButton("−") { engine.setZoom((zoom * 0.8f).coerceIn(0.1f, 10f)) }
-            Box(
-                modifier = Modifier
-                    .width(54.dp)
-                    .pointerHoverIcon(PointerIcon.Hand)
-                    .clickable { 
-                        engine.setZoom(1f) 
-                        engine.setPanOffset(Offset.Zero)
-                    }, 
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.padding(horizontal = UiDimensions.PaddingMedium.scaled()),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("${(zoom * 100).toInt()}%", color = EditorColors.textPrimary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                ZoomButton(EditorIcons.iconRemove) { engine.setZoom((zoom * 0.8f).coerceIn(0.1f, 20f)) }
+                Box(
+                    modifier = Modifier
+                        .width(60.dp.scaled())
+                        .clickable { 
+                            engine.setZoom(1f) 
+                            engine.setPanOffset(Offset.Zero)
+                        }, 
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${(zoom * 100).toInt()}%", 
+                        color = Color.White, 
+                        style = EditorTypography.mono()
+                    )
+                }
+                ZoomButton(EditorIcons.iconAdd) { engine.setZoom((zoom * 1.25f).coerceIn(0.1f, 20f)) }
             }
-            ZoomButton("+") { engine.setZoom((zoom * 1.25f).coerceIn(0.1f, 10f)) }
         }
     }
 }
 
 @Composable
-private fun ZoomButton(text: String, onClick: () -> Unit) {
+private fun ZoomButton(icon: ImageVector, onClick: () -> Unit) {
     Box(
         modifier = Modifier
-            .size(32.dp)
+            .size(UiDimensions.IconButtonSize.scaled())
             .pointerHoverIcon(PointerIcon.Hand)
             .clickable { onClick() },
         contentAlignment = Alignment.Center
     ) {
-        Text(text, color = EditorColors.textPrimary, fontSize = 18.sp)
+        Icon(
+            icon, 
+            null, 
+            tint = Color.White, 
+            modifier = Modifier.size(UiDimensions.IconSize.scaled())
+        )
     }
 }
 
@@ -184,7 +210,9 @@ private fun DrawScope.drawStrokeWithColor(stroke: Stroke, overrideColor: Color? 
 
     val path = Path()
     path.moveTo(points[0].x, points[0].y)
-    for (i in 1 until points.size) path.lineTo(points[i].x, points[i].y)
+    for (i in 1 until points.size) {
+        path.lineTo(points[i].x, points[i].y)
+    }
 
     drawPath(
         path = path, 
@@ -195,21 +223,6 @@ private fun DrawScope.drawStrokeWithColor(stroke: Stroke, overrideColor: Color? 
             join = StrokeJoin.Round
         )
     )
-}
-
-private fun DrawScope.drawBackgroundCheckerboard(viewSize: Size, zoom: Float, pan: Offset) {
-    val cellSize = 16f
-    for (y in 0 until (viewSize.height / cellSize).toInt() + 1) {
-        for (x in 0 until (viewSize.width / cellSize).toInt() + 1) {
-            if ((x + y) % 2 == 0) {
-                drawRect(
-                    color = EditorColors.checkerLight.copy(alpha = 0.2f),
-                    topLeft = Offset(x * cellSize, y * cellSize),
-                    size = Size(cellSize, cellSize)
-                )
-            }
-        }
-    }
 }
 
 private fun screenToCanvas(screenPos: Offset, panOffset: Offset, scale: Float, viewportSize: Size): Offset {
