@@ -1,5 +1,6 @@
 package org.example.animation.io
 
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
 import org.example.animation.model.AnimationProject
 
@@ -35,7 +36,7 @@ expect fun floodFillOnBitmap(
     project: AnimationProject,
     layerIndex: Int,
     frameIndex: Int,
-    point: androidx.compose.ui.geometry.Offset,
+    point: Offset,
     fillColor: ULong
 )
 
@@ -44,7 +45,9 @@ expect fun floodFillOnBitmap(
  */
 expect fun pickColorFromBitmap(
     project: AnimationProject,
-    point: androidx.compose.ui.geometry.Offset
+    point: Offset,
+    layerIndex: Int,
+    frameIndex: Int
 ): ULong?
 
 interface PlatformFileHandler {

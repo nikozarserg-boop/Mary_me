@@ -27,7 +27,7 @@ object EditorIcons {
     val iconWarning: ImageVector = Icons.Filled.Warning
 
     val iconBrush: ImageVector = Icons.Filled.Brush
-    val iconEraser: ImageVector = Icons.Filled.Clear
+    val iconEraser: ImageVector = Icons.Filled.AutoDelete // Иконка ластика (корзина с пальцем)
     val iconUndo: ImageVector = Icons.AutoMirrored.Filled.Undo
     val iconRedo: ImageVector = Icons.AutoMirrored.Filled.Redo
     val iconSave: ImageVector = Icons.Filled.Save
@@ -72,7 +72,7 @@ object EditorIcons {
     val iconColorize: ImageVector = Icons.Filled.Colorize
     
     val iconFirstPage: ImageVector = Icons.Filled.FirstPage
-    val iconLastPage: ImageVector = Icons.Filled.LastPage
+    val iconLastPage: ImageVector = Icons.AutoMirrored.Filled.LastPage
     val iconSkipPrevious: ImageVector = Icons.Filled.SkipPrevious
     val iconSkipNext: ImageVector = Icons.Filled.SkipNext
     
@@ -109,6 +109,6 @@ object EditorIcons {
     val iconPushPin: ImageVector = Icons.Filled.PushPin
     val iconPushPinOutlined: ImageVector = Icons.Outlined.PushPin
 
-    val iconRotateLeft: ImageVector = Icons.Filled.RotateLeft
-    val iconRotateRight: ImageVector = Icons.Filled.RotateRight
+    val iconRotateLeft: ImageVector = Icons.AutoMirrored.Filled.RotateLeft
+    val iconRotateRight: ImageVector = Icons.AutoMirrored.Filled.RotateRight
 }

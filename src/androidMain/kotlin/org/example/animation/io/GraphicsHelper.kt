@@ -4,7 +4,8 @@ import androidx.compose.ui.geometry.Offset
 import org.example.animation.model.AnimationProject
 
 /**
- * Flood fill реализация для Android (заглушка)
+ * Flood fill реализация для Android
+ * TODO: Реализовать с использованием Android Canvas
  */
 actual fun floodFillOnBitmap(
     project: AnimationProject,
@@ -13,16 +14,19 @@ actual fun floodFillOnBitmap(
     point: Offset,
     fillColor: ULong
 ) {
-    // TODO: Android-специфичная реализация с использованием Android Canvas
+    // TODO: Android-специфичная реализация с использованием Android Bitmap и Canvas
 }
 
 /**
- * Пипетка - получение цвета из bitmap для Android (заглушка)
+ * Пипетка - получение цвета из bitmap для Android
+ * TODO: Реализовать с использованием Android Canvas
  */
 actual fun pickColorFromBitmap(
     project: AnimationProject,
-    point: Offset
+    point: Offset,
+    layerIndex: Int,
+    frameIndex: Int
 ): ULong? {
-    // TODO: Android-специфичная реализация
+    // TODO: Android-специфичная реализация с использованием Android Bitmap
     return null
 }

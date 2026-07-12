@@ -407,7 +407,13 @@ private fun DrawScope.drawStrokeWithColor(stroke: Stroke, overrideColor: Color? 
     val points = stroke.points
     if (points.isEmpty()) return
     val effectiveAlpha = alpha * stroke.opacity
-    val color = overrideColor ?: ulongToColor(stroke.color).copy(alpha = effectiveAlpha)
+    
+    // Если это ластик, рисуем белым цветом (стирание на белом фоне)
+    val color = if (stroke.isEraser) {
+        Color.White.copy(alpha = effectiveAlpha)
+    } else {
+        overrideColor ?: ulongToColor(stroke.color).copy(alpha = effectiveAlpha)
+    }
 
     if (points.size == 1) {
         drawCircle(color = color, radius = stroke.strokeWidth / 2f, center = points[0])

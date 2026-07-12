@@ -10,6 +10,7 @@ import java.awt.Color
 
 /**
  * Flood fill реализация для JVM (использует AWT BufferedImage)
+ * Работает только с текущим кадром активного слоя (без призрачных кадров)
  */
 actual fun floodFillOnBitmap(
     project: AnimationProject,
@@ -26,19 +27,19 @@ actual fun floodFillOnBitmap(
     val bufferedImage = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val graphics = bufferedImage.createGraphics()
 
-    // Рендерим на BufferedImage
-    renderProjectToBufferedImage(project, graphics, w, h)
+    // Рендерим ТОЛЬКО текущий кадр активного слоя (без призрачных кадров)
+    renderCurrentFrameToBufferedImage(project, graphics, w, h, layerIndex, frameIndex)
 
     val px = point.x.toInt().coerceIn(0, w - 1)
     val py = point.y.toInt().coerceIn(0, h - 1)
 
-    // Цвет замены (из ULong в AWT Color int)
+    // Цвет замены (из ULong в AWT int)
     val replacement = ((fillColor shr 24) and 0xFFuL).toInt() shl 24 or
                       ((fillColor shr 16) and 0xFFuL).toInt() shl 16 or
                       ((fillColor shr 8) and 0xFFuL).toInt() shl 8 or
                       (fillColor and 0xFFuL).toInt()
 
-    // Flood fill алгоритм на BufferedImage
+    // Flood fill алгоритм
     val target = bufferedImage.getRGB(px, py)
     if (target == replacement) {
         graphics.dispose()
@@ -61,10 +62,13 @@ actual fun floodFillOnBitmap(
 
 /**
  * Пипетка - получение цвета из bitmap для JVM
+ * Работает только с текущим кадром активного слоя (без призрачных кадров)
  */
 actual fun pickColorFromBitmap(
     project: AnimationProject,
-    point: Offset
+    point: Offset,
+    layerIndex: Int,
+    frameIndex: Int
 ): ULong? {
     val w = project.canvasWidth
     val h = project.canvasHeight
@@ -74,7 +78,8 @@ actual fun pickColorFromBitmap(
     val bufferedImage = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val graphics = bufferedImage.createGraphics()
 
-    renderProjectToBufferedImage(project, graphics, w, h)
+    // Рендерим ТОЛЬКО текущий кадр (без призрачных кадров)
+    renderCurrentFrameToBufferedImage(project, graphics, w, h, layerIndex, frameIndex)
 
     val px = point.x.toInt().coerceIn(0, w - 1)
     val py = point.y.toInt().coerceIn(0, h - 1)
@@ -92,22 +97,26 @@ actual fun pickColorFromBitmap(
 }
 
 /**
- * Рендерим проект на BufferedImage
+ * Рендерим ТОЛЬКО текущий кадр активного слоя на BufferedImage (без призрачных кадров)
  */
-private fun renderProjectToBufferedImage(project: AnimationProject, graphics: Graphics2D, w: Int, h: Int) {
-    // Белый фон
+private fun renderCurrentFrameToBufferedImage(
+    project: AnimationProject, 
+    graphics: Graphics2D, 
+    w: Int, 
+    h: Int,
+    layerIndex: Int,
+    frameIndex: Int
+) {
     graphics.clearRect(0, 0, w, h)
     graphics.color = Color.WHITE
     graphics.fillRect(0, 0, w, h)
 
-    // Рендерим слои
-    for (layer in project.layers.filter { it.isVisible }) {
-        for (frame in layer.frames) {
-            // Рисуем штрихи (изображения пока пропустим для упрощения)
-            for (stroke in frame.strokes) {
-                drawStrokeOnGraphics(graphics, stroke)
-            }
-        }
+    // Рендерим только один слой и один кадр (без ghost frames)
+    val layer = project.layers.getOrNull(layerIndex) ?: return
+    val frame = layer.frames.getOrNull(frameIndex) ?: return
+    
+    for (stroke in frame.strokes) {
+        drawStrokeOnGraphics(graphics, stroke)
     }
 }
 
@@ -130,10 +139,12 @@ private fun drawStrokeOnGraphics(graphics: Graphics2D, stroke: Stroke) {
     graphics.stroke = java.awt.BasicStroke(stroke.strokeWidth.toFloat())
 
     if (pts.size == 1) {
-        graphics.fillOval(pts[0].x.toInt() - stroke.strokeWidth.toInt() / 2, 
-                          pts[0].y.toInt() - stroke.strokeWidth.toInt() / 2,
-                          stroke.strokeWidth.toInt(), 
-                          stroke.strokeWidth.toInt())
+        graphics.fillOval(
+            pts[0].x.toInt() - stroke.strokeWidth.toInt() / 2,
+            pts[0].y.toInt() - stroke.strokeWidth.toInt() / 2,
+            stroke.strokeWidth.toInt(),
+            stroke.strokeWidth.toInt()
+        )
         return
     }
 

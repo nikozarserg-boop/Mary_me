@@ -396,10 +396,14 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         val w = _project.value.canvasWidth
         val h = _project.value.canvasHeight
         if (point.x < 0 || point.y < 0 || point.x >= w || point.y >= h) return null
+        val layerIndex = _currentLayerIndex.value
+        val frameIndex = _currentFrameIndex.value
         return try {
             pickColorFromBitmap(
                 project = _project.value,
-                point = point
+                point = point,
+                layerIndex = layerIndex,
+                frameIndex = frameIndex
             )
         } catch (e: Exception) { null }
     }
