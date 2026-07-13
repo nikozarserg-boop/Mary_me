@@ -178,5 +178,10 @@
   "tool.text": "Текст",
   "tool.richText": "Форматированный текст",
   "tool.stamp": "Штамп",
-  "tool.bitmapStamp": "Растровый штамп"
+  "tool.bitmapStamp": "Растровый штамп",
+  "permission.title": "Доступ к файлам",
+  "permission.message": "Для работы с проектами и файлами приложение требует доступа к хранилищу устройства.",
+  "permission.settingsHint": "Нажмите кнопку ещё раз, чтобы открыть настройки системы.",
+  "permission.allowBtn": "Разрешить",
+  "permission.openSettingsBtn": "Настройки"
 }

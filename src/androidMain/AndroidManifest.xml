@@ -3,12 +3,16 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.INTERNET" />
-    <!-- Доступ к файлам для сохранения/загрузки проектов (до Android 10 нужны явные разрешения) -->
+    <!-- Доступ к файлам для файлового менеджера -->
+    <!-- Android 10 и ниже: READ/WRITE_EXTERNAL_STORAGE -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
+        android:maxSdkVersion="29" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29"
         tools:ignore="ScopedStorage" />
+    <!-- Android 11+: MANAGE_EXTERNAL_STORAGE для полного доступа к файлам -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        android:minSdkVersion="30" />
 
     <application
             android:allowBackup="true"

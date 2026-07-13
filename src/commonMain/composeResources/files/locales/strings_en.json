@@ -178,5 +178,10 @@
   "tool.text": "Text",
   "tool.richText": "Rich Text",
   "tool.stamp": "Stamp",
-  "tool.bitmapStamp": "Bitmap Stamp"
+  "tool.bitmapStamp": "Bitmap Stamp",
+  "permission.title": "Storage Access",
+  "permission.message": "The application requires access to device storage to work with projects and files.",
+  "permission.settingsHint": "Tap the button again to open system settings.",
+  "permission.allowBtn": "Allow",
+  "permission.openSettingsBtn": "Settings"
 }
