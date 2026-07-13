@@ -168,14 +168,14 @@ private fun getToolIcon(tool: ToolType): androidx.compose.ui.graphics.vector.Ima
     return when (tool) {
         ToolType.BRUSH -> EditorIcons.iconBrush
         ToolType.PENCIL -> EditorIcons.iconPencil
-        ToolType.ERASER -> EditorIcons.iconEraser
+        ToolType.HARD_ERASER, ToolType.SOFT_ERASER, ToolType.PARTIAL_ERASER, ToolType.OBJECT_ERASER -> EditorIcons.iconEraser
         ToolType.LINE -> EditorIcons.iconLine
         ToolType.RECTANGLE -> EditorIcons.iconRectangle
         ToolType.ELLIPSE -> EditorIcons.iconEllipse
-        ToolType.FILL -> EditorIcons.iconFill
+        ToolType.BUCKET_FILL, ToolType.GRADIENT_FILL, ToolType.PATTERN_FILL -> EditorIcons.iconFill
         ToolType.EYEDROPPER -> EditorIcons.iconEyedropper
-        ToolType.SELECT -> EditorIcons.iconSelect
-        ToolType.MOVE -> EditorIcons.iconMove
+        ToolType.RECT_SELECTION, ToolType.LASSO, ToolType.MAGIC_WAND -> EditorIcons.iconSelect
+        ToolType.MOVE, ToolType.SCALE, ToolType.ROTATE, ToolType.SKEW, ToolType.MIRROR, ToolType.FLIP -> EditorIcons.iconMove
         else -> EditorIcons.iconBrush
     }
 }

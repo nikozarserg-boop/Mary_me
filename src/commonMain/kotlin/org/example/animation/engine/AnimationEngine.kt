@@ -239,14 +239,14 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         val layer = _project.value.layers.getOrNull(_currentLayerIndex.value) ?: return
         if (layer.isLocked || !layer.isVisible) return
         
-        _activeStroke.value = Stroke(
-            points = mutableListOf(point),
-            color = _currentColor.value,
-            strokeWidth = _brushSize.value,
-            isEraser = _currentTool.value == ToolType.ERASER,
-            toolType = _currentTool.value,
-            opacity = _opacity.value
-        )
+    _activeStroke.value = Stroke(
+        points = mutableListOf(point),
+        color = _currentColor.value,
+        strokeWidth = _brushSize.value,
+        isEraser = _currentTool.value.name.contains("ERASER"),
+        toolType = _currentTool.value,
+        opacity = _opacity.value
+    )
     }
 
     fun continueStroke(point: Offset) {

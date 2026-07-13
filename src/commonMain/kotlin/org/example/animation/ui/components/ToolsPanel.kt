@@ -81,7 +81,7 @@ fun ToolsPanel(engine: AnimationEngine, onImportImage: () -> Unit = {}) {
                     ToolGroup {
                         ToolButton(EditorIcons.iconBrush, EditorStrings.observeString("tool.brush"), currentTool == ToolType.BRUSH) { engine.setTool(ToolType.BRUSH) }
                         ToolButton(EditorIcons.iconPencil, EditorStrings.observeString("tool.pencil"), currentTool == ToolType.PENCIL) { engine.setTool(ToolType.PENCIL) }
-                        ToolButton(EditorIcons.iconEraser, EditorStrings.observeString("tool.eraser"), currentTool == ToolType.ERASER) { engine.setTool(ToolType.ERASER) }
+                        ToolButton(EditorIcons.iconEraser, EditorStrings.observeString("tool.eraser"), currentTool == ToolType.HARD_ERASER) { engine.setTool(ToolType.HARD_ERASER) }
                     }
 
                     Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
@@ -95,9 +95,9 @@ fun ToolsPanel(engine: AnimationEngine, onImportImage: () -> Unit = {}) {
                     Spacer(Modifier.height(UiDimensions.PaddingSmall.scaled()))
 
                     ToolGroup {
-                        ToolButton(EditorIcons.iconFill, EditorStrings.observeString("tool.fill"), currentTool == ToolType.FILL) { engine.setTool(ToolType.FILL) }
+                        ToolButton(EditorIcons.iconFill, EditorStrings.observeString("tool.fill"), currentTool == ToolType.BUCKET_FILL) { engine.setTool(ToolType.BUCKET_FILL) }
                         ToolButton(EditorIcons.iconEyedropper, EditorStrings.observeString("tool.eyedropper"), currentTool == ToolType.EYEDROPPER) { engine.setTool(ToolType.EYEDROPPER) }
-                        ToolButton(EditorIcons.iconSelect, EditorStrings.observeString("tool.select"), currentTool == ToolType.SELECT) { engine.setTool(ToolType.SELECT) }
+                        ToolButton(EditorIcons.iconSelect, EditorStrings.observeString("tool.select"), currentTool == ToolType.RECT_SELECTION) { engine.setTool(ToolType.RECT_SELECTION) }
                         ToolButton(EditorIcons.iconMove, EditorStrings.observeString("tool.move"), currentTool == ToolType.MOVE) { engine.setTool(ToolType.MOVE) }
                     }
 

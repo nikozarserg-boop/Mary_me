@@ -72,7 +72,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val toolCursor = when (currentTool) {
         ToolType.MOVE -> PointerIcon.Hand
         ToolType.EYEDROPPER -> PointerIcon.Crosshair
-        ToolType.FILL -> PointerIcon.Crosshair
+        ToolType.BUCKET_FILL -> PointerIcon.Crosshair
         else -> PointerIcon.Default
     }
 
@@ -144,7 +144,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                         }
 
                         // Заливка: одиночное нажатие
-                        if (currentTool == ToolType.FILL) {
+                        if (currentTool == ToolType.BUCKET_FILL) {
                             engine.floodFillAt(startCanvas, engine.currentColor.value)
                             down.consume()
                             return@awaitEachGesture
@@ -159,7 +159,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
                         // Свободное рисование (кисть/карандаш/перо/ластик)
                         if (currentTool == ToolType.BRUSH || currentTool == ToolType.PENCIL ||
-                            currentTool == ToolType.PEN || currentTool == ToolType.ERASER
+                            currentTool == ToolType.PEN || currentTool == ToolType.HARD_ERASER
                         ) {
                             engine.startStroke(startCanvas)
                             down.consume()
@@ -213,7 +213,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                         }
 
                         // Выделение (SELECT) — запоминаем рамку, превью
-                        if (currentTool == ToolType.SELECT) {
+                        if (currentTool == ToolType.RECT_SELECTION || currentTool == ToolType.LASSO || currentTool == ToolType.MAGIC_WAND) {
                             selectionRect = SelectionRect(startCanvas, startCanvas)
                             down.consume()
                             do {
