@@ -28,6 +28,8 @@ fun PermissionGate(
     onOpenSettings: () -> Unit,
     content: @Composable () -> Unit
 ) {
+    // Проверяем разрешения каждый раз при отрисовке
+    // Это обеспечивает возврат к приложению после предоставления разрешений
     if (hasPermissions) {
         content()
     } else {

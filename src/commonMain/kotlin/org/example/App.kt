@@ -66,6 +66,15 @@ fun App(
     LaunchedEffect(Unit) {
         hasPermissions = hasStoragePermissions()
     }
+    
+    // Периодическая проверка разрешений (для Android 11+ после возврата из Settings)
+    LaunchedEffect(hasPermissions) {
+        if (!hasPermissions) {
+            // Проверяем снова через небольшую задержку (на случай возврата из Settings)
+            kotlinx.coroutines.delay(500)
+            hasPermissions = hasStoragePermissions()
+        }
+    }
 
     LaunchedEffect(lastAutosave) {
         if (lastAutosave > 0) {
