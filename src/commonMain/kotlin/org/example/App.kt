@@ -61,6 +61,7 @@ fun App(
     val hasUnsavedChanges by engine.hasUnsavedChanges.collectAsState()
     val lastAutosave by engine.lastAutosaveTime.collectAsState()
     var showAutosaveToast by remember { mutableStateOf(false) }
+    var exportError by remember { mutableStateOf<String?>(null) }
 
     var savedUiScale by remember { mutableStateOf(AppSettingsManager.getUiScale()) }
     var currentTheme by remember { mutableStateOf(ThemeType.valueOf(AppSettingsManager.getTheme())) }
@@ -102,6 +103,13 @@ fun App(
             showAutosaveToast = true
             delay(3000)
             showAutosaveToast = false
+        }
+    }
+
+    LaunchedEffect(exportError) {
+        if (exportError != null) {
+            delay(4000)
+            exportError = null
         }
     }
 
@@ -299,13 +307,16 @@ fun App(
                                                     density = density,
                                                     format = fmt
                                                 )
-                                                fileHandler.saveToPath(path, data)
+                                                when {
+                                                    data.isEmpty() -> exportError = "Не удалось сформировать изображение (${fmt.uppercase()})"
+                                                    !fileHandler.saveToPath(path, data) -> exportError = "Не удалось сохранить файл: $path"
+                                                }
                                                 pendingFileAction = null
                                             } else {
                                                 // Видео или анимация через FFmpeg
                                                 scope.launch {
                                                     exportProgress = 0f
-                                                    fileHandler.exportAnimation(
+                                                    val ok = fileHandler.exportAnimation(
                                                         project = engine.project.value,
                                                         outputPath = path,
                                                         format = fmt,
@@ -316,6 +327,9 @@ fun App(
                                                         onProgress = { exportProgress = it }
                                                     )
                                                     exportProgress = null
+                                                    if (!ok) {
+                                                        exportError = "Экспорт в ${fmt.uppercase()} не выполнен. Убедитесь, что FFmpeg поддерживает этот кодек."
+                                                    }
                                                     pendingFileAction = null
                                                 }
                                             }
@@ -385,6 +399,25 @@ fun App(
                                 Icon(EditorIcons.iconCheck, null, tint = Color.White, modifier = Modifier.size(16.dp.scaled()))
                                 Spacer(Modifier.width(10.dp.scaled()))
                                 Text(EditorStrings.observeString("autosave.done"), color = Color.White, fontSize = 13.sp.scaled())
+                            }
+                        }
+                    }
+
+                    AnimatedVisibility(
+                        visible = exportError != null,
+                        enter = fadeIn() + slideInVertically { it },
+                        exit = fadeOut() + slideOutVertically { it },
+                        modifier = Modifier.align(Alignment.BottomEnd).padding(32.dp.scaled())
+                    ) {
+                        Surface(
+                            color = EditorColors.accentRed.copy(alpha = 0.95f),
+                            shape = RoundedCornerShape(8.dp.scaled()),
+                            elevation = 8.dp.scaled()
+                        ) {
+                            Row(modifier = Modifier.padding(horizontal = 16.dp.scaled(), vertical = 10.dp.scaled()), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(EditorIcons.iconWarning, null, tint = Color.White, modifier = Modifier.size(16.dp.scaled()))
+                                Spacer(Modifier.width(10.dp.scaled()))
+                                Text(exportError ?: "", color = Color.White, fontSize = 13.sp.scaled())
                             }
                         }
                     }

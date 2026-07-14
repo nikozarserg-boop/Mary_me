@@ -169,7 +169,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
     ): Boolean = withContext(Dispatchers.IO) {
         val tempDir = File(getCacheDirectory(), "export_${System.currentTimeMillis()}")
         tempDir.mkdirs()
-        
+
         try {
             // 1. Рендерим кадры (всегда PNG как промежуточный)
             ExportManager.exportSequenceToPngs(project, width, height, density) { index, data ->
@@ -177,7 +177,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 onProgress(0.1f + (index.toFloat() / project.maxFrames) * 0.4f)
             }
 
-            // 2. Находим бинарник FFmpeg через JAVE
+            // 2. Используем встроенный FFmpeg (JAVE извлекает нужный бинарник под ОС)
             val locator = DefaultFFMPEGLocator()
             val ffmpegExecutable = locator.executablePath
 
@@ -188,7 +188,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 add(fps.toString())
                 add("-i")
                 add(File(tempDir, "frame_%04d.png").absolutePath)
-                
+
                 when (format.lowercase()) {
                     "gif" -> {
                         add("-vf")
@@ -220,7 +220,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                         add("-c:v")
                         add("prores_ks")
                         add("-pix_fmt")
-                        add("yuva444p10le")
+                        add("yuv420p")
                     }
                     "mkv" -> {
                         add("-c:v")

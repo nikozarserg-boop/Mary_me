@@ -83,7 +83,10 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
-                // FFmpeg для JVM (автоматически скачивает бинарники под ОС)
+                // FFmpeg для десктопа: jave-all-deps встраивает бинарники FFmpeg под
+                // Windows/Linux/macOS прямо внутрь приложения (извлекаются в рантайме нужный
+                // для текущей ОС, без скачивания из интернета). Зависимость живёт только в
+                // jvmMain, поэтому НЕ попадает в Android-сборку.
                 implementation("ws.schild:jave-all-deps:3.3.1")
             }
         }
