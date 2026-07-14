@@ -36,6 +36,7 @@
   "anim.ghostBefore": "Frames before",
   "anim.ghostAfter": "Frames after",
   "anim.ghostDesc": "Show neighboring frames (Onion Skin)",
+  "anim.ghostColor": "Ghost frame color",
   "view.resetZoom": "Reset Zoom",
   "view.zoomIn": "Zoom In",
   "view.zoomOut": "Zoom Out",
