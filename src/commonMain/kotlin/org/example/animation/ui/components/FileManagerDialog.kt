@@ -210,13 +210,13 @@ fun FileManagerDialog(
                                 value = fileName,
                                 onValueChange = { fileName = it },
                                 singleLine = true,
-                                modifier = Modifier.weight(1f).height(48.dp.scaled()),
+                                modifier = Modifier.weight(1f),
                                 textStyle = LocalTextStyle.current.copy(fontSize = 14.sp.scaled(), color = EditorColors.textPrimary),
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     textColor = EditorColors.textPrimary,
                                     focusedBorderColor = EditorColors.accent,
                                     unfocusedBorderColor = EditorColors.divider,
-                                    backgroundColor = EditorColors.background.copy(alpha = 0.5f), // Увеличена непрозрачность фона для лучшей видимости текста
+                                    backgroundColor = EditorColors.background.copy(alpha = 0.8f),
                                     cursorColor = EditorColors.accent
                                 )
                             )

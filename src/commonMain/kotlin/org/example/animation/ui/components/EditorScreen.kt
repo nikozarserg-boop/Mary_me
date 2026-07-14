@@ -652,6 +652,7 @@ private fun DropdownMenuButton(
                 activeSubMenuLabel = null
             }, 
             modifier = Modifier
+                .width(IntrinsicSize.Max)
                 .background(EditorColors.surface)
                 .border(1.dp.scaled(), EditorColors.divider)
         ) { 
@@ -665,8 +666,9 @@ private fun DropdownMenuButton(
                                 activeSubMenuLabel = null
                                 item.onClick() 
                             }, 
-                                modifier = Modifier
+                            modifier = Modifier
                                 .height(32.dp.scaled())
+                                .width(IntrinsicSize.Max)
                         ) { 
                             Text(item.label, style = EditorTypography.menu()) 
                         }
@@ -678,7 +680,9 @@ private fun DropdownMenuButton(
                                 activeSubMenuLabel = null
                                 item.onClick()
                             },
-                            modifier = Modifier.height(32.dp.scaled())
+                            modifier = Modifier
+                                .height(32.dp.scaled())
+                                .width(IntrinsicSize.Max)
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -702,6 +706,7 @@ private fun DropdownMenuButton(
                             onDismissRequest = { activeSubMenuLabel = null },
                             offset = DpOffset(x = 120.dp.scaled(), y = (-32).dp.scaled()),
                             modifier = Modifier
+                                .width(IntrinsicSize.Max)
                                 .background(EditorColors.surface)
                                 .border(1.dp.scaled(), EditorColors.divider)
                         ) {
@@ -712,7 +717,9 @@ private fun DropdownMenuButton(
                                         expanded = false
                                         subItem.onClick()
                                     },
-                                    modifier = Modifier.height(32.dp.scaled())
+                                    modifier = Modifier
+                                        .height(32.dp.scaled())
+                                        .width(IntrinsicSize.Max)
                                 ) {
                                     Text(subItem.label, style = EditorTypography.menu())
                                 }
