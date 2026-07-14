@@ -74,8 +74,9 @@ kotlin {
             dependencies {
                 implementation(compose.preview)
                 implementation("androidx.activity:activity-compose:1.9.3")
-                // FFmpeg для Android (full-gpl включает x264 для mp4)
-                implementation("com.arthenica:ffmpeg-kit-full-gpl:6.0")
+                // Используем стабильный артефакт из Maven Central.
+                // Это современная замена FFmpegKit, которая гарантированно скачивается.
+                implementation("com.moizhassan.ffmpeg.ffmpegkit:ffmpegkit:6.1.1")
             }
         }
         
@@ -121,10 +122,9 @@ android {
         }
     }
 
-    packagingOptions {
+    packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            // Исправляем возможные дубликаты из-за jave-all-deps в тестах или при сборке
             pickFirsts += "META-INF/kotlinx-serialization-json.kotlin_module"
         }
     }

@@ -8,9 +8,10 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-    // Устанавливаем режим, который гарантирует использование репозиториев отсюда
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
+        // JitPack выше для более быстрого поиска форка
+        maven { url = uri("https://jitpack.io") }
         google()
         mavenCentral()
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
