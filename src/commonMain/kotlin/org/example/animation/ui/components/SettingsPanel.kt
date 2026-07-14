@@ -12,7 +12,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
@@ -366,46 +368,103 @@ private fun PerformanceSettingsContent(engine: AnimationEngine) {
         Slider(value = after.toFloat(), onValueChange = { engine.setGhostFramesFramesAfter(it.toInt()) }, valueRange = 0f..10f, steps = 9)
 
         Spacer(Modifier.height(16.dp.scaled()))
-        Text("Цвет призрачного кадра", style = EditorTypography.caption())
+        Text(EditorStrings.observeString("anim.ghostColor"), style = EditorTypography.caption())
         Spacer(Modifier.height(8.dp.scaled()))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp.scaled())) {
-            val colors = listOf(
-                0xFF0099FFuL, // Blue (Default)
-                0xFFF44336uL, // Red
-                0xFF4CAF50uL, // Green
-                0xFFFF9800uL, // Orange
-                0xFF9E9E9EuL, // Grey
-                0xFF000000uL  // Black
+        GhostColorPalette(
+            current = ghostColor,
+            onPick = { engine.setGhostFramesColor(it) }
+        )
+    }
+}
+
+private fun spColorToHSV(color: Color): FloatArray {
+    val r = color.red; val g = color.green; val b = color.blue
+    val max = maxOf(r, maxOf(g, b)); val min = minOf(r, minOf(g, b)); val delta = max - min
+    var h = 0f; if (delta > 0) { h = when (max) { r -> (g - b) / delta % 6; g -> (b - r) / delta + 2; else -> (r - g) / delta + 4 } * 60 }; if (h < 0) h += 360f
+    return floatArrayOf(h, if (max == 0f) 0f else delta / max, max)
+}
+private fun spHsvToColor(hsv: FloatArray): Color = Color.hsv(hsv[0], hsv[1], hsv[2])
+private fun spUlongToColor(c: ULong): Color = Color((c shr 16 and 0xFFuL).toInt() / 255f, (c shr 8 and 0xFFuL).toInt() / 255f, (c and 0xFFuL).toInt() / 255f, (c shr 24 and 0xFFuL).toInt() / 255f)
+private fun Color.spToULong(): ULong = ((alpha * 255).toULong() shl 24) or ((red * 255).toULong() shl 16) or ((green * 255).toULong() shl 8) or (blue * 255).toULong()
+
+@Composable
+private fun GhostColorPalette(current: ULong, onPick: (ULong) -> Unit) {
+    var hsv by remember(current) { mutableStateOf(spColorToHSV(spUlongToColor(current))) }
+    val emit: () -> Unit = { onPick(spHsvToColor(hsv).spToULong()) }
+
+    Column {
+        HorizontalPaletteBar(
+            brush = Brush.horizontalGradient(
+                listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+            ),
+            markerFraction = hsv[0] / 360f
+        ) { f ->
+            hsv = floatArrayOf(f * 360f, hsv[1], hsv[2])
+            emit()
+        }
+
+        Spacer(Modifier.height(8.dp.scaled()))
+
+        HorizontalPaletteBar(
+            brush = Brush.horizontalGradient(
+                listOf(Color.Black, spHsvToColor(floatArrayOf(hsv[0], 1f, 1f)), Color.White)
+            ),
+            markerFraction = hsv[2]
+        ) { f ->
+            hsv = floatArrayOf(hsv[0], 1f, f)
+            emit()
+        }
+
+        Spacer(Modifier.height(8.dp.scaled()))
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(24.dp.scaled())
+                    .clip(RoundedCornerShape(4.dp.scaled()))
+                    .background(spUlongToColor(current))
+                    .border(0.5.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
             )
-            colors.forEach { colorU ->
-                GhostColorItem(
-                    color = Color(colorU.toLong()),
-                    isSelected = ghostColor == colorU,
-                    onClick = { engine.setGhostFramesColor(colorU) }
-                )
-            }
+            Spacer(Modifier.width(8.dp.scaled()))
+            Text(
+                "#${current.toString(16).padStart(8, '0').uppercase().takeLast(6)}",
+                color = EditorColors.textPrimary,
+                style = EditorTypography.mono()
+            )
         }
     }
 }
 
 @Composable
-private fun GhostColorItem(color: Color, isSelected: Boolean, onClick: () -> Unit) {
+private fun HorizontalPaletteBar(brush: Brush, markerFraction: Float, onPick: (Float) -> Unit) {
+    var width by remember { mutableStateOf(1f) }
     Box(
         modifier = Modifier
-            .size(24.dp.scaled())
-            .clip(CircleShape)
-            .background(color)
-            .border(
-                width = if (isSelected) 2.dp.scaled() else 1.dp.scaled(),
-                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.2f),
-                shape = CircleShape
-            )
-            .clickable { onClick() },
-        contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .height(20.dp.scaled())
+            .clip(RoundedCornerShape(4.dp.scaled()))
+            .background(brush)
+            .border(0.5.dp.scaled(), EditorColors.divider, RoundedCornerShape(4.dp.scaled()))
+            .pointerHoverIcon(PointerIcon.Hand)
+            .onSizeChanged { width = it.width.toFloat() }
+            .pointerInput(Unit) {
+                detectDragGestures { change, _ ->
+                    val f = (change.position.x / width).coerceIn(0f, 1f)
+                    onPick(f)
+                }
+            }
+            .clickable { }
     ) {
-        if (isSelected) {
-            Icon(EditorIcons.iconCheck, null, tint = if (color == Color.White) Color.Black else Color.White, modifier = Modifier.size(14.dp.scaled()))
-        }
+        val markerX = (markerFraction.coerceIn(0f, 1f) * width)
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(markerX.toInt() - (6.dp.scaledNonReactive().toPx().toInt()), 0) }
+                .align(Alignment.CenterStart)
+                .size(12.dp.scaled())
+                .clip(CircleShape)
+                .background(Color.Transparent)
+                .border(2.dp.scaled(), Color.White, CircleShape)
+        )
     }
 }
 
