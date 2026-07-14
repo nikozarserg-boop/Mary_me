@@ -495,12 +495,7 @@ private fun EditorMenuBar(
             TopBarIconButton(EditorIcons.iconFolderOpen, tooltip = EditorStrings.observeString("file.open")) { onLoad() }
             TopBarIconButton(EditorIcons.iconSave, tooltip = EditorStrings.observeString("file.save")) { onSave() }
             
-            DropdownMenuButton(
-                icon = EditorIcons.iconExport,
-                tooltip = EditorStrings.observeString("file.export"),
-                items = exportItems,
-                onMainClick = { onExport("png") }
-            )
+            TopBarIconButton(EditorIcons.iconExport, tooltip = EditorStrings.observeString("file.export")) { onExport("png") }
 
             Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
             VerticalDivider()
