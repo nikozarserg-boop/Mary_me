@@ -49,7 +49,7 @@ fun ExportDialog(
             border = BorderStroke(1.dp.scaled(), EditorColors.divider)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header
+                // Заголовок
                 Text(
                     text = EditorStrings.observeString("export.title"),
                     color = EditorColors.accent,
@@ -58,7 +58,7 @@ fun ExportDialog(
                     modifier = Modifier.padding(20.dp.scaled())
                 )
                 
-                // Content
+                // Содержимое
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -134,7 +134,7 @@ fun ExportDialog(
 
                 Divider(color = EditorColors.divider)
 
-                // Footer
+                // Нижняя панель
                 DialogButtonRow(
                     cancelText = EditorStrings.observeString("cancel"),
                     confirmText = EditorStrings.observeString("export.perform"),

@@ -17,7 +17,7 @@ import org.example.animation.io.PermissionHandler
 
 class MainActivity : ComponentActivity() {
 
-    // Launcher для запроса runtime-разрешений (Android 6-10)
+    // Запускалка для запроса runtime-разрешений (Android 6-10)
     private val permissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { result ->
@@ -25,7 +25,7 @@ class MainActivity : ComponentActivity() {
         PermissionHandler.onPermissionResult(allGranted)
     }
 
-    // Launcher для MANAGE_EXTERNAL_STORAGE (Android 11+)
+    // Запускалка для MANAGE_EXTERNAL_STORAGE (Android 11+)
     private val manageStorageLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult()
     ) {

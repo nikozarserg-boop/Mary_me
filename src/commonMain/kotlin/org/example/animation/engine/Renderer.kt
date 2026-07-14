@@ -25,20 +25,20 @@ object Renderer {
             val cw = project.canvasWidth.toFloat()
             val ch = project.canvasHeight.toFloat()
             
-            // Background
+            // Фон
             drawRect(color = backgroundColor, size = Size(cw, ch))
 
-            // Layers
+            // Слои
             for (layer in project.layers) {
                 if (!layer.isVisible) continue
                 val frame = layer.frames.getOrNull(frameIndex) ?: continue
                 
-                // Images
+                // Изображения
                 for (image in frame.images) {
                     drawImageElement(drawScope, image, alpha)
                 }
 
-                // Strokes
+                // Штрихи
                 for (stroke in frame.strokes) {
                     drawStroke(drawScope, stroke, alpha)
                 }

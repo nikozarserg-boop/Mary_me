@@ -66,7 +66,7 @@ fun SettingsDialog(
             )
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header
+                // Заголовок
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -97,7 +97,7 @@ fun SettingsDialog(
                 }
                 
                 Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    // Sidebar
+                    // Боковая панель
                     Column(
                         modifier = Modifier
                             .width(160.dp.scaled())
@@ -122,7 +122,7 @@ fun SettingsDialog(
                     
                     Divider(modifier = Modifier.width(1.dp.scaled()).fillMaxHeight(), color = EditorColors.divider)
                     
-                    // Content
+                    // Содержимое
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -144,7 +144,7 @@ fun SettingsDialog(
                 
                 Divider(color = EditorColors.divider)
                 
-                // Footer
+                // Нижняя панель
                 DialogButtonRow(
                     cancelText = EditorStrings.observeString("cancel"),
                     confirmText = EditorStrings.observeString("apply"),

@@ -4,7 +4,7 @@ package org.example.animation.model
  * Типы инструментов рисования - полная классификация
  */
 enum class ToolType(val displayName: String) {
-    // Drawing Tools
+    // Инструменты рисования
     PEN("Перо"),
     PENCIL("Карандаш"),
     MARKER("Маркер"),
@@ -17,13 +17,13 @@ enum class ToolType(val displayName: String) {
     CALLIGRAPHY("Каллиграфия"),
     HIGHLIGHTER("Маркер выделения"),
 
-    // Erasers
+    // Ластики
     HARD_ERASER("Жёсткий ластик"),
     SOFT_ERASER("Мягкий ластик"),
     PARTIAL_ERASER("Частичный ластик"),
     OBJECT_ERASER("Ластик объектов"),
 
-    // Shapes
+    // Фигуры
     LINE("Линия"),
     ARROW("Стрелка"),
     RECTANGLE("Прямоугольник"),
@@ -34,21 +34,21 @@ enum class ToolType(val displayName: String) {
     STAR("Звезда"),
     TRIANGLE("Треугольник"),
 
-    // Curves
+    // Кривые
     QUADRATIC_BEZIER("Квадратичная кривая"),
     CUBIC_BEZIER("Кубическая кривая"),
 
-    // Fill
+    // Заливка
     BUCKET_FILL("Заливка"),
     GRADIENT_FILL("Градиент"),
     PATTERN_FILL("Узор"),
 
-    // Selection
+    // Выделение
     RECT_SELECTION("Прямоугольное выделение"),
     LASSO("Лассо"),
     MAGIC_WAND("Волшебная палочка"),
 
-    // Transform
+    // Трансформация
     MOVE("Перемещение"),
     SCALE("Масштаб"),
     ROTATE("Поворот"),
@@ -56,15 +56,15 @@ enum class ToolType(val displayName: String) {
     MIRROR("Зеркало"),
     FLIP("Отражение"),
 
-    // Text
+    // Текст
     TEXT("Текст"),
     RICH_TEXT("Форматированный текст"),
 
-    // Stamp
+    // Штамп
     STAMP("Штамп"),
     BITMAP_STAMP("Растровый штамп"),
 
-    // Eyedropper
+    // Пипетка
     EYEDROPPER("Пипетка")
 }
 

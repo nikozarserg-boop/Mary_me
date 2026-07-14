@@ -24,7 +24,7 @@ import org.example.animation.ui.theme.scaled
  * ```
  * Box(Modifier.fillMaxSize()) {
  *     Surface(Modifier.fillMaxSize()) { AppContent() }
- *     TooltipHost()   // Popup, НЕ влияет на layout
+ *     TooltipHost()   // Всплывающее окно, НЕ влияет на раскладку
  * }
  * ```
  *

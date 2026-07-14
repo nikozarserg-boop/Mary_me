@@ -38,7 +38,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _activeStroke = MutableStateFlow<Stroke?>(null)
     val activeStroke: StateFlow<Stroke?> = _activeStroke.asStateFlow()
 
-    // UI Visibility States (можно сделать глобальными, но для гибкости оставим тут)
+    // Видимость панелей UI (можно сделать глобальными, но для гибкости оставим тут)
     private val _isToolsVisible = MutableStateFlow(true)
     val isToolsVisible = _isToolsVisible.asStateFlow()
     private val _isLayersVisible = MutableStateFlow(true)
@@ -50,7 +50,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _isPropertiesVisible = MutableStateFlow(true)
     val isPropertiesVisible = _isPropertiesVisible.asStateFlow()
 
-    // UI Collapse States
+    // Свёрнуты ли панели UI
     private val _isToolsCollapsed = MutableStateFlow(false)
     val isToolsCollapsed = _isToolsCollapsed.asStateFlow()
     private val _isLayersCollapsed = MutableStateFlow(false)
@@ -78,13 +78,13 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _opacity = MutableStateFlow(1f)
     val opacity: StateFlow<Float> = _opacity.asStateFlow()
     
-    // Сглаживание (Smoothing)
-    private val _smoothingLevel = MutableStateFlow(1) 
+    // Сглаживание штрихов
+    private val _smoothingLevel = MutableStateFlow(1)
     val smoothingLevel: StateFlow<Int> = _smoothingLevel.asStateFlow()
     private val _antiAliasingEnabled = MutableStateFlow(true)
     val antiAliasingEnabled: StateFlow<Boolean> = _antiAliasingEnabled.asStateFlow()
 
-    // Кисти (Brushes)
+    // Наборы кистей
     private val _brushes = MutableStateFlow(BrushManager.getPresets())
     val brushes: StateFlow<List<BrushPreset>> = _brushes.asStateFlow()
     private val _currentBrushIndex = MutableStateFlow(BrushManager.getCurrentIndex())
@@ -98,7 +98,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _rotation = MutableStateFlow(0f) // В градусах
     val rotation: StateFlow<Float> = _rotation.asStateFlow()
 
-    // Ghost Frames
+    // Призрачные кадры (показ предыдущих/следующих кадров)
     private val _ghostFramesEnabled = MutableStateFlow(true)
     val ghostFramesEnabled: StateFlow<Boolean> = _ghostFramesEnabled.asStateFlow()
     private val _ghostFramesBefore = MutableStateFlow(2)
@@ -369,7 +369,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         return out
     }
 
-    // --- Заливка (flood fill) ---
+    // --- Заливка областей ---
     fun floodFillAt(point: Offset, fillColor: ULong) {
         val w = _project.value.canvasWidth
         val h = _project.value.canvasHeight
@@ -552,8 +552,8 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         _hasUnsavedChanges.value = true
     }
 
-    // Перемещение конкретного кадра из одного слоя/позиции в другой слой/позицию (drag&drop).
-    // Работает "куда угодно": между кадрами, по слоям, с вставкой на нужное место.
+    // Перемещение кадра между слоями и позициями (перетаскивание).
+    // Работает между любыми кадрами и слоями.
     fun moveFrameToLayer(fromLayer: Int, fromFrame: Int, toLayer: Int, toFrame: Int) {
         val layers = _project.value.layers
         if (fromLayer !in layers.indices || toLayer !in layers.indices) return

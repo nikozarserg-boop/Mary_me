@@ -121,7 +121,7 @@ private fun ProjectTab(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxWidth()
         ) {
-            // Unsaved changes dot
+            // Точка несохранённых изменений
             if (hasChanges) {
                 Box(
                     modifier = Modifier
@@ -173,7 +173,7 @@ private fun ProjectTab(
             }
         }
 
-        // Active indicator line
+        // Линия активного индикатора
         if (isActive) {
             Box(
                 modifier = Modifier

@@ -14,7 +14,7 @@ actual fun floodFillOnBitmap(
     point: Offset,
     fillColor: ULong
 ) {
-    // TODO: Android-специфичная реализация с использованием Android Bitmap и Canvas
+    // TODO: сделать через Android Bitmap и Canvas
 }
 
 /**
@@ -27,6 +27,6 @@ actual fun pickColorFromBitmap(
     layerIndex: Int,
     frameIndex: Int
 ): ULong? {
-    // TODO: Android-специфичная реализация с использованием Android Bitmap
+    // TODO: сделать через Android Bitmap
     return null
 }

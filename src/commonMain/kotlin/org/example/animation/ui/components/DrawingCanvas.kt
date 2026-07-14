@@ -308,7 +308,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
             }
         }
 
-        // UI Индикатор зума и поворота
+        // Индикатор зума и поворота
         Surface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -408,7 +408,7 @@ private fun DrawScope.drawStrokeWithColor(stroke: Stroke, overrideColor: Color? 
     if (points.isEmpty()) return
     val effectiveAlpha = alpha * stroke.opacity
     
-    // Если это ластик, рисуем белым цветом (стирание на белом фоне)
+    // Если ластик — рисуем белым (стирание на белом фоне)
     val color = if (stroke.isEraser) {
         Color.White.copy(alpha = effectiveAlpha)
     } else {

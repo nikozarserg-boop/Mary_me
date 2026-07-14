@@ -39,7 +39,7 @@ actual fun floodFillOnBitmap(
                       ((fillColor shr 8) and 0xFFuL).toInt() shl 8 or
                       (fillColor and 0xFFuL).toInt()
 
-    // Flood fill алгоритм
+    // Заполнение области (flood fill)
     val target = bufferedImage.getRGB(px, py)
     if (target == replacement) {
         graphics.dispose()

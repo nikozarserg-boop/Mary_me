@@ -74,8 +74,8 @@ kotlin {
             dependencies {
                 implementation(compose.preview)
                 implementation("androidx.activity:activity-compose:1.9.3")
-                // Используем стабильный артефакт из Maven Central.
-                // Это современная замена FFmpegKit, которая гарантированно скачивается.
+                // Стабильная версия из официального хранилища
+                // Всегда доступна для скачивания
                 implementation("com.moizhassan.ffmpeg.ffmpegkit:ffmpegkit:6.1.1")
             }
         }

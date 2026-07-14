@@ -33,7 +33,7 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
             .verticalScroll(rememberScrollState())
             .padding(UiDimensions.PaddingMedium.scaled())
     ) {
-        // Tool Icon and Name
+        // Иконка и название инструмента
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier = Modifier
@@ -58,7 +58,7 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
 
         Spacer(Modifier.height(UiDimensions.PaddingLarge.scaled()))
 
-        // Properties common for most tools
+        // Свойства для большинства инструментов
         if (currentTool != ToolType.MOVE && currentTool != ToolType.EYEDROPPER) {
             PropertySlider(
                 label = EditorStrings.observeString("brush.size"),
@@ -78,7 +78,7 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
 
             Spacer(Modifier.height(UiDimensions.PaddingMedium.scaled()))
 
-            // Smoothing Level
+            // Уровень сглаживания
             Column(modifier = Modifier.padding(vertical = 4.dp.scaled())) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

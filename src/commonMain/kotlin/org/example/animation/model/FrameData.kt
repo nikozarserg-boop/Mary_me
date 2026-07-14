@@ -50,7 +50,7 @@ data class ImageElement(
  */
 data class Stroke(
     val points: MutableList<Offset> = mutableListOf(),
-    val color: ULong = 0xFF000000uL, // ARGB
+    val color: ULong = 0xFF000000uL, // формат ARGB
     val strokeWidth: Float = 4f,
     val isEraser: Boolean = false,
     val toolType: ToolType = ToolType.PEN,
@@ -72,7 +72,7 @@ data class Stroke(
 class FrameData(
     val strokes: MutableList<Stroke> = mutableListOf(),
     val images: MutableList<ImageElement> = mutableListOf(),
-    var durationMs: Int = 83, // ~12 FPS
+    var durationMs: Int = 83, // ~12 кадров/сек
     val name: String = ""
 ) {
     fun copy(): FrameData {

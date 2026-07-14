@@ -79,7 +79,7 @@ fun ColorPicker(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
         Divider(color = EditorColors.divider.copy(alpha = 0.3f), modifier = Modifier.padding(bottom = UiDimensions.PaddingMedium.scaled()))
 
-        // Sliders
+        // Ползунки
         CompactSlider(EditorStrings.observeString("brush.size"), brushSize, 1f..100f) { engine.setBrushSize(it) }
         CompactSlider(EditorStrings.observeString("brush.opacity"), opacity, 0f..1f) { engine.setOpacity(it) }
     }

@@ -49,14 +49,14 @@ fun NewProjectDialog(
             border = BorderStroke(1.dp.scaled(), EditorColors.divider)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header (Fixed)
+                // Заголовок (фиксированный)
                 Text(
                     EditorStrings.observeString("dialog.newProject"),
                     style = EditorTypography.body().copy(fontSize = 18.sp.scaled(), fontWeight = FontWeight.Bold),
                     modifier = Modifier.padding(20.dp.scaled())
                 )
 
-                // Scrollable Content
+                // Прокручиваемое содержимое
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -153,7 +153,7 @@ fun NewProjectDialog(
 
                 Divider(color = EditorColors.divider)
 
-                // Footer (Fixed)
+                // Нижняя панель (фиксированная)
                 DialogButtonRow(
                     cancelText = EditorStrings.observeString("cancel"),
                     confirmText = EditorStrings.observeString("btn.create"),

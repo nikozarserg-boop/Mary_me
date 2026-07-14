@@ -34,7 +34,7 @@ object ProjectSerializer {
                 sb.appendLine("          \"durationMs\": ${frame.durationMs},")
                 sb.appendLine("          \"name\": \"${escapeJson(frame.name)}\",")
                 
-                // Strokes
+                // Штрихи
                 sb.appendLine("          \"strokes\": [")
                 for ((strokeIdx, stroke) in frame.strokes.withIndex()) {
                     sb.appendLine("            {")
@@ -55,7 +55,7 @@ object ProjectSerializer {
                 }
                 sb.appendLine("          ],")
                 
-                // Images
+                // Изображения
                 sb.appendLine("          \"images\": [")
                 for ((imgIdx, img) in frame.images.withIndex()) {
                     sb.appendLine("            {")
@@ -124,7 +124,7 @@ object ProjectSerializer {
                     frame.strokes.clear()
                     frame.images.clear()
 
-                    // Deserializing strokes
+                    // Чтение штрихов
                     val strokesArray = extractArray(frameJson, "strokes")
                     if (strokesArray != null) {
                         val strokeObjects = splitTopLevel(strokesArray, '{', '}')
@@ -150,7 +150,7 @@ object ProjectSerializer {
                         }
                     }
 
-                    // Deserializing images
+                    // Чтение изображений
                     val imagesArray = extractArray(frameJson, "images")
                     if (imagesArray != null) {
                         val imageObjects = splitTopLevel(imagesArray, '{', '}')
@@ -287,7 +287,7 @@ object ProjectSerializer {
         return if (rounded == rounded.toInt().toFloat()) rounded.toInt().toString() else rounded.toString()
     }
 
-    // Simple Base64 for multiplatform without dependencies
+    // Простой Base64 для кроссплатформенности без зависимостей
     private const val BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
     private fun encodeBase64(data: ByteArray): String {
