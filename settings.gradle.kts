@@ -8,6 +8,8 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
+    // Устанавливаем режим, который гарантирует использование репозиториев отсюда
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
         google()
         mavenCentral()

@@ -2,6 +2,7 @@ package org.example.animation.io
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.unit.Density
 import org.example.animation.model.AnimationProject
 
 /**
@@ -66,4 +67,19 @@ interface PlatformFileHandler {
     fun openInExplorer(path: String)
     fun fileExists(path: String): Boolean
     fun deleteFile(path: String): Boolean
+
+    /**
+     * Экспорт анимации в видео или GIF.
+     * Реализуется через FFmpeg на каждой платформе.
+     */
+    suspend fun exportAnimation(
+        project: AnimationProject,
+        outputPath: String,
+        format: String,
+        width: Int,
+        height: Int,
+        fps: Int,
+        density: Density,
+        onProgress: (Float) -> Unit
+    ): Boolean
 }

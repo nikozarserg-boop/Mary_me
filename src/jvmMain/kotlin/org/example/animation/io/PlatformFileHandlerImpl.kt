@@ -6,16 +6,21 @@ import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.toComposeImageBitmap
+import androidx.compose.ui.graphics.asSkiaBitmap
+import androidx.compose.ui.unit.Density
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.example.animation.engine.ExportManager
+import org.example.animation.model.AnimationProject
 import org.jetbrains.skia.Image
+import org.jetbrains.skia.EncodedImageFormat
+import ws.schild.jave.process.ffmpeg.DefaultFFMPEGLocator
 
 /**
  * JVM реализация платформенно-зависимого файлового ввода/вывода
  */
 actual fun createPlatformFileHandler(): PlatformFileHandler = JvmPlatformFileHandler()
 
-/**
- * Декодирование изображения для JVM (используя Skia)
- */
 actual fun decodeImage(data: ByteArray): ImageBitmap? {
     return try {
         Image.makeFromEncoded(data).toComposeImageBitmap()
@@ -27,10 +32,10 @@ actual fun decodeImage(data: ByteArray): ImageBitmap? {
 
 actual fun encodeImage(bitmap: ImageBitmap): ByteArray {
     return try {
-        // Encode ImageBitmap to PNG bytes - create new bitmap and encode
-        // Note: This is a simplified stub implementation
-        // Full implementation would copy pixels from bitmap to Skia bitmap
-        ByteArray(0) // TODO: Proper implementation
+        val skiaBitmap = bitmap.asSkiaBitmap()
+        val image = Image.makeFromBitmap(skiaBitmap)
+        val data = image.encodeToData(EncodedImageFormat.PNG)
+        data?.bytes ?: ByteArray(0)
     } catch (e: Exception) {
         e.printStackTrace()
         ByteArray(0)
@@ -83,12 +88,8 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 "maryme" -> FileNameExtensionFilter("MaryMe Project (*.maryme)", "maryme")
                 "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
                 "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
-                "jpg", "jpeg" -> FileNameExtensionFilter("JPEG Image (*.jpg, *.jpeg)", "jpg", "jpeg")
-                "avi" -> FileNameExtensionFilter("AVI Video (*.avi)", "avi")
-                "mp4" -> FileNameExtensionFilter("MP4 Video (*.mp4)", "mp4")
                 "brush" -> FileNameExtensionFilter("Brush Preset (*.brush)", "brush")
-                "json" -> FileNameExtensionFilter("JSON files (*.json)", "json")
-                else -> FileNameExtensionFilter("All supported files", "maryme", "gif", "png", "jpg", "jpeg", "avi", "mp4", "brush", "json")
+                else -> FileNameExtensionFilter("All supported files", "maryme", "gif", "png", "brush")
             }
             chooser.fileFilter = filter
 
@@ -119,61 +120,96 @@ class JvmPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun readFromPath(path: String): ByteArray? {
-        return try {
-            val file = File(path)
-            if (file.exists()) file.readBytes() else null
-        } catch (e: Exception) {
-            e.printStackTrace()
-            null
-        }
+        val file = File(path)
+        return if (file.exists()) file.readBytes() else null
     }
 
-    override fun getDocumentsDirectory(): String {
-        val userHome = System.getProperty("user.home")
-        val docs = File(userHome, "Documents")
-        return if (docs.exists()) docs.absolutePath else userHome
-    }
+    override fun getDocumentsDirectory(): String = System.getProperty("user.home") + "/Documents"
 
     override fun getCacheDirectory(): String {
-        val dir = File(System.getProperty("user.home"), ".maryme/cache")
+        val dir = File(System.getProperty("java.io.tmpdir"), "maryme_cache")
         if (!dir.exists()) dir.mkdirs()
         return dir.absolutePath
     }
 
     override fun listFiles(path: String): List<FileEntry> {
         val dir = File(path)
-        if (!dir.exists() || !dir.isDirectory) return emptyList()
-        
-        return dir.listFiles()?.map {
-            FileEntry(
-                name = it.name,
-                path = it.absolutePath,
-                isDirectory = it.isDirectory,
-                extension = it.extension
-            )
-        } ?: emptyList()
+        return dir.listFiles()?.map { FileEntry(it.name, it.absolutePath, it.isDirectory, it.extension) } ?: emptyList()
     }
 
-    override fun getParentPath(path: String): String? {
-        return File(path).parent
-    }
-
-    override fun getHomeDirectory(): String {
-        return System.getProperty("user.home")
-    }
-
+    override fun getParentPath(path: String): String? = File(path).parent
+    override fun getHomeDirectory(): String = System.getProperty("user.home")
     override fun openInExplorer(path: String) {
-        try {
-            val file = File(path)
-            if (Desktop.isDesktopSupported()) {
-                val desktop = Desktop.getDesktop()
-                if (file.isDirectory) desktop.open(file)
-                else desktop.open(file.parentFile ?: File(System.getProperty("user.home")))
-            }
-        } catch (e: Exception) { e.printStackTrace() }
+        try { Desktop.getDesktop().open(File(path).parentFile) } catch (e: Exception) {}
     }
 
     override fun fileExists(path: String): Boolean = File(path).exists()
-
     override fun deleteFile(path: String): Boolean = File(path).delete()
+
+    override suspend fun exportAnimation(
+        project: AnimationProject,
+        outputPath: String,
+        format: String,
+        width: Int,
+        height: Int,
+        fps: Int,
+        density: Density,
+        onProgress: (Float) -> Unit
+    ): Boolean = withContext(Dispatchers.IO) {
+        val tempDir = File(getCacheDirectory(), "export_${System.currentTimeMillis()}")
+        tempDir.mkdirs()
+        
+        try {
+            // 1. Рендерим кадры
+            ExportManager.exportSequenceToPngs(project, width, height, density) { index, data ->
+                File(tempDir, "frame_%04d.png".format(index)).writeBytes(data)
+                onProgress(0.1f + (index.toFloat() / project.maxFrames) * 0.4f)
+            }
+
+            // 2. Находим бинарник FFmpeg через JAVE
+            val locator = DefaultFFMPEGLocator()
+            val ffmpegExecutable = locator.executablePath
+
+            val cmd = mutableListOf<String>().apply {
+                add(ffmpegExecutable)
+                add("-y")
+                add("-framerate")
+                add(fps.toString())
+                add("-i")
+                add(File(tempDir, "frame_%04d.png").absolutePath)
+                
+                when (format.lowercase()) {
+                    "gif" -> {
+                        add("-vf")
+                        add("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse")
+                    }
+                    "mp4" -> {
+                        add("-c:v")
+                        add("libx264")
+                        add("-pix_fmt")
+                        add("yuv420p")
+                        add("-crf")
+                        add("23")
+                    }
+                    "avi" -> {
+                        add("-c:v")
+                        add("mpeg4")
+                        add("-q:v")
+                        add("5")
+                    }
+                }
+                add(outputPath)
+            }
+
+            val process = ProcessBuilder(cmd).inheritIO().start()
+            onProgress(0.9f)
+            process.waitFor() == 0
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        } finally {
+            tempDir.deleteRecursively()
+            onProgress(1.0f)
+        }
+    }
 }

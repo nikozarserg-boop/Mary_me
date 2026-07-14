@@ -3,13 +3,24 @@ package org.example.animation.io
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Environment
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.unit.Density
 import androidx.core.content.ContextCompat
+import com.arthenica.ffmpegkit.FFmpegKit
+import com.arthenica.ffmpegkit.ReturnCode
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.example.animation.engine.ExportManager
+import org.example.animation.model.AnimationProject
+import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
 
 /**
  * Android реализация платформенно-зависимого файлового ввода/вывода
@@ -30,8 +41,10 @@ actual fun decodeImage(data: ByteArray): ImageBitmap? {
 
 actual fun encodeImage(bitmap: ImageBitmap): ByteArray {
     return try {
-        // TODO: Proper implementation for Android
-        ByteArray(0)
+        val androidBitmap = bitmap.asAndroidBitmap()
+        val stream = ByteArrayOutputStream()
+        androidBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        stream.toByteArray()
     } catch (e: Exception) {
         e.printStackTrace()
         ByteArray(0)
@@ -40,11 +53,10 @@ actual fun encodeImage(bitmap: ImageBitmap): ByteArray {
 
 class AndroidPlatformFileHandler : PlatformFileHandler {
 
-    // Проверяем, есть ли доступ к внешнему хранилищу (для API ≤ 32)
     private fun hasStoragePermission(): Boolean {
         val ctx: Context = ContextHolder.get()
         return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            true // на API 33+ scoped storage, запись в свои каталоги не требует явного пермишена
+            true
         } else {
             ContextCompat.checkSelfPermission(
                 ctx,
@@ -59,11 +71,10 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun openFile(extension: String): ByteArray? {
-        return null // Требует системного диалога (в реальном приложении нужно пробрасывать Activity/Fragment)
+        return null 
     }
 
     override fun saveToPath(path: String, data: ByteArray): Boolean {
-        if (!hasStoragePermission()) return false
         return try {
             val file = File(path)
             file.parentFile?.mkdirs()
@@ -76,7 +87,6 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun readFromPath(path: String): ByteArray? {
-        if (!hasStoragePermission()) return null
         return try {
             val file = File(path)
             if (file.exists()) file.readBytes() else null
@@ -91,7 +101,6 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun getCacheDirectory(): String {
-        // Корректный путь к кэшу через Context (вместо захардкоженной строки)
         return ContextHolder.get().cacheDir.absolutePath
     }
 
@@ -118,10 +127,54 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun openInExplorer(path: String) {
-        // Заглушка
     }
 
     override fun fileExists(path: String): Boolean = File(path).exists()
 
     override fun deleteFile(path: String): Boolean = File(path).delete()
+
+    override suspend fun exportAnimation(
+        project: AnimationProject,
+        outputPath: String,
+        format: String,
+        width: Int,
+        height: Int,
+        fps: Int,
+        density: Density,
+        onProgress: (Float) -> Unit
+    ): Boolean = withContext(Dispatchers.IO) {
+        val tempDir = File(getCacheDirectory(), "export_frames_" + System.currentTimeMillis())
+        tempDir.mkdirs()
+        
+        try {
+            // 1. Рендерим все кадры в PNG
+            ExportManager.exportSequenceToPngs(project, width, height, density) { index, data ->
+                val frameFile = File(tempDir, "frame_%04d.png".format(index))
+                frameFile.writeBytes(data)
+                onProgress(0.1f + (index.toFloat() / project.maxFrames) * 0.4f)
+            }
+
+            // 2. Формируем команду FFmpeg
+            val inputPattern = File(tempDir, "frame_%04d.png").absolutePath
+            val cmd = when (format.lowercase()) {
+                "gif" -> "-y -framerate $fps -i $inputPattern -vf \"split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" $outputPath"
+                "mp4" -> "-y -framerate $fps -i $inputPattern -c:v libx264 -pix_fmt yuv420p -crf 23 $outputPath"
+                "avi" -> "-y -framerate $fps -i $inputPattern -c:v mpeg4 -q:v 5 $outputPath"
+                else -> "-y -framerate $fps -i $inputPattern $outputPath"
+            }
+
+            // 3. Запускаем FFmpeg
+            val session = FFmpegKit.execute(cmd)
+            onProgress(0.9f)
+            
+            val returnCode = session.returnCode
+            ReturnCode.isSuccess(returnCode)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        } finally {
+            tempDir.deleteRecursively()
+            onProgress(1.0f)
+        }
+    }
 }

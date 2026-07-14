@@ -15,18 +15,16 @@ import androidx.core.content.ContextCompat
  */
 actual fun hasStoragePermissions(): Boolean {
     val context = ContextHolder.get()
-    return when {
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-            // Android 11+ (API 30+): проверяем MANAGE_EXTERNAL_STORAGE
-            Environment.isExternalStorageManager()
-        }
-        else -> {
-            // Android 10 и ниже: проверяем READ_EXTERNAL_STORAGE
-            ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ) == PackageManager.PERMISSION_GRANTED
-        }
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_MEDIA_IMAGES
+        ) == PackageManager.PERMISSION_GRANTED
+    } else {
+        ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.READ_EXTERNAL_STORAGE
+        ) == PackageManager.PERMISSION_GRANTED
     }
 }
 
@@ -43,7 +41,6 @@ actual fun requestStoragePermissions(onComplete: (Boolean) -> Unit) {
  */
 object PermissionHandler {
     private var permissionLauncher: ActivityResultLauncher<Array<String>>? = null
-    private var manageStorageLauncher: ActivityResultLauncher<Intent>? = null
     private var pendingCallback: ((Boolean) -> Unit)? = null
     
     /**
@@ -51,10 +48,9 @@ object PermissionHandler {
      */
     fun initialize(
         permissionLauncher: ActivityResultLauncher<Array<String>>,
-        manageStorageLauncher: ActivityResultLauncher<Intent>
+        manageStorageLauncher: ActivityResultLauncher<Intent> // Оставляем для совместимости подписи, но не используем
     ) {
         this.permissionLauncher = permissionLauncher
-        this.manageStorageLauncher = manageStorageLauncher
     }
     
     /**
@@ -63,62 +59,36 @@ object PermissionHandler {
     fun requestPermissions(onComplete: (Boolean) -> Unit) {
         pendingCallback = onComplete
         
-        val context = ContextHolder.get()
-        
-        when {
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
-                // Android 11+: запрос через Settings для MANAGE_EXTERNAL_STORAGE
-                if (Environment.isExternalStorageManager()) {
-                    onComplete(true)
-                    return
-                }
-                
-                val intent = Intent(
-                    "android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION",
-                    Uri.parse("package:${context.packageName}")
-                )
-                
-                manageStorageLauncher?.launch(intent) ?: run {
-                    try {
-                        context.startActivity(intent)
-                        onComplete(true)
-                    } catch (e: Exception) {
-                        onComplete(false)
-                    }
-                }
+        val permissions = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+            }
+            Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q -> {
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE)
             }
             else -> {
-                // Android 6-10: обычные runtime-разрешения
-                val permissions = buildList {
-                    add(Manifest.permission.READ_EXTERNAL_STORAGE)
-                    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
-                        add(Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                    }
-                }
-                
-                val notGranted = permissions.filter { permission ->
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        permission
-                    ) != PackageManager.PERMISSION_GRANTED
-                }
-                
-                if (notGranted.isEmpty()) {
-                    onComplete(true)
-                    return
-                }
-                
-                permissionLauncher?.launch(notGranted.toTypedArray())
-                    ?: onComplete(false)
+                arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
             }
         }
+        
+        val context = ContextHolder.get()
+        val notGranted = permissions.filter { permission ->
+            ContextCompat.checkSelfPermission(context, permission) != PackageManager.PERMISSION_GRANTED
+        }
+        
+        if (notGranted.isEmpty()) {
+            onComplete(true)
+            return
+        }
+        
+        permissionLauncher?.launch(notGranted.toTypedArray()) ?: onComplete(false)
     }
     
     /**
-     * Callback от manageStorageLauncher.
+     * Callback от manageStorageLauncher (больше не используется для новых версий, но оставим пустой метод).
      */
     fun onManageStorageResult() {
-        pendingCallback?.invoke(Environment.isExternalStorageManager())
+        pendingCallback?.invoke(hasStoragePermissions())
     }
     
     /**

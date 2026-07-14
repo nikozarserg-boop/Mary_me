@@ -10,7 +10,7 @@ group = "org.example"
 
 // Чтение версии из version.txt
 val versionFile = file("version.txt")
-val versionLines = versionFile.readLines()
+val versionLines = if (versionFile.exists()) versionFile.readLines() else listOf("APP_VERSION=1.0.0", "APP_VERSION_CODE=1")
 val versionMap = versionLines
     .filter { it.contains("=") }
     .associate {
@@ -22,12 +22,12 @@ val appVersionCode: Int = (versionMap["APP_VERSION_CODE"] ?: "1").toInt()
 
 version = appVersion
 
-// Генерация константы APP_VERSION в commonMain из version.txt
 val generateAppVersion by tasks.registering {
     val outFile = layout.projectDirectory.file("src/commonMain/kotlin/org/example/animation/AppVersion.kt")
     inputs.property("appVersion", appVersion)
     outputs.file(outFile)
     doLast {
+        outFile.asFile.parentFile.mkdirs()
         outFile.asFile.writeText(
             "package org.example.animation\n\n" +
             "// Файл генерируется Gradle из version.txt. Не редактировать вручную.\n" +
@@ -38,12 +38,6 @@ val generateAppVersion by tasks.registering {
 
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
     dependsOn(generateAppVersion)
-}
-
-repositories {
-    mavenCentral()
-    maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
-    google()
 }
 
 kotlin {
@@ -72,6 +66,7 @@ kotlin {
                 implementation(compose.materialIconsExtended)
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
             }
         }
         
@@ -79,12 +74,16 @@ kotlin {
             dependencies {
                 implementation(compose.preview)
                 implementation("androidx.activity:activity-compose:1.9.3")
+                // FFmpeg для Android (full-gpl включает x264 для mp4)
+                implementation("com.arthenica:ffmpeg-kit-full-gpl:6.0")
             }
         }
         
         val jvmMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+                // FFmpeg для JVM (автоматически скачивает бинарники под ОС)
+                implementation("ws.schild:jave-all-deps:3.3.1")
             }
         }
     }
@@ -114,6 +113,20 @@ android {
         targetSdk = 35
         versionCode = appVersionCode
         versionName = appVersion
+        
+        ndk {
+            abiFilters.add("armeabi-v7a")
+            abiFilters.add("arm64-v8a")
+            abiFilters.add("x86_64")
+        }
+    }
+
+    packagingOptions {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Исправляем возможные дубликаты из-за jave-all-deps в тестах или при сборке
+            pickFirsts += "META-INF/kotlinx-serialization-json.kotlin_module"
+        }
     }
 
     compileOptions {

@@ -11,12 +11,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.example.mary_me.generated.resources.Res
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.engine.ProjectManager
+import org.example.animation.engine.ExportManager
 import org.example.animation.io.AppSettingsManager
 import org.example.animation.io.hasStoragePermissions
 import org.example.animation.io.requestStoragePermissions
@@ -40,39 +43,57 @@ fun App(
     val projectManager = remember { ProjectManager() }
     val engine by projectManager.activeEngine.collectAsState()
     val fileHandler = remember { createPlatformFileHandler() }
+    val density = LocalDensity.current
+    val scope = rememberCoroutineScope()
     
     var showSettings by remember { mutableStateOf(false) }
     var showNewProject by remember { mutableStateOf(false) }
     var showExitConfirm by remember { mutableStateOf(false) }
     var hasPermissions by remember { mutableStateOf(false) }
     
-    // Состояние для закрытия конкретной вкладки
     var closingTabIndex by remember { mutableStateOf<Int?>(null) }
     
     var pendingExportFormat by remember { mutableStateOf<String?>(null) }
     var pendingFileAction by remember { mutableStateOf<String?>(null) }
+    var exportProgress by remember { mutableStateOf<Float?>(null) }
     var stringsLoaded by remember { mutableStateOf(false) }
 
     val hasUnsavedChanges by engine.hasUnsavedChanges.collectAsState()
     val lastAutosave by engine.lastAutosaveTime.collectAsState()
     var showAutosaveToast by remember { mutableStateOf(false) }
 
-    // Глобальный масштаб и тема
     var savedUiScale by remember { mutableStateOf(AppSettingsManager.getUiScale()) }
-    // Загружаем сохранённую тему или используем тёмную по умолчанию
     var currentTheme by remember { mutableStateOf(ThemeType.valueOf(AppSettingsManager.getTheme())) }
 
-    // Проверка разрешений при старте
-    LaunchedEffect(Unit) {
-        hasPermissions = hasStoragePermissions()
+    // Сайд-эффект для обработки действий с файлами, не требующих диалога
+    LaunchedEffect(pendingFileAction) {
+        val action = pendingFileAction ?: return@LaunchedEffect
+        if (action == "save" || action == "save_and_close_tab") {
+            val currentPath = engine.filePath.value
+            if (currentPath != null) {
+                val data = ProjectSerializer.serializeToBytes(engine.project.value)
+                if (fileHandler.saveToPath(currentPath, data)) {
+                    engine.markAsSaved(currentPath)
+                    if (action == "save_and_close_tab") {
+                        val idx = closingTabIndex
+                        if (idx != null) {
+                            projectManager.closeProject(idx)
+                            closingTabIndex = null
+                        }
+                    }
+                }
+                pendingFileAction = null
+            }
+        }
     }
-    
-    // Периодическая проверка разрешений (для Android 11+ после возврата из Settings)
-    LaunchedEffect(hasPermissions) {
-        if (!hasPermissions) {
-            // Проверяем снова через небольшую задержку (на случай возврата из Settings)
-            kotlinx.coroutines.delay(500)
-            hasPermissions = hasStoragePermissions()
+
+    LaunchedEffect(Unit) {
+        if (!hasStoragePermissions()) {
+            requestStoragePermissions { granted ->
+                hasPermissions = granted
+            }
+        } else {
+            hasPermissions = true
         }
     }
 
@@ -103,7 +124,6 @@ fun App(
 
     LaunchedEffect(exitRequested) {
         if (exitRequested) {
-            // Проверка всех проектов на наличие несохраненных изменений
             val anyUnsaved = projectManager.engines.value.any { it.hasUnsavedChanges.value }
             if (anyUnsaved) showExitConfirm = true else onExitConfirm()
         }
@@ -131,188 +151,225 @@ fun App(
             EditorTheme(themeType = currentTheme, uiScale = effectiveScale) {
                 Box(modifier = Modifier.fillMaxSize()) {
                     Surface(modifier = Modifier.fillMaxSize(), color = EditorColors.background) {
-                        // PermissionGate - проверка разрешений
-                        PermissionGate(
-                            hasPermissions = hasPermissions,
-                            onRequestPermissions = {
-                                requestStoragePermissions { granted ->
-                                    hasPermissions = granted
+                        if (stringsLoaded) {
+                            EditorScreen(
+                                engine = engine,
+                                projectManager = projectManager,
+                                uiScale = effectiveScale,
+                                onSave = { pendingFileAction = "save" },
+                                onLoad = { pendingFileAction = "open" },
+                                onExportGif = { pendingExportFormat = "gif" },
+                                onExportPng = { pendingExportFormat = "png" },
+                                onExportAvi = { pendingExportFormat = "avi" },
+                                onExportMp4 = { pendingExportFormat = "mp4" },
+                                onNewProject = { showNewProject = true },
+                                onSettings = { showSettings = true },
+                                onImportImage = { pendingFileAction = "import_image" },
+                                currentTheme = currentTheme,
+                                onThemeChange = { currentTheme = it },
+                                onCloseTab = { index ->
+                                    val targetEngine = projectManager.engines.value[index]
+                                    if (targetEngine.hasUnsavedChanges.value) {
+                                        closingTabIndex = index
+                                    } else {
+                                        projectManager.closeProject(index)
+                                    }
                                 }
-                            },
-                            onOpenSettings = {
-                                // Открываем настройки приложения
-                            }
-                        ) {
-                            if (stringsLoaded) {
-                                EditorScreen(
+                            )
+
+                            if (showSettings) {
+                                SettingsDialog(
                                     engine = engine,
-                                    projectManager = projectManager,
-                                    uiScale = effectiveScale,
-                                    onSave = { pendingFileAction = "save" },
-                                    onLoad = { pendingFileAction = "open" },
-                                    onExportGif = { pendingExportFormat = "gif" },
-                                    onExportPng = { pendingExportFormat = "png" },
-                                    onExportAvi = { pendingExportFormat = "avi" },
-                                    onExportMp4 = { pendingExportFormat = "mp4" },
-                                    onNewProject = { showNewProject = true },
-                                    onSettings = { showSettings = true },
-                                    onImportImage = { pendingFileAction = "import_image" },
+                                    uiScale = savedUiScale,
                                     currentTheme = currentTheme,
-                                    onThemeChange = { currentTheme = it },
-                                    onCloseTab = { index ->
-                                        val targetEngine = projectManager.engines.value[index]
-                                        if (targetEngine.hasUnsavedChanges.value) {
-                                            closingTabIndex = index
-                                        } else {
-                                            projectManager.closeProject(index)
-                                        }
+                                    onUiScaleChange = { 
+                                        savedUiScale = it
+                                        AppSettingsManager.setUiScale(it)
+                                    },
+                                    onThemeChange = { 
+                                        currentTheme = it
+                                        AppSettingsManager.setTheme(it.name)
+                                    },
+                                    onClose = { showSettings = false }
+                                )
+                            }
+
+                            if (showNewProject) {
+                                NewProjectDialog(
+                                    onCancel = { showNewProject = false },
+                                    onCreate = { project -> 
+                                        projectManager.addProject(project)
+                                        showNewProject = false 
                                     }
                                 )
+                            }
 
-                                if (showSettings) {
-                                    SettingsDialog(
-                                        engine = engine,
-                                        uiScale = savedUiScale,
-                                        currentTheme = currentTheme,
-                                        onUiScaleChange = { 
-                                            savedUiScale = it
-                                            AppSettingsManager.setUiScale(it)
-                                        },
-                                        onThemeChange = { 
-                                            currentTheme = it
-                                            AppSettingsManager.setTheme(it.name)
-                                        },
-                                        onClose = { showSettings = false }
-                                    )
-                                }
+                            if (showExitConfirm) {
+                                ConfirmExitDialog(
+                                    onSaveAndExit = { 
+                                        pendingFileAction = "save_all_exit"
+                                        showExitConfirm = false 
+                                    },
+                                    onExitWithoutSaving = { showExitConfirm = false; onExitConfirm() },
+                                    onDismiss = { showExitConfirm = false; onExitCancel() }
+                                )
+                            }
 
-                                if (showNewProject) {
-                                    NewProjectDialog(
-                                        onCancel = { showNewProject = false },
-                                        onCreate = { project -> 
-                                            projectManager.addProject(project)
-                                            showNewProject = false 
-                                        }
-                                    )
-                                }
+                            if (closingTabIndex != null) {
+                                val idx = closingTabIndex!!
+                                ConfirmExitDialog(
+                                    onSaveAndExit = { 
+                                        projectManager.setActiveProject(idx)
+                                        pendingFileAction = "save_and_close_tab"
+                                    },
+                                    onExitWithoutSaving = { 
+                                        projectManager.closeProject(idx)
+                                        closingTabIndex = null 
+                                    },
+                                    onDismiss = { closingTabIndex = null }
+                                )
+                            }
 
-                                if (showExitConfirm) {
-                                    ConfirmExitDialog(
-                                        onSaveAndExit = { 
-                                            // Логика сохранения всех и выхода (упрощенно - сохраняем текущий)
-                                            pendingFileAction = "save_all_exit"
-                                            showExitConfirm = false 
-                                        },
-                                        onExitWithoutSaving = { showExitConfirm = false; onExitConfirm() },
-                                        onDismiss = { showExitConfirm = false; onExitCancel() }
-                                    )
-                                }
+                            if (pendingExportFormat != null) {
+                                ExportDialog(
+                                    engine = engine,
+                                    format = pendingExportFormat!!,
+                                    onCancel = { pendingExportFormat = null },
+                                    onExport = { name, w, h, fmt ->
+                                        pendingFileAction = "export|$name|$w|$h|$fmt"
+                                        pendingExportFormat = null
+                                    }
+                                )
+                            }
 
-                                // Диалог подтверждения закрытия вкладки
-                                if (closingTabIndex != null) {
-                                    val idx = closingTabIndex!!
-                                    val targetEngine = projectManager.engines.value[idx]
-                                    
-                                    ConfirmExitDialog(
-                                        onSaveAndExit = { 
-                                            projectManager.setActiveProject(idx)
-                                            pendingFileAction = "save_and_close_tab"
-                                            // closingTabIndex сбросим после сохранения
-                                        },
-                                        onExitWithoutSaving = { 
-                                            projectManager.closeProject(idx)
-                                            closingTabIndex = null 
-                                        },
-                                        onDismiss = { closingTabIndex = null }
-                                    )
-                                }
-
-                                if (pendingExportFormat != null) {
-                                    ExportDialog(
-                                        engine = engine,
-                                        format = pendingExportFormat!!,
-                                        onCancel = { pendingExportFormat = null },
-                                        onExport = { name, w, h, fmt ->
-                                            pendingFileAction = "export|$name|$w|$h|$fmt"
-                                            pendingExportFormat = null
-                                        }
-                                    )
-                                }
-
-                                when {
-                                    pendingFileAction == "save" || pendingFileAction == "save_and_close_tab" -> {
-                                        val currentPath = engine.filePath.value
-                                        if (currentPath != null) {
+                            // Диалоги выбора файлов (только те, что показывают UI)
+                            when {
+                                (pendingFileAction == "save" || pendingFileAction == "save_and_close_tab") && engine.filePath.value == null -> {
+                                    FileManagerDialog(FileDialogMode.SAVE, engine.project.value.name, "maryme") { path ->
+                                        if (path != null) {
                                             val data = ProjectSerializer.serializeToBytes(engine.project.value)
-                                            if (fileHandler.saveToPath(currentPath, data)) {
-                                                engine.markAsSaved(currentPath)
+                                            if (fileHandler.saveToPath(path, data)) {
+                                                engine.markAsSaved(path)
+                                                AppSettingsManager.addRecentProject(path, engine.project.value.name)
                                                 if (pendingFileAction == "save_and_close_tab") {
-                                                    projectManager.closeProject(closingTabIndex!!)
+                                                    closingTabIndex?.let { projectManager.closeProject(it) }
                                                     closingTabIndex = null
                                                 }
                                             }
-                                            pendingFileAction = null
-                                        } else {
-                                            FileManagerDialog(FileDialogMode.SAVE, engine.project.value.name, "maryme") { path ->
-                                                if (path != null) {
-                                                    val data = ProjectSerializer.serializeToBytes(engine.project.value)
-                                                    if (fileHandler.saveToPath(path, data)) {
-                                                        engine.markAsSaved(path)
-                                                        AppSettingsManager.addRecentProject(path, engine.project.value.name)
-                                                        if (pendingFileAction == "save_and_close_tab") {
-                                                            projectManager.closeProject(closingTabIndex!!)
-                                                            closingTabIndex = null
-                                                        }
-                                                    }
-                                                }
-                                                pendingFileAction = null
+                                        }
+                                        pendingFileAction = null
+                                    }
+                                }
+                                pendingFileAction == "open" -> {
+                                    FileManagerDialog(FileDialogMode.OPEN, "", "maryme") { path ->
+                                        if (path != null) {
+                                            val data = fileHandler.readFromPath(path)
+                                            if (data != null) {
+                                                try { 
+                                                    val proj = ProjectSerializer.deserializeFromBytes(data)
+                                                    projectManager.addProject(proj, path)
+                                                    AppSettingsManager.addRecentProject(path, proj.name)
+                                                } catch (e: Exception) { e.printStackTrace() }
                                             }
                                         }
+                                        pendingFileAction = null
                                     }
-                                    pendingFileAction == "open" -> {
-                                        FileManagerDialog(FileDialogMode.OPEN, "", "maryme") { path ->
-                                            if (path != null) {
-                                                val data = fileHandler.readFromPath(path)
-                                                if (data != null) {
-                                                    try { 
-                                                        val proj = ProjectSerializer.deserializeFromBytes(data)
-                                                        projectManager.addProject(proj, path)
-                                                        AppSettingsManager.addRecentProject(path, proj.name)
-                                                    } catch (e: Exception) { e.printStackTrace() }
-                                                }
-                                            }
-                                            pendingFileAction = null
+                                }
+                                pendingFileAction == "import_image" -> {
+                                    FileManagerDialog(FileDialogMode.OPEN, "", "png") { path ->
+                                        if (path != null) {
+                                            engine.importImageFromPath(path)
                                         }
+                                        pendingFileAction = null
                                     }
-                                    pendingFileAction == "import_image" -> {
-                                        FileManagerDialog(FileDialogMode.OPEN, "", "png") { path ->
-                                            if (path != null) {
-                                                engine.importImageFromPath(path)
-                                            }
-                                            pendingFileAction = null
-                                        }
-                                    }
-                                    pendingFileAction?.startsWith("export") == true -> {
-                                        val parts = pendingFileAction!!.split("|")
-                                        val name = parts[1]; val fmt = parts[4]
-                                        FileManagerDialog(FileDialogMode.SAVE, name, fmt) { path ->
-                                            if (path != null) {
-                                                val data = ProjectSerializer.serializeToBytes(engine.project.value)
+                                }
+                                pendingFileAction?.startsWith("export") == true -> {
+                                    val parts = pendingFileAction!!.split("|")
+                                    val name = parts[1]
+                                    val w = parts[2].toInt()
+                                    val h = parts[3].toInt()
+                                    val fmt = parts[4]
+                                    
+                                    FileManagerDialog(FileDialogMode.SAVE, name, fmt) { path ->
+                                        if (path != null) {
+                                            if (fmt == "png") {
+                                                val data = ExportManager.exportFrameToPng(
+                                                    project = engine.project.value,
+                                                    frameIndex = engine.currentFrameIndex.value,
+                                                    width = w,
+                                                    height = h,
+                                                    density = density
+                                                )
                                                 fileHandler.saveToPath(path, data)
+                                                pendingFileAction = null
+                                            } else {
+                                                scope.launch {
+                                                    exportProgress = 0f
+                                                    fileHandler.exportAnimation(
+                                                        project = engine.project.value,
+                                                        outputPath = path,
+                                                        format = fmt,
+                                                        width = w,
+                                                        height = h,
+                                                        fps = engine.project.value.fps,
+                                                        density = density,
+                                                        onProgress = { exportProgress = it }
+                                                    )
+                                                    exportProgress = null
+                                                    pendingFileAction = null
+                                                }
                                             }
+                                        } else {
                                             pendingFileAction = null
                                         }
                                     }
                                 }
-                            } else {
-                                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(color = EditorColors.accent)
+                            }
+                        } else {
+                            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(color = EditorColors.accent)
+                            }
+                        }
+                    }
+
+                    if (exportProgress != null) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.5f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(12.dp.scaled()),
+                                color = EditorColors.surface,
+                                elevation = 8.dp.scaled(),
+                                modifier = Modifier.width(280.dp.scaled()).padding(24.dp.scaled())
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    modifier = Modifier.padding(24.dp.scaled())
+                                ) {
+                                    Text(
+                                        EditorStrings.observeString("export.title") + "...", 
+                                        color = EditorColors.textPrimary, 
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Spacer(Modifier.height(16.dp.scaled()))
+                                    LinearProgressIndicator(
+                                        progress = exportProgress!!,
+                                        modifier = Modifier.fillMaxWidth().height(8.dp.scaled()),
+                                        color = EditorColors.accent,
+                                        backgroundColor = EditorColors.divider
+                                    )
+                                    Spacer(Modifier.height(8.dp.scaled()))
+                                    Text(
+                                        "${(exportProgress!! * 100).toInt()}%", 
+                                        color = EditorColors.textSecondary,
+                                        fontSize = 12.sp.scaled()
+                                    )
                                 }
                             }
                         }
                     }
 
-                    // Уведомление об автосохранении
                     AnimatedVisibility(
                         visible = showAutosaveToast,
                         enter = fadeIn() + slideInVertically { it },
@@ -332,8 +389,6 @@ fun App(
                         }
                     }
                 }
-
-                // Глобальный слой tooltip'ов (Popup, НЕ влияет на layout).
                 TooltipHost()
             }
         }
