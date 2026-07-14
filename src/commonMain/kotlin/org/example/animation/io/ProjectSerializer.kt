@@ -1,6 +1,7 @@
 package org.example.animation.io
 
 import org.example.animation.model.*
+import org.example.animation.localization.EditorStrings
 import kotlin.math.roundToInt
 import kotlinx.datetime.Clock
 
@@ -91,7 +92,7 @@ object ProjectSerializer {
 
         try {
             val clean = jsonString.trim()
-            project.name = extractString(clean, "name") ?: "Новый проект"
+            project.name = extractString(clean, "name") ?: EditorStrings["project.defaultName"]
             project.canvasWidth = extractInt(clean, "canvasWidth") ?: 800
             project.canvasHeight = extractInt(clean, "canvasHeight") ?: 600
             project.fps = extractInt(clean, "fps") ?: 24
@@ -102,12 +103,14 @@ object ProjectSerializer {
             project.createdTimestamp = extractLong(clean, "createdTimestamp") ?: 0
             project.lastModifiedTimestamp = extractLong(clean, "lastModifiedTimestamp") ?: 0
 
-            val layersArray = extractArray(clean, "layers") ?: return project.apply { layers.add(LayerData("Слой 1")) }
+            val layersArray = extractArray(clean, "layers") ?: return project.apply { 
+                layers.add(LayerData(EditorStrings["layer.defaultName"] + " 1")) 
+            }
             val layerObjects = splitTopLevel(layersArray, '{', '}')
 
             for (layerJson in layerObjects) {
                 val layer = LayerData(
-                    name = extractString(layerJson, "name") ?: "Слой",
+                    name = extractString(layerJson, "name") ?: EditorStrings["layer.defaultName"],
                     isVisible = extractBoolean(layerJson, "isVisible") ?: true,
                     opacity = extractFloat(layerJson, "opacity") ?: 1f,
                     isLocked = extractBoolean(layerJson, "isLocked") ?: false
@@ -181,7 +184,7 @@ object ProjectSerializer {
         }
 
         if (project.layers.isEmpty()) {
-            project.layers.add(LayerData("Слой 1"))
+            project.layers.add(LayerData(EditorStrings["layer.defaultName"] + " 1"))
         }
         return project
     }

@@ -51,7 +51,7 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
             }
             Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
             Text(
-                text = getToolName(currentTool),
+                text = EditorStrings.observeString(currentTool.localizationKey),
                 style = EditorTypography.body().copy(fontWeight = FontWeight.Medium)
             )
         }
@@ -178,9 +178,4 @@ private fun getToolIcon(tool: ToolType): androidx.compose.ui.graphics.vector.Ima
         ToolType.MOVE, ToolType.SCALE, ToolType.ROTATE, ToolType.SKEW, ToolType.MIRROR, ToolType.FLIP -> EditorIcons.iconMove
         else -> EditorIcons.iconBrush
     }
-}
-
-@Composable
-private fun getToolName(tool: ToolType): String {
-    return EditorStrings.observeString("tool.${tool.name.lowercase()}")
 }

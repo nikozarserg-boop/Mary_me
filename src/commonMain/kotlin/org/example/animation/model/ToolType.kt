@@ -3,85 +3,85 @@ package org.example.animation.model
 /**
  * Типы инструментов рисования - полная классификация
  */
-enum class ToolType(val displayName: String) {
+enum class ToolType(val localizationKey: String) {
     // Инструменты рисования
-    PEN("Перо"),
-    PENCIL("Карандаш"),
-    MARKER("Маркер"),
-    BRUSH("Кисть"),
-    AIR_BRUSH("Аэрозольная кисть"),
-    SPRAY("Распылитель"),
-    WATER_BRUSH("Водная кисть"),
-    INK_BRUSH("Чернильная кисть"),
-    PIXEL_BRUSH("Пиксельная кисть"),
-    CALLIGRAPHY("Каллиграфия"),
-    HIGHLIGHTER("Маркер выделения"),
+    PEN("tool.pen"),
+    PENCIL("tool.pencil"),
+    MARKER("tool.marker"),
+    BRUSH("tool.brush"),
+    AIR_BRUSH("tool.airbrush"),
+    SPRAY("tool.spray"),
+    WATER_BRUSH("tool.waterbrush"),
+    INK_BRUSH("tool.inkbrush"),
+    PIXEL_BRUSH("tool.pixelbrush"),
+    CALLIGRAPHY("tool.calligraphy"),
+    HIGHLIGHTER("tool.highlighter"),
 
     // Ластики
-    HARD_ERASER("Жёсткий ластик"),
-    SOFT_ERASER("Мягкий ластик"),
-    PARTIAL_ERASER("Частичный ластик"),
-    OBJECT_ERASER("Ластик объектов"),
+    HARD_ERASER("tool.hardEraser"),
+    SOFT_ERASER("tool.softEraser"),
+    PARTIAL_ERASER("tool.partialEraser"),
+    OBJECT_ERASER("tool.objectEraser"),
 
     // Фигуры
-    LINE("Линия"),
-    ARROW("Стрелка"),
-    RECTANGLE("Прямоугольник"),
-    ROUNDED_RECTANGLE("Скруглённый прямоугольник"),
-    ELLIPSE("Эллипс"),
-    CIRCLE("Круг"),
-    POLYGON("Многоугольник"),
-    STAR("Звезда"),
-    TRIANGLE("Треугольник"),
+    LINE("tool.line"),
+    ARROW("tool.arrow"),
+    RECTANGLE("tool.rectangle"),
+    ROUNDED_RECTANGLE("tool.roundedRectangle"),
+    ELLIPSE("tool.ellipse"),
+    CIRCLE("tool.circle"),
+    POLYGON("tool.polygon"),
+    STAR("tool.star"),
+    TRIANGLE("tool.triangle"),
 
     // Кривые
-    QUADRATIC_BEZIER("Квадратичная кривая"),
-    CUBIC_BEZIER("Кубическая кривая"),
+    QUADRATIC_BEZIER("tool.quadraticBezier"),
+    CUBIC_BEZIER("tool.cubicBezier"),
 
     // Заливка
-    BUCKET_FILL("Заливка"),
-    GRADIENT_FILL("Градиент"),
-    PATTERN_FILL("Узор"),
+    BUCKET_FILL("tool.bucketFill"),
+    GRADIENT_FILL("tool.gradientFill"),
+    PATTERN_FILL("tool.patternFill"),
 
     // Выделение
-    RECT_SELECTION("Прямоугольное выделение"),
-    LASSO("Лассо"),
-    MAGIC_WAND("Волшебная палочка"),
+    RECT_SELECTION("tool.rectSelection"),
+    LASSO("tool.lasso"),
+    MAGIC_WAND("tool.magicWand"),
 
     // Трансформация
-    MOVE("Перемещение"),
-    SCALE("Масштаб"),
-    ROTATE("Поворот"),
-    SKEW("Скос"),
-    MIRROR("Зеркало"),
-    FLIP("Отражение"),
+    MOVE("tool.move"),
+    SCALE("tool.scale"),
+    ROTATE("tool.rotate"),
+    SKEW("tool.skew"),
+    MIRROR("tool.mirror"),
+    FLIP("tool.flip"),
 
     // Текст
-    TEXT("Текст"),
-    RICH_TEXT("Форматированный текст"),
+    TEXT("tool.text"),
+    RICH_TEXT("tool.richText"),
 
     // Штамп
-    STAMP("Штамп"),
-    BITMAP_STAMP("Растровый штамп"),
+    STAMP("tool.stamp"),
+    BITMAP_STAMP("tool.bitmapStamp"),
 
     // Пипетка
-    EYEDROPPER("Пипетка")
+    EYEDROPPER("tool.eyedropper")
 }
 
 /**
  * Категории инструментов для группировки в UI
  */
-enum class ToolCategory {
-    DRAWING,
-    ERASER,
-    SHAPE,
-    CURVE,
-    FILL,
-    SELECTION,
-    TRANSFORM,
-    TEXT,
-    STAMP,
-    OTHER
+enum class ToolCategory(val localizationKey: String) {
+    DRAWING("category.drawing"),
+    ERASER("category.eraser"),
+    SHAPE("category.shape"),
+    CURVE("category.curve"),
+    FILL("category.fill"),
+    SELECTION("category.selection"),
+    TRANSFORM("category.transform"),
+    TEXT("category.text"),
+    STAMP("category.stamp"),
+    OTHER("category.other")
 }
 
 /**

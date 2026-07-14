@@ -5,8 +5,6 @@ import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import org.jetbrains.compose.resources.ExperimentalResourceApi
-import org.jetbrains.compose.resources.getSystemResourceEnvironment
 
 data class LangData(
     val code: String,
@@ -45,7 +43,19 @@ object EditorStrings {
             "save" to "Сохранить",
             "cancel" to "Отмена",
             "apply" to "Применить",
-            "ok" to "OK"
+            "ok" to "OK",
+            "project.defaultName" to "Новый проект",
+            "layer.defaultName" to "Слой",
+            "category.drawing" to "Рисование",
+            "category.eraser" to "Ластик",
+            "category.shape" to "Фигуры",
+            "category.curve" to "Кривые",
+            "category.fill" to "Заливка",
+            "category.selection" to "Выделение",
+            "category.transform" to "Трансформация",
+            "category.text" to "Текст",
+            "category.stamp" to "Штамп",
+            "category.other" to "Прочее"
         ))
         enStringsMap.putAll(mapOf(
             "app.name" to "MaryMe Animator",
@@ -53,7 +63,19 @@ object EditorStrings {
             "save" to "Save",
             "cancel" to "Cancel",
             "apply" to "Apply",
-            "ok" to "OK"
+            "ok" to "OK",
+            "project.defaultName" to "New Project",
+            "layer.defaultName" to "Layer",
+            "category.drawing" to "Drawing",
+            "category.eraser" to "Eraser",
+            "category.shape" to "Shapes",
+            "category.curve" to "Curves",
+            "category.fill" to "Fill",
+            "category.selection" to "Selection",
+            "category.transform" to "Transform",
+            "category.text" to "Text",
+            "category.stamp" to "Stamp",
+            "category.other" to "Other"
         ))
     }
 
