@@ -21,9 +21,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.zIndex
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.engine.ProjectManager
@@ -98,10 +102,7 @@ fun EditorScreen(
     uiScale: Float,
     onSave: () -> Unit,
     onLoad: () -> Unit,
-    onExportGif: () -> Unit,
-    onExportPng: () -> Unit,
-    onExportAvi: () -> Unit,
-    onExportMp4: () -> Unit,
+    onExport: (String) -> Unit,
     onNewProject: () -> Unit,
     onSettings: () -> Unit = {},
     onImportImage: () -> Unit = {},
@@ -153,8 +154,7 @@ fun EditorScreen(
                 onNew = onNewProject,
                 onSave = onSave,
                 onLoad = onLoad,
-                onExportPng = onExportPng,
-                onExportMp4 = onExportMp4,
+                onExport = onExport,
                 onSettings = onSettings,
                 isCompact = isCompactLayout,
                 isToolsVisible = toolsVisible,
@@ -371,20 +371,12 @@ private fun PanelStyledIconButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
-    val isPressed by interactionSource.collectIsPressedAsState()
 
     Box(
         modifier = modifier
             .size(24.dp.scaled())
             .clip(RoundedCornerShape(4.dp.scaled()))
             .background(if (isHovered) EditorColors.hover else Color.Transparent)
-            .border(
-                width = 1.dp.scaled(),
-                color = if (isPressed) EditorColors.accent
-                        else if (isHovered) EditorColors.accent.copy(alpha = 0.6f)
-                        else Color.Transparent,
-                shape = RoundedCornerShape(4.dp.scaled())
-            )
             .pointerHoverIcon(PointerIcon.Hand)
             .tooltipAnchor(tooltip)
             .clickable(
@@ -403,16 +395,43 @@ private fun PanelStyledIconButton(
 }
 
 @Composable
-private fun TopBarIconButton(icon: ImageVector, enabled: Boolean = true, tooltip: String = "", onClick: () -> Unit) {
+private fun TopBarIconButton(
+    icon: ImageVector, 
+    enabled: Boolean = true, 
+    tooltip: String = "", 
+    onClick: () -> Unit
+) {
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    IconButton(onClick = onClick, enabled = enabled, modifier = Modifier
-        .size(UiDimensions.IconButtonSize.scaled())
-        .hoverable(interactionSource)
-        .tooltipAnchor(tooltip, enabled = enabled)) {
-        Icon(icon, null, tint = if (enabled) EditorColors.textPrimary.copy(alpha = 0.7f) else EditorColors.textMuted, modifier = Modifier.size(UiDimensions.IconSize.scaled()))
+    Box(
+        modifier = Modifier
+            .size(UiDimensions.IconButtonSize.scaled())
+            .clip(RoundedCornerShape(4.dp.scaled()))
+            .background(if (enabled && isHovered) EditorColors.hover else Color.Transparent)
+            .tooltipAnchor(tooltip, enabled = enabled)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                enabled = enabled,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon, null, 
+            tint = if (!enabled) EditorColors.textMuted 
+                   else if (isHovered) EditorColors.accent 
+                   else EditorColors.textPrimary.copy(alpha = 0.8f), 
+            modifier = Modifier.size(UiDimensions.IconSize.scaled())
+        )
     }
+}
+
+private sealed class MenuItemData {
+    data class Action(val label: String, val onClick: () -> Unit) : MenuItemData()
+    data class SubMenu(val label: String, val onClick: () -> Unit, val items: List<Action>) : MenuItemData()
+    object Divider : MenuItemData()
 }
 
 @Composable
@@ -427,8 +446,7 @@ private fun EditorMenuBar(
     onNew: () -> Unit,
     onSave: () -> Unit,
     onLoad: () -> Unit,
-    onExportPng: () -> Unit,
-    onExportMp4: () -> Unit,
+    onExport: (String) -> Unit,
     onSettings: () -> Unit,
     isCompact: Boolean,
     isToolsVisible: Boolean,
@@ -440,6 +458,21 @@ private fun EditorMenuBar(
     val theme = LocalThemeType.current
     val isGlass = theme == ThemeType.GLASS
     val barColor = if (isGlass) EditorColors.panelHeader.copy(alpha = 0.7f) else EditorColors.panelHeader
+
+    val exportItems = remember {
+        listOf(
+            MenuItemData.Action("PNG") { onExport("png") },
+            MenuItemData.Action("JPG") { onExport("jpg") },
+            MenuItemData.Action("WEBP") { onExport("webp") },
+            MenuItemData.Action("GIF") { onExport("gif") },
+            MenuItemData.Action("APNG") { onExport("apng") },
+            MenuItemData.Action("MP4") { onExport("mp4") },
+            MenuItemData.Action("WEBM") { onExport("webm") },
+            MenuItemData.Action("MOV") { onExport("mov") },
+            MenuItemData.Action("MKV") { onExport("mkv") },
+            MenuItemData.Action("AVI") { onExport("avi") }
+        )
+    }
 
     Surface(
         modifier = Modifier
@@ -463,29 +496,39 @@ private fun EditorMenuBar(
             TopBarIconButton(EditorIcons.iconNewProject, tooltip = EditorStrings.observeString("file.new")) { onNew() }
             TopBarIconButton(EditorIcons.iconFolderOpen, tooltip = EditorStrings.observeString("file.open")) { onLoad() }
             TopBarIconButton(EditorIcons.iconSave, tooltip = EditorStrings.observeString("file.save")) { onSave() }
+            
+            DropdownMenuButton(
+                icon = EditorIcons.iconExport,
+                tooltip = EditorStrings.observeString("file.export"),
+                items = exportItems,
+                onMainClick = { onExport("png") }
+            )
 
             Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
             VerticalDivider()
             Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
-            DropdownMenuButton(EditorStrings.observeString("menu.file"), listOf(
-                EditorStrings.observeString("file.new") to onNew,
-                EditorStrings.observeString("file.open") to onLoad,
-                null,
-                EditorStrings.observeString("file.save") to onSave,
-                null,
-                EditorStrings.observeString("export.png") to onExportPng,
-                EditorStrings.observeString("export.mp4") to onExportMp4
+            DropdownMenuButton(title = EditorStrings.observeString("menu.file"), items = listOf(
+                MenuItemData.Action(EditorStrings.observeString("file.new"), onNew),
+                MenuItemData.Action(EditorStrings.observeString("file.open"), onLoad),
+                MenuItemData.Divider,
+                MenuItemData.Action(EditorStrings.observeString("file.save"), onSave),
+                MenuItemData.Divider,
+                MenuItemData.SubMenu(
+                    label = EditorStrings.observeString("file.export"),
+                    onClick = { onExport("png") },
+                    items = exportItems
+                )
             ))
 
-            DropdownMenuButton(EditorStrings.observeString("menu.view"), listOf(
-                EditorStrings.observeString("view.resetZoom") to { engine.setZoom(1f) },
-                null,
-                (if (isToolsVisible) EditorStrings.observeString("view.hideTools") else EditorStrings.observeString("view.showTools")) to { engine.toggleTools() },
-                (if (isLayersVisible) EditorStrings.observeString("view.hideLayers") else EditorStrings.observeString("view.showLayers")) to { engine.toggleLayers() },
-                (if (isColorPickerVisible) EditorStrings.observeString("view.hideColor") else EditorStrings.observeString("view.showColor")) to { engine.toggleColorPicker() },
-                (if (isTimelineVisible) EditorStrings.observeString("view.hideTimeline") else EditorStrings.observeString("view.showTimeline")) to { engine.toggleTimeline() },
-                (if (isPropertiesVisible) EditorStrings.observeString("view.hideProperties") else EditorStrings.observeString("view.showProperties")) to { engine.toggleProperties() }
+            DropdownMenuButton(title = EditorStrings.observeString("menu.view"), items = listOf(
+                MenuItemData.Action(EditorStrings.observeString("view.resetZoom")) { engine.setZoom(1f) },
+                MenuItemData.Divider,
+                MenuItemData.Action(if (isToolsVisible) EditorStrings.observeString("view.hideTools") else EditorStrings.observeString("view.showTools")) { engine.toggleTools() },
+                MenuItemData.Action(if (isLayersVisible) EditorStrings.observeString("view.hideLayers") else EditorStrings.observeString("view.showLayers")) { engine.toggleLayers() },
+                MenuItemData.Action(if (isColorPickerVisible) EditorStrings.observeString("view.hideColor") else EditorStrings.observeString("view.showColor")) { engine.toggleColorPicker() },
+                MenuItemData.Action(if (isTimelineVisible) EditorStrings.observeString("view.hideTimeline") else EditorStrings.observeString("view.showTimeline")) { engine.toggleTimeline() },
+                MenuItemData.Action(if (isPropertiesVisible) EditorStrings.observeString("view.hideProperties") else EditorStrings.observeString("view.showProperties")) { engine.toggleProperties() }
             ))
 
             if (!isCompact) {
@@ -501,7 +544,25 @@ private fun EditorMenuBar(
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
                 TopBarIconButton(EditorIcons.iconZoomOut, tooltip = EditorStrings.observeString("view.zoomOut")) { engine.setZoom((zoom * 0.8f).coerceIn(0.1f, 20f)) }
-                Text("${(zoom * 100).toInt()}%", style = EditorTypography.mono(), color = EditorColors.textSecondary, modifier = Modifier.width(45.dp.scaled()).clickable { engine.setZoom(1f) }, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                
+                // Значение маштаба без обводки и рипла
+                val zoomSource = remember { MutableInteractionSource() }
+                val zoomHovered by zoomSource.collectIsHoveredAsState()
+                Box(
+                    modifier = Modifier
+                        .width(45.dp.scaled())
+                        .fillMaxHeight()
+                        .clickable(interactionSource = zoomSource, indication = null) { engine.setZoom(1f) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${(zoom * 100).toInt()}%", 
+                        style = EditorTypography.mono(), 
+                        color = if (zoomHovered) EditorColors.accent else EditorColors.textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
                 TopBarIconButton(EditorIcons.iconZoomIn, tooltip = EditorStrings.observeString("view.zoomIn")) { engine.setZoom((zoom * 1.25f).coerceIn(0.1f, 20f)) }
 
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
@@ -509,7 +570,25 @@ private fun EditorMenuBar(
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
                 TopBarIconButton(EditorIcons.iconRotateLeft, tooltip = EditorStrings.observeString("view.rotateLeft")) { engine.setRotation(rotation - 15f) }
-                Text("${rotation.toInt()}°", style = EditorTypography.mono(), color = EditorColors.textSecondary, modifier = Modifier.width(40.dp.scaled()).clickable { engine.setRotation(0f); engine.setPanOffset(Offset.Zero) }, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                
+                // Значение поворота без обводки и рипла
+                val rotSource = remember { MutableInteractionSource() }
+                val rotHovered by rotSource.collectIsHoveredAsState()
+                Box(
+                    modifier = Modifier
+                        .width(40.dp.scaled())
+                        .fillMaxHeight()
+                        .clickable(interactionSource = rotSource, indication = null) { engine.setRotation(0f); engine.setPanOffset(Offset.Zero) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        "${rotation.toInt()}°", 
+                        style = EditorTypography.mono(), 
+                        color = if (rotHovered) EditorColors.accent else EditorColors.textSecondary,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
+
                 TopBarIconButton(EditorIcons.iconRotateRight, tooltip = EditorStrings.observeString("view.rotateRight")) { engine.setRotation(rotation + 15f) }
 
                 Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
@@ -537,19 +616,122 @@ private fun VerticalDivider() {
     Box(modifier = Modifier.width(1.dp.scaled()).height(16.dp.scaled()).background(EditorColors.divider))
 }
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
-private fun DropdownMenuButton(title: String, items: List<Pair<String, () -> Unit>?>) {
+private fun DropdownMenuButton(
+    title: String? = null,
+    icon: ImageVector? = null,
+    tooltip: String = "",
+    items: List<MenuItemData?>,
+    onMainClick: (() -> Unit)? = null
+) {
     var expanded by remember { mutableStateOf(false) }
-    Box {
-        TextButton(onClick = { expanded = true }, modifier = Modifier.height(28.dp.scaled()), contentPadding = PaddingValues(horizontal = 8.dp.scaled())) { 
-            Text(title, style = EditorTypography.menu())
+    var activeSubMenuLabel by remember { mutableStateOf<String?>(null) }
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    
+    Box(
+        modifier = Modifier.onPointerEvent(PointerEventType.Enter) { expanded = true }
+    ) {
+        if (icon != null) {
+            TopBarIconButton(icon, tooltip = tooltip) { 
+                expanded = !expanded
+                onMainClick?.invoke()
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .height(28.dp.scaled())
+                    .clip(RoundedCornerShape(4.dp.scaled()))
+                    .background(if (isHovered) EditorColors.hover else Color.Transparent)
+                    .clickable(interactionSource = interactionSource, indication = null) { expanded = !expanded }
+                    .padding(horizontal = 8.dp.scaled()),
+                contentAlignment = Alignment.Center
+            ) { 
+                Text(title ?: "", style = EditorTypography.menu(), color = if (isHovered) EditorColors.accent else EditorColors.textPrimary)
+            }
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.background(EditorColors.surface).border(1.dp.scaled(), EditorColors.divider)) { 
+
+        DropdownMenu(
+            expanded = expanded, 
+            onDismissRequest = { 
+                expanded = false 
+                activeSubMenuLabel = null
+            }, 
+            modifier = Modifier
+                .background(EditorColors.surface)
+                .border(1.dp.scaled(), EditorColors.divider)
+        ) { 
             items.forEach { item -> 
-                if (item == null) Divider(color = EditorColors.divider) 
-                else DropdownMenuItem(onClick = { expanded = false; item.second() }, modifier = Modifier.height(32.dp.scaled())) { 
-                    Text(item.first, style = EditorTypography.menu()) 
-                } 
+                when (item) {
+                    is MenuItemData.Divider -> Divider(color = EditorColors.divider)
+                    is MenuItemData.Action -> {
+                        DropdownMenuItem(
+                            onClick = { 
+                                expanded = false
+                                activeSubMenuLabel = null
+                                item.onClick() 
+                            }, 
+                            modifier = Modifier
+                                .height(32.dp.scaled())
+                                .onPointerEvent(PointerEventType.Enter) { activeSubMenuLabel = null }
+                        ) { 
+                            Text(item.label, style = EditorTypography.menu()) 
+                        }
+                    }
+                    is MenuItemData.SubMenu -> {
+                        Box(
+                            modifier = Modifier
+                                .onPointerEvent(PointerEventType.Enter) { activeSubMenuLabel = item.label }
+                        ) {
+                            DropdownMenuItem(
+                                onClick = { 
+                                    expanded = false
+                                    activeSubMenuLabel = null
+                                    item.onClick() 
+                                },
+                                modifier = Modifier.height(32.dp.scaled())
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(item.label, style = EditorTypography.menu())
+                                    Icon(
+                                        EditorIcons.iconKeyboardArrowRight,
+                                        null,
+                                        modifier = Modifier.size(16.dp.scaled()),
+                                        tint = EditorColors.textMuted
+                                    )
+                                }
+                            }
+                            
+                            DropdownMenu(
+                                expanded = activeSubMenuLabel == item.label,
+                                onDismissRequest = { activeSubMenuLabel = null },
+                                offset = DpOffset(x = 120.dp.scaled(), y = (-32).dp.scaled()),
+                                modifier = Modifier
+                                    .background(EditorColors.surface)
+                                    .border(1.dp.scaled(), EditorColors.divider)
+                            ) {
+                                item.items.forEach { subItem ->
+                                    DropdownMenuItem(
+                                        onClick = { 
+                                            activeSubMenuLabel = null
+                                            expanded = false
+                                            subItem.onClick() 
+                                        },
+                                        modifier = Modifier.height(32.dp.scaled())
+                                    ) {
+                                        Text(subItem.label, style = EditorTypography.menu())
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    null -> {}
+                }
             } 
         }
     }

@@ -105,6 +105,8 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     val ghostFramesBefore: StateFlow<Int> = _ghostFramesBefore.asStateFlow()
     private val _ghostFramesAfter = MutableStateFlow(1)
     val ghostFramesAfter: StateFlow<Int> = _ghostFramesAfter.asStateFlow()
+    private val _ghostFramesColor = MutableStateFlow(AppSettingsManager.getGhostFramesColor())
+    val ghostFramesColor: StateFlow<ULong> = _ghostFramesColor.asStateFlow()
 
     // История
     private val undoStack = mutableListOf<AnimationProject>()
@@ -227,6 +229,10 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     fun setGhostFramesEnabled(enabled: Boolean) { _ghostFramesEnabled.value = enabled }
     fun setGhostFramesFramesBefore(count: Int) { _ghostFramesBefore.value = count }
     fun setGhostFramesFramesAfter(count: Int) { _ghostFramesAfter.value = count }
+    fun setGhostFramesColor(color: ULong) {
+        _ghostFramesColor.value = color
+        AppSettingsManager.setGhostFramesColor(color)
+    }
 
     private fun isWithinCanvas(point: Offset): Boolean {
         return point.x >= 0 && point.x <= _project.value.canvasWidth &&

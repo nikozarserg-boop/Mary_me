@@ -75,7 +75,9 @@ fun ExportDialog(
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = EditorColors.accent,
                             backgroundColor = EditorColors.background,
-                            unfocusedBorderColor = EditorColors.divider
+                            unfocusedBorderColor = EditorColors.divider,
+                            textColor = EditorColors.textPrimary,
+                            cursorColor = EditorColors.accent
                         )
                     )
 
@@ -93,7 +95,9 @@ fun ExportDialog(
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     focusedBorderColor = EditorColors.accent,
                                     backgroundColor = EditorColors.background,
-                                    unfocusedBorderColor = EditorColors.divider
+                                    unfocusedBorderColor = EditorColors.divider,
+                                    textColor = EditorColors.textPrimary,
+                                    cursorColor = EditorColors.accent
                                 )
                             )
                         }
@@ -109,7 +113,9 @@ fun ExportDialog(
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     focusedBorderColor = EditorColors.accent,
                                     backgroundColor = EditorColors.background,
-                                    unfocusedBorderColor = EditorColors.divider
+                                    unfocusedBorderColor = EditorColors.divider,
+                                    textColor = EditorColors.textPrimary,
+                                    cursorColor = EditorColors.accent
                                 )
                             )
                         }
@@ -118,15 +124,114 @@ fun ExportDialog(
                     Spacer(Modifier.height(16.dp.scaled()))
                     
                     Text(EditorStrings.observeString("export.format") ?: "Format", color = EditorColors.textSecondary, fontSize = 11.sp.scaled())
-                    FlowRow(
+                    Column(
                         modifier = Modifier.padding(top = 4.dp.scaled()),
-                        mainAxisSpacing = 6.dp.scaled(),
-                        crossAxisSpacing = 6.dp.scaled()
+                        verticalArrangement = Arrangement.spacedBy(4.dp.scaled())
                     ) {
-                        FormatChip("PNG", selectedFormat == "png") { selectedFormat = "png" }
-                        FormatChip("GIF", selectedFormat == "gif") { selectedFormat = "gif" }
-                        FormatChip("MP4", selectedFormat == "mp4") { selectedFormat = "mp4" }
-                        FormatChip("AVI", selectedFormat == "avi") { selectedFormat = "avi" }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp.scaled())) {
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "png" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "png") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "png") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("PNG", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "jpg" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "jpg") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "jpg") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("JPG", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "webp" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "webp") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "webp") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("WEBP", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "gif" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "gif") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "gif") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("GIF", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "apng" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "apng") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "apng") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("APNG", fontSize = 11.sp.scaled())
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp.scaled())) {
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "mp4" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "mp4") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "mp4") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("MP4", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "webm" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "webm") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "webm") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("WEBM", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "mov" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "mov") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "mov") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("MOV", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "mkv" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "mkv") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "mkv") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("MKV", fontSize = 11.sp.scaled())
+                            }
+                            androidx.compose.material.Button(
+                                onClick = { selectedFormat = "avi" },
+                                colors = androidx.compose.material.ButtonDefaults.buttonColors(
+                                    backgroundColor = if (selectedFormat == "avi") EditorColors.accent else EditorColors.surfaceVariant,
+                                    contentColor = if (selectedFormat == "avi") Color.White else EditorColors.textPrimary
+                                ),
+                                modifier = Modifier.height(36.dp.scaled())
+                            ) {
+                                Text("AVI", fontSize = 11.sp.scaled())
+                            }
+                        }
                     }
 
                     Spacer(Modifier.height(24.dp.scaled()))
@@ -153,19 +258,6 @@ fun ExportDialog(
     }
 }
 
-@Composable
-fun FormatChip(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.height(32.dp.scaled()).width(70.dp.scaled()).clickable { onClick() },
-        color = if (isSelected) EditorColors.accent.copy(alpha = 0.2f) else EditorColors.surfaceVariant,
-        border = BorderStroke(1.dp.scaled(), if (isSelected) EditorColors.accent else EditorColors.divider),
-        shape = RoundedCornerShape(4.dp.scaled())
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(text, color = if (isSelected) EditorColors.accent else EditorColors.textPrimary, fontSize = 11.sp.scaled())
-        }
-    }
-}
 
 @Composable
 private fun FlowRow(
@@ -181,15 +273,18 @@ private fun FlowRow(
         var currentRowWidth = 0
         
         placeables.forEach { placeable ->
-            if (currentRowWidth + placeable.width > constraints.maxWidth && currentRow.isNotEmpty()) {
+            val placeableWidth = placeable.width
+            if (currentRowWidth + placeableWidth > constraints.maxWidth && currentRow.isNotEmpty()) {
                 rows.add(currentRow)
                 currentRow = mutableListOf()
                 currentRowWidth = 0
             }
             currentRow.add(placeable)
-            currentRowWidth += placeable.width + mainAxisSpacing.roundToPx()
+            currentRowWidth += placeableWidth + mainAxisSpacing.roundToPx()
         }
-        rows.add(currentRow)
+        if (currentRow.isNotEmpty()) {
+            rows.add(currentRow)
+        }
         
         val height = rows.sumOf { row -> row.maxOf { it.height } } + (rows.size - 1) * crossAxisSpacing.roundToPx()
         layout(constraints.maxWidth, height) {

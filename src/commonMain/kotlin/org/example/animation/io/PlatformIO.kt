@@ -26,9 +26,9 @@ expect fun createPlatformFileHandler(): PlatformFileHandler
 expect fun decodeImage(data: ByteArray): ImageBitmap?
 
 /**
- * Кодирование ImageBitmap в байты (PNG)
+ * Кодирование ImageBitmap в байты (PNG, JPG, WEBP)
  */
-expect fun encodeImage(bitmap: ImageBitmap): ByteArray
+expect fun encodeImage(bitmap: ImageBitmap, format: String = "png"): ByteArray
 
 /**
  * Заливка на bitmap (рендеринг текущего кадра + flood fill)

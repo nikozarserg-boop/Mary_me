@@ -98,6 +98,7 @@ object EditorIcons {
     val iconArrowDropDown: ImageVector = Icons.Filled.ArrowDropDown
     val iconKeyboardArrowDown: ImageVector = Icons.Filled.KeyboardArrowDown
     val iconKeyboardArrowUp: ImageVector = Icons.Filled.KeyboardArrowUp
+    val iconKeyboardArrowRight: ImageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight
     val iconDeleteSweep: ImageVector = Icons.Filled.DeleteSweep
 
     val iconLayers: ImageVector = Icons.Filled.Layers

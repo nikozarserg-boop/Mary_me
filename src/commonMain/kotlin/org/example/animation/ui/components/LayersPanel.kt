@@ -82,7 +82,35 @@ fun LayersPanel(engine: AnimationEngine) {
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun LayerIconButton(
+    icon: ImageVector,
+    tint: Color,
+    tooltip: String,
+    onClick: () -> Unit,
+    size: androidx.compose.ui.unit.Dp = 24.dp,
+    iconSize: androidx.compose.ui.unit.Dp = 16.dp
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    Box(
+        modifier = Modifier
+            .size(size.scaled())
+            .clip(RoundedCornerShape(4.dp.scaled()))
+            .background(if (isHovered) EditorColors.hover else Color.Transparent)
+            .tooltipAnchor(tooltip)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon, null,
+            tint = if (isHovered) EditorColors.accent else tint,
+            modifier = Modifier.size(iconSize.scaled())
+        )
+    }
+}
+
 @Composable
 private fun CompactLayerItem(
     name: String,
@@ -112,50 +140,34 @@ private fun CompactLayerItem(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier.fillMaxSize()
         ) {
-            val eyeInteraction = remember { MutableInteractionSource() }
-            val eyeHovered by eyeInteraction.collectIsHoveredAsState()
-
-            IconButton(
-                onClick = onToggleVisible,
-                modifier = Modifier
-                    .size(24.dp.scaled())
-                    .hoverable(eyeInteraction)
-                    .tooltipAnchor(EditorStrings.observeString("layer.visible")),
-                content = {
-                    Icon(
-                        if (isVisible) EditorIcons.iconVisibility else EditorIcons.iconVisibilityOff,
-                        null,
-                        tint = if (isVisible) EditorColors.textPrimary else EditorColors.textMuted,
-                        modifier = Modifier.size(16.dp.scaled())
-                    )
-                }
+            LayerIconButton(
+                icon = if (isVisible) EditorIcons.iconVisibility else EditorIcons.iconVisibilityOff,
+                tint = if (isVisible) EditorColors.textPrimary else EditorColors.textMuted,
+                tooltip = EditorStrings.observeString("layer.visible"),
+                onClick = onToggleVisible
             )
 
-            val lockInteraction = remember { MutableInteractionSource() }
-            val lockHovered by lockInteraction.collectIsHoveredAsState()
-
-            IconButton(
-                onClick = onToggleLocked,
-                modifier = Modifier
-                    .size(24.dp.scaled())
-                    .hoverable(lockInteraction)
-                    .tooltipAnchor(EditorStrings.observeString("layer.locked")),
-                content = {
-                    Icon(
-                        EditorIcons.iconLock,
-                        null,
-                        tint = if (isLocked) EditorColors.accent else EditorColors.textMuted.copy(alpha = 0.5f),
-                        modifier = Modifier.size(16.dp.scaled())
-                    )
-                }
+            LayerIconButton(
+                icon = EditorIcons.iconLock,
+                tint = if (isLocked) EditorColors.accent else EditorColors.textMuted.copy(alpha = 0.5f),
+                tooltip = EditorStrings.observeString("layer.locked"),
+                onClick = onToggleLocked
             )
 
             Spacer(Modifier.width(4.dp.scaled()))
 
-            Box(modifier = Modifier.weight(1f).fillMaxHeight().clickable { onSelect() }) {
+            val nameInteractionSource = remember { MutableInteractionSource() }
+            val nameHovered by nameInteractionSource.collectIsHoveredAsState()
+
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .clickable(interactionSource = nameInteractionSource, indication = null) { onSelect() },
+                contentAlignment = Alignment.CenterStart
+            ) {
                 if (isEditing) {
                     var textFieldValue by remember { mutableStateOf(editText) }
-                    var hasFocus by remember { mutableStateOf(false) }
 
                     BasicTextField(
                         value = textFieldValue,
@@ -163,18 +175,14 @@ private fun CompactLayerItem(
                             textFieldValue = it
                             onTextChange(it)
                         },
-                        modifier = Modifier.fillMaxSize(),
-                        textStyle = EditorTypography.layerName().copy(color = if (isSelected) EditorColors.textPrimary else EditorColors.textSecondary)
+                        modifier = Modifier.fillMaxWidth(),
+                        textStyle = EditorTypography.layerName().copy(color = EditorColors.textPrimary),
+                        cursorBrush = androidx.compose.ui.graphics.SolidColor(EditorColors.accent)
                     )
-
-                    LaunchedEffect(Unit) {
-                        delay(100)
-                        hasFocus = true
-                    }
 
                     LaunchedEffect(textFieldValue) {
                         if (textFieldValue.isEmpty()) {
-                            onCancelRename()
+                            // Можно добавить задержку или оставить как есть
                         }
                     }
                 } else {
@@ -183,19 +191,19 @@ private fun CompactLayerItem(
                         style = EditorTypography.layerName(),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        color = if (isSelected) EditorColors.textPrimary else EditorColors.textSecondary
+                        color = if (nameHovered || isSelected) EditorColors.textPrimary else EditorColors.textSecondary
                     )
                 }
             }
 
-            IconButton(
+            LayerIconButton(
+                icon = EditorIcons.iconEdit,
+                tint = EditorColors.textMuted,
+                tooltip = EditorStrings.observeString("layer.rename"),
                 onClick = onStartRename,
-                modifier = Modifier
-                    .size(20.dp.scaled())
-                    .tooltipAnchor(EditorStrings.observeString("layer.rename"))
-            ) {
-                Icon(EditorIcons.iconEdit, null, tint = EditorColors.textMuted, modifier = Modifier.size(14.dp.scaled()))
-            }
+                size = 20.dp,
+                iconSize = 14.dp
+            )
         }
     }
 }
@@ -205,26 +213,19 @@ private fun SmallFooterBtn(icon: ImageVector, tooltip: String = "", onClick: () 
     val interactionSource = remember { MutableInteractionSource() }
     val isHovered by interactionSource.collectIsHoveredAsState()
 
-    Box(contentAlignment = Alignment.Center) {
-        Box(
-            modifier = Modifier
-                .size(24.dp.scaled())
-                .clip(RoundedCornerShape(4.dp.scaled()))
-                .background(Color.White.copy(alpha = 0.03f))
-                .border(
-                    width = 0.8.dp.scaled(),
-                    color = if (isHovered) EditorColors.accent.copy(alpha = 0.6f) else Color.Transparent,
-                    shape = RoundedCornerShape(4.dp.scaled())
-                )
-                .tooltipAnchor(tooltip)
-                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                icon, null,
-                tint = if (isHovered) EditorColors.accent else EditorColors.textSecondary,
-                modifier = Modifier.size(14.dp.scaled())
-            )
-        }
+    Box(
+        modifier = Modifier
+            .size(24.dp.scaled())
+            .clip(RoundedCornerShape(4.dp.scaled()))
+            .background(if (isHovered) EditorColors.hover else Color.White.copy(alpha = 0.03f))
+            .tooltipAnchor(tooltip)
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            icon, null,
+            tint = if (isHovered) EditorColors.accent else EditorColors.textSecondary,
+            modifier = Modifier.size(14.dp.scaled())
+        )
     }
 }

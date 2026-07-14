@@ -19,7 +19,8 @@ data class AppSettings(
     var theme: String = "DARK", // Текущая тема (DARK, LIGHT, GREY, GLASS)
     var recentProjects: MutableList<RecentProject> = mutableListOf(),
     var autoSaveEnabled: Boolean = true,
-    var autoSaveIntervalMin: Int = 2
+    var autoSaveIntervalMin: Int = 2,
+    var ghostFramesColor: ULong = 0xFF0099FFuL
 )
 
 object AppSettingsManager {
@@ -81,6 +82,9 @@ object AppSettingsManager {
     fun setAutoSaveEnabled(enabled: Boolean) { settings.autoSaveEnabled = enabled; save() }
     fun getAutoSaveInterval() = settings.autoSaveIntervalMin
     fun setAutoSaveInterval(min: Int) { settings.autoSaveIntervalMin = min; save() }
+
+    fun getGhostFramesColor() = settings.ghostFramesColor
+    fun setGhostFramesColor(color: ULong) { settings.ghostFramesColor = color; save() }
 
     fun addRecentProject(path: String, name: String) {
         settings.recentProjects.removeAll { it.path == path }

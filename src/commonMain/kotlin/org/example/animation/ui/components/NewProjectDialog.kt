@@ -70,14 +70,16 @@ fun NewProjectDialog(
                             name = it
                             nameError = if (it.isBlank()) EditorStrings["project.nameRequired"] else null
                         },
-                        modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
-                        textStyle = EditorTypography.body(),
+                        modifier = Modifier.fillMaxWidth().height(48.dp.scaled()),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp.scaled(), color = EditorColors.textPrimary),
                         singleLine = true,
                         isError = nameError != null,
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = EditorColors.accent,
                             backgroundColor = EditorColors.background,
-                            unfocusedBorderColor = EditorColors.divider
+                            unfocusedBorderColor = EditorColors.divider,
+                            textColor = EditorColors.textPrimary,
+                            cursorColor = EditorColors.accent
                         )
                     )
                     if (nameError != null) {
@@ -95,14 +97,16 @@ fun NewProjectDialog(
                                     width = it.filter { c -> c.isDigit() }.take(5)
                                     sizeError = null
                                 },
-                                modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
-                                textStyle = EditorTypography.mono(),
+                                modifier = Modifier.fillMaxWidth().height(48.dp.scaled()),
+                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp.scaled(), color = EditorColors.textPrimary, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                                 singleLine = true,
                                 isError = sizeError != null,
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     focusedBorderColor = EditorColors.accent,
                                     backgroundColor = EditorColors.background,
-                                    unfocusedBorderColor = EditorColors.divider
+                                    unfocusedBorderColor = EditorColors.divider,
+                                    textColor = EditorColors.textPrimary,
+                                    cursorColor = EditorColors.accent
                                 )
                             )
                         }
@@ -115,14 +119,16 @@ fun NewProjectDialog(
                                     height = it.filter { c -> c.isDigit() }.take(5)
                                     sizeError = null
                                 },
-                                modifier = Modifier.fillMaxWidth().height(40.dp.scaled()),
-                                textStyle = EditorTypography.mono(),
+                                modifier = Modifier.fillMaxWidth().height(48.dp.scaled()),
+                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp.scaled(), color = EditorColors.textPrimary, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                                 singleLine = true,
                                 isError = sizeError != null,
                                 colors = TextFieldDefaults.outlinedTextFieldColors(
                                     focusedBorderColor = EditorColors.accent,
                                     backgroundColor = EditorColors.background,
-                                    unfocusedBorderColor = EditorColors.divider
+                                    unfocusedBorderColor = EditorColors.divider,
+                                    textColor = EditorColors.textPrimary,
+                                    cursorColor = EditorColors.accent
                                 )
                             )
                         }
@@ -134,13 +140,15 @@ fun NewProjectDialog(
                     OutlinedTextField(
                         value = fps,
                         onValueChange = { fps = it.filter { c -> c.isDigit() }.take(3) },
-                        modifier = Modifier.width(100.dp.scaled()).height(40.dp.scaled()),
-                        textStyle = EditorTypography.mono(),
+                        modifier = Modifier.width(100.dp.scaled()).height(48.dp.scaled()),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp.scaled(), color = EditorColors.textPrimary, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace),
                         singleLine = true,
                         colors = TextFieldDefaults.outlinedTextFieldColors(
                             focusedBorderColor = EditorColors.accent,
                             backgroundColor = EditorColors.background,
-                            unfocusedBorderColor = EditorColors.divider
+                            unfocusedBorderColor = EditorColors.divider,
+                            textColor = EditorColors.textPrimary,
+                            cursorColor = EditorColors.accent
                         )
                     )
 

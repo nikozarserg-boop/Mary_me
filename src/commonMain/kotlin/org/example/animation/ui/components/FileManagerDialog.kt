@@ -201,8 +201,9 @@ fun FileManagerDialog(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 text = if (mode == FileDialogMode.SAVE) EditorStrings.observeString("file.name") else EditorStrings.observeString("file.file"),
-                                color = EditorColors.textSecondary,
+                                color = EditorColors.textPrimary,
                                 fontSize = 13.sp.scaled(),
+                                fontWeight = FontWeight.Medium,
                                 modifier = Modifier.width(60.dp.scaled())
                             )
                             OutlinedTextField(
@@ -215,7 +216,8 @@ fun FileManagerDialog(
                                     textColor = EditorColors.textPrimary,
                                     focusedBorderColor = EditorColors.accent,
                                     unfocusedBorderColor = EditorColors.divider,
-                                    backgroundColor = EditorColors.background.copy(alpha = 0.2f)
+                                    backgroundColor = EditorColors.background.copy(alpha = 0.5f), // Увеличена непрозрачность фона для лучшей видимости текста
+                                    cursorColor = EditorColors.accent
                                 )
                             )
                             if (mode == FileDialogMode.SAVE) {

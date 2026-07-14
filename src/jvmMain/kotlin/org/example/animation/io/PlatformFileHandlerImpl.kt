@@ -30,11 +30,16 @@ actual fun decodeImage(data: ByteArray): ImageBitmap? {
     }
 }
 
-actual fun encodeImage(bitmap: ImageBitmap): ByteArray {
+actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
     return try {
         val skiaBitmap = bitmap.asSkiaBitmap()
         val image = Image.makeFromBitmap(skiaBitmap)
-        val data = image.encodeToData(EncodedImageFormat.PNG)
+        val skiaFormat = when (format.lowercase()) {
+            "jpg", "jpeg" -> EncodedImageFormat.JPEG
+            "webp" -> EncodedImageFormat.WEBP
+            else -> EncodedImageFormat.PNG
+        }
+        val data = image.encodeToData(skiaFormat, 90)
         data?.bytes ?: ByteArray(0)
     } catch (e: Exception) {
         e.printStackTrace()
@@ -55,8 +60,14 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 "maryme" -> FileNameExtensionFilter("MaryMe Project (*.maryme)", "maryme")
                 "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
                 "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
+                "jpg", "jpeg" -> FileNameExtensionFilter("JPEG Image (*.jpg)", "jpg")
+                "webp" -> FileNameExtensionFilter("WEBP Image (*.webp)", "webp")
                 "avi" -> FileNameExtensionFilter("AVI Video (*.avi)", "avi")
                 "mp4" -> FileNameExtensionFilter("MP4 Video (*.mp4)", "mp4")
+                "webm" -> FileNameExtensionFilter("WebM Video (*.webm)", "webm")
+                "mov" -> FileNameExtensionFilter("QuickTime Video (*.mov)", "mov")
+                "mkv" -> FileNameExtensionFilter("Matroska Video (*.mkv)", "mkv")
+                "apng" -> FileNameExtensionFilter("Animated PNG (*.png)", "png")
                 else -> FileNameExtensionFilter("$extension files (*.$extension)", extension)
             }
             chooser.fileFilter = filter
@@ -160,7 +171,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
         tempDir.mkdirs()
         
         try {
-            // 1. Рендерим кадры
+            // 1. Рендерим кадры (всегда PNG как промежуточный)
             ExportManager.exportSequenceToPngs(project, width, height, density) { index, data ->
                 File(tempDir, "frame_%04d.png".format(index)).writeBytes(data)
                 onProgress(0.1f + (index.toFloat() / project.maxFrames) * 0.4f)
@@ -183,6 +194,10 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                         add("-vf")
                         add("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse")
                     }
+                    "apng" -> {
+                        add("-plays")
+                        add("0")
+                    }
                     "mp4" -> {
                         add("-c:v")
                         add("libx264")
@@ -190,6 +205,28 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                         add("yuv420p")
                         add("-crf")
                         add("23")
+                    }
+                    "webm" -> {
+                        add("-c:v")
+                        add("libvpx-vp9")
+                        add("-pix_fmt")
+                        add("yuv420p")
+                        add("-crf")
+                        add("30")
+                        add("-b:v")
+                        add("0")
+                    }
+                    "mov" -> {
+                        add("-c:v")
+                        add("prores_ks")
+                        add("-pix_fmt")
+                        add("yuva444p10le")
+                    }
+                    "mkv" -> {
+                        add("-c:v")
+                        add("libx264")
+                        add("-pix_fmt")
+                        add("yuv420p")
                     }
                     "avi" -> {
                         add("-c:v")

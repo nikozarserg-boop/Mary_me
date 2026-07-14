@@ -7,6 +7,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -54,6 +56,8 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val ghostFramesEnabled by engine.ghostFramesEnabled.collectAsState()
     val ghostFramesBefore by engine.ghostFramesBefore.collectAsState()
     val ghostFramesAfter by engine.ghostFramesAfter.collectAsState()
+    val ghostFramesColorU by engine.ghostFramesColor.collectAsState()
+    val ghostFramesColor = remember(ghostFramesColorU) { ulongToColor(ghostFramesColorU).copy(alpha = 0.4f) }
 
     val activeStroke by engine.activeStroke.collectAsState()
 
@@ -282,7 +286,7 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                     }
 
                                     for (stroke in frame.strokes) {
-                                        drawStrokeWithColor(stroke, if (frame.isCurrent) null else Color(0x440099FF), alpha)
+                                        drawStrokeWithColor(stroke, if (frame.isCurrent) null else ghostFramesColor, alpha)
                                     }
                                 }
 
@@ -325,13 +329,21 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ZoomButton(EditorIcons.iconRemove) { engine.setZoom(zoom * 0.8f) }
+                    
+                    val zoomInteractionSource = remember { MutableInteractionSource() }
+                    val zoomHovered by zoomInteractionSource.collectIsHoveredAsState()
                     Box(
                         modifier = Modifier
                             .width(54.dp.scaled())
-                            .clickable { engine.setZoom(1f) },
+                            .clickable(interactionSource = zoomInteractionSource, indication = null) { engine.setZoom(1f) },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("${(zoom * 100).toInt()}%", color = EditorColors.textPrimary, style = EditorTypography.mono(), fontSize = 11.sp.scaled())
+                        Text(
+                            "${(zoom * 100).toInt()}%", 
+                            color = if (zoomHovered) EditorColors.accent else EditorColors.textPrimary, 
+                            style = EditorTypography.mono(), 
+                            fontSize = 11.sp.scaled()
+                        )
                     }
                     ZoomButton(EditorIcons.iconAdd) { engine.setZoom(zoom * 1.25f) }
                 }
@@ -340,16 +352,24 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ZoomButton(EditorIcons.iconRotateLeft) { engine.setRotation(rotation - 15f) }
+                    
+                    val rotInteractionSource = remember { MutableInteractionSource() }
+                    val rotHovered by rotInteractionSource.collectIsHoveredAsState()
                     Box(
                         modifier = Modifier
                             .width(48.dp.scaled())
-                            .clickable {
+                            .clickable(interactionSource = rotInteractionSource, indication = null) {
                                 engine.setRotation(0f)
                                 engine.setPanOffset(Offset.Zero)
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        Text("${rotation.toInt()}°", color = EditorColors.textPrimary, style = EditorTypography.mono(), fontSize = 11.sp.scaled())
+                        Text(
+                            "${rotation.toInt()}°", 
+                            color = if (rotHovered) EditorColors.accent else EditorColors.textPrimary, 
+                            style = EditorTypography.mono(), 
+                            fontSize = 11.sp.scaled()
+                        )
                     }
                     ZoomButton(EditorIcons.iconRotateRight) { engine.setRotation(rotation + 15f) }
                 }
@@ -363,18 +383,21 @@ private data class SelectionRect(val start: Offset, val end: Offset)
 
 @Composable
 private fun ZoomButton(icon: ImageVector, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
     Box(
         modifier = Modifier
             .size(28.dp.scaled())
             .clip(CircleShape)
-            .background(EditorColors.textPrimary.copy(alpha = 0.05f))
+            .background(if (isHovered) EditorColors.hover else Color.Transparent)
             .pointerHoverIcon(PointerIcon.Hand)
-            .clickable { onClick() },
+            .clickable(interactionSource = interactionSource, indication = null) { onClick() },
         contentAlignment = Alignment.Center
     ) {
         Icon(
             icon, null,
-            tint = EditorColors.textPrimary,
+            tint = if (isHovered) EditorColors.accent else EditorColors.textPrimary,
             modifier = Modifier.size(16.dp.scaled())
         )
     }

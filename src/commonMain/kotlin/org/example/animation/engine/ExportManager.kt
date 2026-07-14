@@ -13,14 +13,15 @@ import org.example.animation.io.encodeImage
 object ExportManager {
     
     /**
-     * Рендерит указанный кадр проекта в PNG байты.
+     * Рендерит указанный кадр проекта в байты изображения выбранного формата.
      */
-    fun exportFrameToPng(
+    fun exportFrame(
         project: AnimationProject, 
         frameIndex: Int, 
         width: Int, 
         height: Int,
-        density: Density
+        density: Density,
+        format: String = "png"
     ): ByteArray {
         val bitmap = ImageBitmap(width, height)
         val canvas = Canvas(bitmap)
@@ -41,11 +42,11 @@ object ExportManager {
             }
         }
         
-        return encodeImage(bitmap)
+        return encodeImage(bitmap, format)
     }
 
     /**
-     * Экспорт всех кадров
+     * Экспорт всех кадров в PNG для последующей сборки в видео/гиф
      */
     fun exportSequenceToPngs(
         project: AnimationProject,
@@ -55,7 +56,7 @@ object ExportManager {
         onFrame: (Int, ByteArray) -> Unit
     ) {
         for (i in 0 until project.maxFrames) {
-            val data = exportFrameToPng(project, i, width, height, density)
+            val data = exportFrame(project, i, width, height, density, "png")
             onFrame(i, data)
         }
     }

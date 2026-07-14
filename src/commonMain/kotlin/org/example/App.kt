@@ -158,10 +158,7 @@ fun App(
                                 uiScale = effectiveScale,
                                 onSave = { pendingFileAction = "save" },
                                 onLoad = { pendingFileAction = "open" },
-                                onExportGif = { pendingExportFormat = "gif" },
-                                onExportPng = { pendingExportFormat = "png" },
-                                onExportAvi = { pendingExportFormat = "avi" },
-                                onExportMp4 = { pendingExportFormat = "mp4" },
+                                onExport = { format -> pendingExportFormat = format },
                                 onNewProject = { showNewProject = true },
                                 onSettings = { showSettings = true },
                                 onImportImage = { pendingFileAction = "import_image" },
@@ -242,7 +239,7 @@ fun App(
                                 )
                             }
 
-                            // Диалоги выбора файлов (только те, что показывают UI)
+                            // Диалоги выбора файлов
                             when {
                                 (pendingFileAction == "save" || pendingFileAction == "save_and_close_tab") && engine.filePath.value == null -> {
                                     FileManagerDialog(FileDialogMode.SAVE, engine.project.value.name, "maryme") { path ->
@@ -288,21 +285,24 @@ fun App(
                                     val name = parts[1]
                                     val w = parts[2].toInt()
                                     val h = parts[3].toInt()
-                                    val fmt = parts[4]
+                                    val fmt = parts[4].lowercase()
                                     
                                     FileManagerDialog(FileDialogMode.SAVE, name, fmt) { path ->
                                         if (path != null) {
-                                            if (fmt == "png") {
-                                                val data = ExportManager.exportFrameToPng(
+                                            if (fmt == "png" || fmt == "jpg" || fmt == "jpeg" || fmt == "webp") {
+                                                // Одиночный кадр
+                                                val data = ExportManager.exportFrame(
                                                     project = engine.project.value,
                                                     frameIndex = engine.currentFrameIndex.value,
                                                     width = w,
                                                     height = h,
-                                                    density = density
+                                                    density = density,
+                                                    format = fmt
                                                 )
                                                 fileHandler.saveToPath(path, data)
                                                 pendingFileAction = null
                                             } else {
+                                                // Видео или анимация через FFmpeg
                                                 scope.launch {
                                                     exportProgress = 0f
                                                     fileHandler.exportAnimation(

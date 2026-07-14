@@ -39,11 +39,23 @@ actual fun decodeImage(data: ByteArray): ImageBitmap? {
     }
 }
 
-actual fun encodeImage(bitmap: ImageBitmap): ByteArray {
+actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
     return try {
         val androidBitmap = bitmap.asAndroidBitmap()
         val stream = ByteArrayOutputStream()
-        androidBitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        
+        val compressFormat = when (format.lowercase()) {
+            "jpg", "jpeg" -> Bitmap.CompressFormat.JPEG
+            "webp" -> if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                Bitmap.CompressFormat.WEBP_LOSSLESS
+            } else {
+                @Suppress("DEPRECATION")
+                Bitmap.CompressFormat.WEBP
+            }
+            else -> Bitmap.CompressFormat.PNG
+        }
+        
+        androidBitmap.compress(compressFormat, 90, stream)
         stream.toByteArray()
     } catch (e: Exception) {
         e.printStackTrace()
@@ -147,18 +159,22 @@ class AndroidPlatformFileHandler : PlatformFileHandler {
         tempDir.mkdirs()
         
         try {
-            // 1. Рендерим все кадры в PNG
+            // 1. Рендерим все кадры в PNG (промежуточный формат)
             ExportManager.exportSequenceToPngs(project, width, height, density) { index, data ->
                 val frameFile = File(tempDir, "frame_%04d.png".format(index))
                 frameFile.writeBytes(data)
                 onProgress(0.1f + (index.toFloat() / project.maxFrames) * 0.4f)
             }
 
-            // 2. Формируем команду FFmpeg
+            // 2. Формируем команду FFmpeg для разных форматов
             val inputPattern = File(tempDir, "frame_%04d.png").absolutePath
             val cmd = when (format.lowercase()) {
                 "gif" -> "-y -framerate $fps -i $inputPattern -vf \"split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse\" $outputPath"
+                "apng" -> "-y -framerate $fps -i $inputPattern -plays 0 $outputPath"
                 "mp4" -> "-y -framerate $fps -i $inputPattern -c:v libx264 -pix_fmt yuv420p -crf 23 $outputPath"
+                "webm" -> "-y -framerate $fps -i $inputPattern -c:v libvpx-vp9 -pix_fmt yuv420p -crf 30 -b:v 0 $outputPath"
+                "mov" -> "-y -framerate $fps -i $inputPattern -c:v prores_ks -pix_fmt yuva444p10le $outputPath"
+                "mkv" -> "-y -framerate $fps -i $inputPattern -c:v libx264 -pix_fmt yuv420p $outputPath"
                 "avi" -> "-y -framerate $fps -i $inputPattern -c:v mpeg4 -q:v 5 $outputPath"
                 else -> "-y -framerate $fps -i $inputPattern $outputPath"
             }

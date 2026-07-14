@@ -2,7 +2,10 @@ package org.example.animation.ui.components
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -21,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import org.example.animation.APP_VERSION
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
+import org.example.animation.localization.LangData
 import org.example.animation.model.AnimationProject
 import org.example.animation.ui.theme.*
 import kotlin.math.roundToInt
@@ -204,23 +208,35 @@ private fun InterfaceSettingsContent(scale: Float, theme: ThemeType, onScale: (F
         Text(EditorStrings.observeString("settings.interface"), style = EditorTypography.body(), fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp.scaled()))
 
         Text(EditorStrings.observeString("interface.theme"), style = EditorTypography.caption())
-        Spacer(Modifier.height(6.dp.scaled()))
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp.scaled())) {
+        Spacer(Modifier.height(8.dp.scaled()))
+        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp.scaled())) {
             ThemeCircleBtn(EditorStrings.observeString("theme.dark"), EditorColors.accent, theme == ThemeType.DARK) { onTheme(ThemeType.DARK) }
             ThemeCircleBtn(EditorStrings.observeString("theme.light"), Color.White, theme == ThemeType.LIGHT) { onTheme(ThemeType.LIGHT) }
             ThemeCircleBtn(EditorStrings.observeString("theme.grey"), Color.Gray, theme == ThemeType.GREY) { onTheme(ThemeType.GREY) }
             ThemeCircleBtn(EditorStrings.observeString("theme.glass"), EditorColors.accentGreen, theme == ThemeType.GLASS) { onTheme(ThemeType.GLASS) }
         }
 
-        Spacer(Modifier.height(20.dp.scaled()))
+        Spacer(Modifier.height(24.dp.scaled()))
         Text(EditorStrings.observeString("settings.language"), style = EditorTypography.caption())
-        Spacer(Modifier.height(6.dp.scaled()))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp.scaled())) {
-            LanguageBtn("RU", EditorStrings.getCurrentCode() == "ru") { EditorStrings.setLanguage("ru") }
-            LanguageBtn("EN", EditorStrings.getCurrentCode() == "en") { EditorStrings.setLanguage("en") }
+        Spacer(Modifier.height(8.dp.scaled()))
+        
+        val languages = EditorStrings.getAvailableLanguages()
+        val currentCode = EditorStrings.getCurrentCode()
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp.scaled())
+        ) {
+            languages.forEach { lang ->
+                LanguageItem(
+                    lang = lang,
+                    isSelected = lang.code == currentCode,
+                    onClick = { EditorStrings.setLanguage(lang.code) }
+                )
+            }
         }
         
-        Spacer(Modifier.height(20.dp.scaled()))
+        Spacer(Modifier.height(24.dp.scaled()))
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(EditorStrings.observeString("interface.scale"), style = EditorTypography.body(), modifier = Modifier.weight(1f))
             Text("${(scale * 100).toInt()}%", style = EditorTypography.mono(), color = EditorColors.accent)
@@ -235,16 +251,75 @@ private fun InterfaceSettingsContent(scale: Float, theme: ThemeType, onScale: (F
 }
 
 @Composable
+private fun LanguageItem(lang: LangData, isSelected: Boolean, onClick: () -> Unit) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+    
+    Surface(
+        modifier = Modifier
+            .height(36.dp.scaled())
+            .widthIn(min = 100.dp.scaled())
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .hoverable(interactionSource),
+        color = if (isSelected) EditorColors.accent.copy(alpha = 0.15f) else if (isHovered) EditorColors.hover else EditorColors.surfaceVariant,
+        shape = RoundedCornerShape(8.dp.scaled()),
+        border = BorderStroke(
+            width = 1.dp.scaled(),
+            color = if (isSelected) EditorColors.accent else if (isHovered) EditorColors.accent.copy(alpha = 0.3f) else EditorColors.divider
+        )
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(horizontal = 12.dp.scaled())) {
+            Text(
+                text = lang.nameNative,
+                style = EditorTypography.body().copy(fontSize = 13.sp.scaled()),
+                color = if (isSelected) EditorColors.accent else EditorColors.textPrimary,
+                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+            )
+        }
+    }
+}
+
+@Composable
 private fun ThemeCircleBtn(label: String, color: Color, isSelected: Boolean, onClick: () -> Unit) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onClick() }.padding(4.dp.scaled())) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isHovered by interactionSource.collectIsHoveredAsState()
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally, 
+        modifier = Modifier
+            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+            .hoverable(interactionSource)
+            .padding(4.dp.scaled())
+    ) {
         Box(
             modifier = Modifier
-                .size(24.dp.scaled())
-                .clip(RoundedCornerShape(12.dp.scaled()))
+                .size(28.dp.scaled())
+                .clip(RoundedCornerShape(14.dp.scaled()))
                 .background(color)
-                .border(if (isSelected) 2.dp.scaled() else 0.dp, Color.White, RoundedCornerShape(12.dp.scaled()))
+                .border(
+                    width = if (isSelected) 2.dp.scaled() else if (isHovered) 1.dp.scaled() else 0.dp, 
+                    color = if (isSelected) Color.White else if (isHovered) Color.White.copy(alpha = 0.5f) else Color.Transparent, 
+                    shape = RoundedCornerShape(14.dp.scaled())
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isSelected) {
+                Icon(
+                    EditorIcons.iconCheck, 
+                    null, 
+                    tint = if (color == Color.White) Color.Black else Color.White, 
+                    modifier = Modifier.size(16.dp.scaled())
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp.scaled()))
+        Text(
+            label, 
+            style = EditorTypography.toolText(), 
+            color = if (isSelected) EditorColors.accent else EditorColors.textSecondary, 
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
         )
-        Text(label.uppercase(), style = EditorTypography.toolText(), color = if (isSelected) EditorColors.accent else EditorColors.textSecondary, maxLines = 1)
     }
 }
 
@@ -274,8 +349,11 @@ private fun SettingInputItem(label: String, value: String, onValueChange: (Strin
 private fun PerformanceSettingsContent(engine: AnimationEngine) {
     val before by engine.ghostFramesBefore.collectAsState()
     val after by engine.ghostFramesAfter.collectAsState()
+    val ghostColor by engine.ghostFramesColor.collectAsState()
+
     Column {
         Text(EditorStrings.observeString("settings.performance"), style = EditorTypography.body(), fontWeight = FontWeight.Bold, modifier = Modifier.padding(bottom = 12.dp.scaled()))
+        
         Text(EditorStrings.observeString("perf.ghostFrames"), style = EditorTypography.body())
         Text(EditorStrings.observeString("anim.ghostDesc"), style = EditorTypography.caption(), color = EditorColors.textMuted)
         
@@ -286,6 +364,48 @@ private fun PerformanceSettingsContent(engine: AnimationEngine) {
         
         Text("${EditorStrings.observeString("anim.ghostAfter")} $after", style = EditorTypography.caption())
         Slider(value = after.toFloat(), onValueChange = { engine.setGhostFramesFramesAfter(it.toInt()) }, valueRange = 0f..10f, steps = 9)
+
+        Spacer(Modifier.height(16.dp.scaled()))
+        Text("Цвет призрачного кадра", style = EditorTypography.caption())
+        Spacer(Modifier.height(8.dp.scaled()))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp.scaled())) {
+            val colors = listOf(
+                0xFF0099FFuL, // Blue (Default)
+                0xFFF44336uL, // Red
+                0xFF4CAF50uL, // Green
+                0xFFFF9800uL, // Orange
+                0xFF9E9E9EuL, // Grey
+                0xFF000000uL  // Black
+            )
+            colors.forEach { colorU ->
+                GhostColorItem(
+                    color = Color(colorU.toLong()),
+                    isSelected = ghostColor == colorU,
+                    onClick = { engine.setGhostFramesColor(colorU) }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun GhostColorItem(color: Color, isSelected: Boolean, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .size(24.dp.scaled())
+            .clip(CircleShape)
+            .background(color)
+            .border(
+                width = if (isSelected) 2.dp.scaled() else 1.dp.scaled(),
+                color = if (isSelected) Color.White else Color.White.copy(alpha = 0.2f),
+                shape = CircleShape
+            )
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (isSelected) {
+            Icon(EditorIcons.iconCheck, null, tint = if (color == Color.White) Color.Black else Color.White, modifier = Modifier.size(14.dp.scaled()))
+        }
     }
 }
 
@@ -294,30 +414,21 @@ private fun AboutSettingsContent(project: AnimationProject) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
-                .size(40.dp.scaled())
+                .size(48.dp.scaled())
                 .background(EditorColors.divider, EditorShapes.medium), 
             contentAlignment = Alignment.Center
         ) {
-            Icon(EditorIcons.iconAppIcon, null, tint = EditorColors.accent, modifier = Modifier.size(24.dp.scaled()))
+            Icon(EditorIcons.iconAppIcon, null, tint = EditorColors.accent, modifier = Modifier.size(28.dp.scaled()))
         }
         Spacer(Modifier.height(12.dp.scaled()))
-        Text("MaryMe Animator", style = EditorTypography.body(), fontWeight = FontWeight.Bold)
+        Text("MaryMe Animator", style = EditorTypography.body().copy(fontSize = 16.sp.scaled()), fontWeight = FontWeight.Bold)
         Text("${EditorStrings.observeString("about.version")} $APP_VERSION", style = EditorTypography.caption(), color = EditorColors.accentGreen)
-        Spacer(Modifier.height(8.dp.scaled()))
-        Text(EditorStrings.observeString("about.desc"), style = EditorTypography.caption(), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-    }
-}
-
-@Composable
-private fun LanguageBtn(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Surface(
-        modifier = Modifier.height(26.dp.scaled()).width(50.dp.scaled()).clickable { onClick() },
-        color = if (isSelected) EditorColors.accent.copy(alpha = 0.2f) else EditorColors.divider,
-        shape = EditorShapes.small,
-        border = BorderStroke(1.dp.scaled(), if (isSelected) EditorColors.accent else EditorColors.divider)
-    ) {
-        Box(contentAlignment = Alignment.Center) { 
-            Text(text, style = EditorTypography.toolText(), color = if (isSelected) EditorColors.accent else EditorColors.textPrimary) 
-        }
+        Spacer(Modifier.height(16.dp.scaled()))
+        Text(
+            EditorStrings.observeString("about.desc"), 
+            style = EditorTypography.body().copy(fontSize = 13.sp.scaled(), color = EditorColors.textSecondary), 
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.padding(horizontal = 16.dp.scaled())
+        )
     }
 }
