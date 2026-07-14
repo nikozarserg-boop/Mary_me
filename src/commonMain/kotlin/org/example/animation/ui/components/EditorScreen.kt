@@ -21,8 +21,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventType
-import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
@@ -631,7 +629,7 @@ private fun DropdownMenuButton(
     val isHovered by interactionSource.collectIsHoveredAsState()
     
     Box(
-        modifier = Modifier.onPointerEvent(PointerEventType.Enter) { expanded = true }
+        modifier = Modifier
     ) {
         if (icon != null) {
             TopBarIconButton(icon, tooltip = tooltip) { 
@@ -672,60 +670,56 @@ private fun DropdownMenuButton(
                                 activeSubMenuLabel = null
                                 item.onClick() 
                             }, 
-                            modifier = Modifier
+                                modifier = Modifier
                                 .height(32.dp.scaled())
-                                .onPointerEvent(PointerEventType.Enter) { activeSubMenuLabel = null }
                         ) { 
                             Text(item.label, style = EditorTypography.menu()) 
                         }
                     }
                     is MenuItemData.SubMenu -> {
-                        Box(
-                            modifier = Modifier
-                                .onPointerEvent(PointerEventType.Enter) { activeSubMenuLabel = item.label }
+                        DropdownMenuItem(
+                            onClick = {
+                                expanded = false
+                                activeSubMenuLabel = null
+                                item.onClick()
+                            },
+                            modifier = Modifier.height(32.dp.scaled())
                         ) {
-                            DropdownMenuItem(
-                                onClick = { 
-                                    expanded = false
-                                    activeSubMenuLabel = null
-                                    item.onClick() 
-                                },
-                                modifier = Modifier.height(32.dp.scaled())
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(item.label, style = EditorTypography.menu())
-                                    Icon(
-                                        EditorIcons.iconKeyboardArrowRight,
-                                        null,
-                                        modifier = Modifier.size(16.dp.scaled()),
-                                        tint = EditorColors.textMuted
-                                    )
-                                }
+                                Text(item.label, style = EditorTypography.menu())
+                                Icon(
+                                    EditorIcons.iconKeyboardArrowRight,
+                                    null,
+                                    modifier = Modifier
+                                        .size(16.dp.scaled())
+                                        .clickable { activeSubMenuLabel = if (activeSubMenuLabel == item.label) null else item.label },
+                                    tint = EditorColors.textMuted
+                                )
                             }
-                            
-                            DropdownMenu(
-                                expanded = activeSubMenuLabel == item.label,
-                                onDismissRequest = { activeSubMenuLabel = null },
-                                offset = DpOffset(x = 120.dp.scaled(), y = (-32).dp.scaled()),
-                                modifier = Modifier
-                                    .background(EditorColors.surface)
-                                    .border(1.dp.scaled(), EditorColors.divider)
-                            ) {
-                                item.items.forEach { subItem ->
-                                    DropdownMenuItem(
-                                        onClick = { 
-                                            activeSubMenuLabel = null
-                                            expanded = false
-                                            subItem.onClick() 
-                                        },
-                                        modifier = Modifier.height(32.dp.scaled())
-                                    ) {
-                                        Text(subItem.label, style = EditorTypography.menu())
-                                    }
+                        }
+
+                        DropdownMenu(
+                            expanded = activeSubMenuLabel == item.label,
+                            onDismissRequest = { activeSubMenuLabel = null },
+                            offset = DpOffset(x = 120.dp.scaled(), y = (-32).dp.scaled()),
+                            modifier = Modifier
+                                .background(EditorColors.surface)
+                                .border(1.dp.scaled(), EditorColors.divider)
+                        ) {
+                            item.items.forEach { subItem ->
+                                DropdownMenuItem(
+                                    onClick = {
+                                        activeSubMenuLabel = null
+                                        expanded = false
+                                        subItem.onClick()
+                                    },
+                                    modifier = Modifier.height(32.dp.scaled())
+                                ) {
+                                    Text(subItem.label, style = EditorTypography.menu())
                                 }
                             }
                         }
