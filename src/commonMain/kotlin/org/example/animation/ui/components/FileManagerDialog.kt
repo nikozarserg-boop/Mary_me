@@ -4,6 +4,8 @@ import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -131,6 +134,10 @@ fun FileManagerDialog(
                     Divider(color = EditorColors.divider)
 
                     // Навигация
+                    var pathInput by remember(currentPath) { mutableStateOf(currentPath) }
+                    LaunchedEffect(currentPath) {
+                        pathInput = currentPath
+                    }
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -147,20 +154,30 @@ fun FileManagerDialog(
                         }
                         Spacer(Modifier.width(12.dp.scaled()))
 
-                        Surface(
+                        OutlinedTextField(
+                            value = pathInput,
+                            onValueChange = { pathInput = it },
+                            singleLine = true,
                             modifier = Modifier.weight(1f),
-                            color = EditorColors.background.copy(alpha = 0.5f),
-                            shape = RoundedCornerShape(6.dp.scaled())
-                        ) {
-                            Text(
-                                currentPath,
-                                color = EditorColors.textPrimary,
-                                fontSize = 12.sp.scaled(),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.padding(horizontal = 12.dp.scaled(), vertical = 8.dp.scaled())
+                            textStyle = LocalTextStyle.current.copy(fontSize = 12.sp.scaled(), color = EditorColors.textPrimary),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                            keyboardActions = KeyboardActions(onDone = {
+                                val testPath = pathInput
+                                if (fileHandler.fileExists(testPath) && fileHandler.isDirectory(testPath)) {
+                                    currentPath = testPath
+                                    errorMsg = null
+                                } else {
+                                    errorMsg = EditorStrings["file.pathNotFound"]
+                                }
+                            }),
+                            colors = TextFieldDefaults.outlinedTextFieldColors(
+                                textColor = EditorColors.textPrimary,
+                                focusedBorderColor = EditorColors.accent,
+                                unfocusedBorderColor = EditorColors.divider,
+                                backgroundColor = EditorColors.background.copy(alpha = 0.5f),
+                                cursorColor = EditorColors.accent
                             )
-                        }
+                        )
                     }
 
                     // Список файлов

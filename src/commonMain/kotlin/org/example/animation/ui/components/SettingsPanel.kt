@@ -244,7 +244,7 @@ private fun InterfaceSettingsContent(scale: Float, theme: ThemeType, onScale: (F
             Text("${(scale * 100).toInt()}%", style = EditorTypography.mono(), color = EditorColors.accent)
         }
         Slider(
-            value = scale, 
+            value = scale.coerceIn(0.5f, 2.0f), 
             onValueChange = onScale, 
             valueRange = 0.5f..2.0f, 
             colors = SliderDefaults.colors(thumbColor = EditorColors.accent, activeTrackColor = EditorColors.accent)

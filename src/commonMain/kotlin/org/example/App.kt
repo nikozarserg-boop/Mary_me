@@ -66,21 +66,56 @@ fun App(
     var savedUiScale by remember { mutableStateOf(AppSettingsManager.getUiScale()) }
     var currentTheme by remember { mutableStateOf(ThemeType.valueOf(AppSettingsManager.getTheme())) }
 
+    // Этап 2: Состояние для массового сохранения при выходе
+    var projectsToSaveOnExit by remember { mutableStateOf<List<AnimationEngine>>(emptyList()) }
+    
+    // Этап 2: Состояние для восстановления автосохранений
+    var autosaveFilesToRestore by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showAutosaveRestoreDialog by remember { mutableStateOf(false) }
+
     // Сайд-эффект для обработки действий с файлами, не требующих диалога
     LaunchedEffect(pendingFileAction) {
         val action = pendingFileAction ?: return@LaunchedEffect
-        if (action == "save" || action == "save_and_close_tab") {
-            val currentPath = engine.filePath.value
-            if (currentPath != null) {
-                val data = ProjectSerializer.serializeToBytes(engine.project.value)
-                if (fileHandler.saveToPath(currentPath, data)) {
-                    engine.markAsSaved(currentPath)
-                    if (action == "save_and_close_tab") {
-                        val idx = closingTabIndex
-                        if (idx != null) {
-                            projectManager.closeProject(idx)
-                            closingTabIndex = null
+        when {
+            action == "save" || action == "save_and_close_tab" -> {
+                val currentPath = engine.filePath.value
+                if (currentPath != null) {
+                    val data = ProjectSerializer.serializeToBytes(engine.project.value)
+                    if (fileHandler.saveToPath(currentPath, data)) {
+                        engine.markAsSaved(currentPath)
+                        if (action == "save_and_close_tab") {
+                            val idx = closingTabIndex
+                            if (idx != null) {
+                                projectManager.closeProject(idx)
+                                closingTabIndex = null
+                            }
                         }
+                    }
+                    pendingFileAction = null
+                }
+            }
+            action == "save_all_exit" -> {
+                val dirtyEngines = projectManager.engines.value.filter { it.hasUnsavedChanges.value }
+                if (dirtyEngines.isEmpty()) {
+                    onExitConfirm()
+                } else {
+                    // Сначала сохраняем все, у которых уже есть путь
+                    dirtyEngines.forEach { eng ->
+                        val path = eng.filePath.value
+                        if (path != null) {
+                            val data = ProjectSerializer.serializeToBytes(eng.project.value)
+                            if (fileHandler.saveToPath(path, data)) {
+                                eng.markAsSaved(path)
+                                AppSettingsManager.addRecentProject(path, eng.project.value.name)
+                            }
+                        }
+                    }
+                    // Теперь проверяем, остались ли "грязные" проекты без пути
+                    val remaining = projectManager.engines.value.filter { it.hasUnsavedChanges.value && it.filePath.value == null }
+                    if (remaining.isEmpty()) {
+                        onExitConfirm()
+                    } else {
+                        projectsToSaveOnExit = remaining
                     }
                 }
                 pendingFileAction = null
@@ -127,6 +162,18 @@ fun App(
             println("Localization loading error: ${e.message}")
         } finally {
             stringsLoaded = true
+        }
+    }
+
+    // Этап 2: Поиск автосохранений при запуске
+    LaunchedEffect(stringsLoaded) {
+        if (stringsLoaded) {
+            val cacheDir = fileHandler.getCacheDirectory()
+            val files = fileHandler.listFiles(cacheDir).filter { it.name.startsWith("autosave_") && it.name.endsWith(".maryme") }
+            if (files.isNotEmpty()) {
+                autosaveFilesToRestore = files.map { it.path }
+                showAutosaveRestoreDialog = true
+            }
         }
     }
 
@@ -185,7 +232,7 @@ fun App(
                             if (showSettings) {
                                 SettingsDialog(
                                     engine = engine,
-                                    uiScale = savedUiScale,
+                                    uiScale = effectiveScale,
                                     currentTheme = currentTheme,
                                     onUiScaleChange = { 
                                         savedUiScale = it
@@ -245,6 +292,67 @@ fun App(
                                         pendingExportFormat = null
                                     }
                                 )
+                            }
+
+                            // Этап 2: Диалог восстановления автосохранения
+                            if (showAutosaveRestoreDialog) {
+                                AlertDialog(
+                                    onDismissRequest = { showAutosaveRestoreDialog = false },
+                                    title = { Text(EditorStrings.observeString("autosave.restoreTitle"), color = EditorColors.textPrimary, fontWeight = FontWeight.Bold) },
+                                    text = { Text(EditorStrings.observeString("autosave.restoreDesc"), color = EditorColors.textSecondary) },
+                                    confirmButton = {
+                                        Button(
+                                            onClick = {
+                                                scope.launch {
+                                                    autosaveFilesToRestore.forEach { path ->
+                                                        val data = fileHandler.readFromPath(path)
+                                                        if (data != null) {
+                                                            try {
+                                                                val proj = ProjectSerializer.deserializeFromBytes(data)
+                                                                projectManager.addProject(proj)
+                                                            } catch (e: Exception) { e.printStackTrace() }
+                                                        }
+                                                        fileHandler.deleteFile(path)
+                                                    }
+                                                    showAutosaveRestoreDialog = false
+                                                }
+                                            },
+                                            colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent)
+                                        ) {
+                                            Text(EditorStrings.observeString("autosave.restoreBtn"), color = Color.White)
+                                        }
+                                    },
+                                    dismissButton = {
+                                        TextButton(onClick = {
+                                            scope.launch {
+                                                autosaveFilesToRestore.forEach { fileHandler.deleteFile(it) }
+                                                showAutosaveRestoreDialog = false
+                                            }
+                                        }) {
+                                            Text(EditorStrings.observeString("autosave.ignoreBtn"), color = EditorColors.textSecondary)
+                                        }
+                                    },
+                                    backgroundColor = EditorColors.surface,
+                                    shape = RoundedCornerShape(12.dp.scaled())
+                                )
+                            }
+
+                            // Этап 2: Последовательное сохранение при выходе для проектов без пути
+                            if (projectsToSaveOnExit.isNotEmpty()) {
+                                val currentToSave = projectsToSaveOnExit.first()
+                                FileManagerDialog(FileDialogMode.SAVE, currentToSave.project.value.name, "maryme") { path ->
+                                    if (path != null) {
+                                        val data = ProjectSerializer.serializeToBytes(currentToSave.project.value)
+                                        if (fileHandler.saveToPath(path, data)) {
+                                            currentToSave.markAsSaved(path)
+                                            AppSettingsManager.addRecentProject(path, currentToSave.project.value.name)
+                                        }
+                                    }
+                                    projectsToSaveOnExit = projectsToSaveOnExit.drop(1)
+                                    if (projectsToSaveOnExit.isEmpty()) {
+                                        onExitConfirm()
+                                    }
+                                }
                             }
 
                             // Диалоги выбора файлов

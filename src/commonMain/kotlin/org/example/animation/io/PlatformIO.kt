@@ -66,6 +66,7 @@ interface PlatformFileHandler {
     
     fun openInExplorer(path: String)
     fun fileExists(path: String): Boolean
+    fun isDirectory(path: String): Boolean
     fun deleteFile(path: String): Boolean
 
     /**

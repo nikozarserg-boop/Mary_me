@@ -162,9 +162,19 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         } catch (e: Exception) { e.printStackTrace() }
     }
 
+    private fun deleteAutosaveFile() {
+        try {
+            val path = fileHandler.getCacheDirectory() + "/autosave_${id}.maryme"
+            if (fileHandler.fileExists(path)) {
+                fileHandler.deleteFile(path)
+            }
+        } catch (e: Exception) { e.printStackTrace() }
+    }
+
     fun markAsSaved(path: String? = null) { 
         _hasUnsavedChanges.value = false 
         if (path != null) _filePath.value = path
+        deleteAutosaveFile()
     }
     
     fun setFilePath(path: String?) { _filePath.value = path }
@@ -682,6 +692,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     }
 
     fun cleanup() {
+        deleteAutosaveFile()
         workTimeJob?.cancel(); playbackJob?.cancel(); autoSaveJob?.cancel(); scope.cancel()
     }
 }

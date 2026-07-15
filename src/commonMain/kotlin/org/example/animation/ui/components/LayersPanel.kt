@@ -3,6 +3,8 @@ package org.example.animation.ui.components
 import androidx.compose.foundation.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -11,13 +13,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.components.tooltip.tooltipAnchor
@@ -168,6 +174,12 @@ private fun CompactLayerItem(
             ) {
                 if (isEditing) {
                     var textFieldValue by remember { mutableStateOf(editText) }
+                    val focusRequester = remember { FocusRequester() }
+                    var wasFocused by remember { mutableStateOf(false) }
+
+                    LaunchedEffect(Unit) {
+                        focusRequester.requestFocus()
+                    }
 
                     BasicTextField(
                         value = textFieldValue,
@@ -175,16 +187,25 @@ private fun CompactLayerItem(
                             textFieldValue = it
                             onTextChange(it)
                         },
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .focusRequester(focusRequester)
+                            .onFocusChanged { 
+                                if (!it.isFocused && wasFocused) onConfirmRename()
+                                wasFocused = it.isFocused
+                            }
+                            .onPreviewKeyEvent {
+                                if (it.key == Key.Escape) {
+                                    onCancelRename()
+                                    true
+                                } else false
+                            },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { onConfirmRename() }),
                         textStyle = EditorTypography.layerName().copy(color = EditorColors.textPrimary),
                         cursorBrush = androidx.compose.ui.graphics.SolidColor(EditorColors.accent)
                     )
-
-                    LaunchedEffect(textFieldValue) {
-                        if (textFieldValue.isEmpty()) {
-                            // Можно добавить задержку или оставить как есть
-                        }
-                    }
                 } else {
                     Text(
                         name,

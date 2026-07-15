@@ -7,18 +7,23 @@ import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
@@ -263,20 +268,51 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 Text(EditorStrings.observeString("status.fps"), style = EditorTypography.caption())
                 Spacer(Modifier.width(8.dp.scaled()))
 
-                var fpsText by remember(project.fps) { mutableStateOf(project.fps.toString()) }
+                var fpsText by remember { mutableStateOf(project.fps.toString()) }
+                var fpsFocused by remember { mutableStateOf(false) }
+                var wasFocused by remember { mutableStateOf(false) }
+
+                LaunchedEffect(project.fps) {
+                    if (!fpsFocused) {
+                        fpsText = project.fps.toString()
+                    }
+                }
+
                 OutlinedTextField(
                     value = fpsText,
                     onValueChange = {
-                        val filtered = it.filter { c -> c.isDigit() }.take(3)
-                        fpsText = filtered
-                        val v = filtered.toIntOrNull()
-                        if (v != null && v in 1..240) {
-                            engine.setFps(v)
+                        if (it.isEmpty() || it.all { c -> c.isDigit() }) {
+                            fpsText = it.take(3)
                         }
                     },
                     singleLine = true,
                     textStyle = EditorTypography.mono(),
-                    modifier = Modifier.width(70.dp.scaled()).height(32.dp.scaled()),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = {
+                        val v = fpsText.toIntOrNull()
+                        if (v != null && v in 1..120) {
+                            engine.setFps(v)
+                            fpsText = v.toString()
+                        } else {
+                            fpsText = project.fps.toString()
+                        }
+                    }),
+                    modifier = Modifier
+                        .width(70.dp.scaled())
+                        .height(32.dp.scaled())
+                        .onFocusChanged { state ->
+                            fpsFocused = state.isFocused
+                            if (!state.isFocused && wasFocused) {
+                                val v = fpsText.toIntOrNull()
+                                if (v != null && v in 1..120) {
+                                    engine.setFps(v)
+                                    fpsText = v.toString()
+                                } else {
+                                    fpsText = project.fps.toString()
+                                }
+                            }
+                            wasFocused = state.isFocused
+                        },
                     colors = TextFieldDefaults.outlinedTextFieldColors(
                         focusedBorderColor = EditorColors.accent,
                         unfocusedBorderColor = EditorColors.divider,

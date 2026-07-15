@@ -171,7 +171,7 @@ fun NewProjectDialog(
                         val h = height.toIntOrNull()
                         val f = fps.toIntOrNull()
                         val nameOk = name.isNotBlank()
-                        val sizeOk = (w != null && w in 1..10000) && (h != null && h in 1..10000) && (f != null && f in 1..240)
+                        val sizeOk = (w != null && w in 1..10000) && (h != null && h in 1..10000) && (f != null && f in 1..120)
                         nameError = if (!nameOk) EditorStrings["project.nameRequired"] else null
                         sizeError = if (!sizeOk) EditorStrings["project.sizeError"] else null
                         if (nameOk && sizeOk) {
@@ -181,7 +181,7 @@ fun NewProjectDialog(
                     confirmEnabled = name.isNotBlank()
                         && (width.toIntOrNull()?.let { it in 1..10000 } ?: false)
                         && (height.toIntOrNull()?.let { it in 1..10000 } ?: false)
-                        && (fps.toIntOrNull()?.let { it in 1..240 } ?: false)
+                        && (fps.toIntOrNull()?.let { it in 1..120 } ?: false)
                 )
             }
         }

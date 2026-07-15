@@ -155,6 +155,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
     }
 
     override fun fileExists(path: String): Boolean = File(path).exists()
+    override fun isDirectory(path: String): Boolean = File(path).isDirectory
     override fun deleteFile(path: String): Boolean = File(path).delete()
 
     override suspend fun exportAnimation(
