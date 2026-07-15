@@ -83,6 +83,8 @@ kotlin {
         val jvmMain by getting {
             dependencies {
                 implementation(compose.desktop.currentOs)
+                // Dispatchers.Main для JVM (требуется для withContext(Dispatchers.Main))
+                implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.1")
                 // FFmpeg для десктопа: jave-all-deps встраивает бинарники FFmpeg под
                 // Windows/Linux/macOS прямо внутрь приложения (извлекаются в рантайме нужный
                 // для текущей ОС, без скачивания из интернета). Зависимость живёт только в

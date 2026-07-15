@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import org.example.mary_me.generated.resources.Res
 import org.example.animation.engine.AnimationEngine
@@ -27,11 +28,16 @@ import org.example.animation.io.ProjectSerializer
 import org.example.animation.io.createPlatformFileHandler
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.components.*
+import org.example.animation.ui.screens.StartScreen
 import org.example.animation.ui.components.tooltip.LocalTooltipManager
 import org.example.animation.ui.components.tooltip.TooltipHost
 import org.example.animation.ui.components.tooltip.TooltipManager
 import org.example.animation.ui.theme.*
 import org.jetbrains.compose.resources.ExperimentalResourceApi
+
+enum class AppScreen {
+    START, EDITOR
+}
 
 @OptIn(ExperimentalResourceApi::class)
 @Composable
@@ -46,6 +52,7 @@ fun App(
     val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     
+    var currentScreen by remember { mutableStateOf(AppScreen.START) }
     var showSettings by remember { mutableStateOf(false) }
     var showNewProject by remember { mutableStateOf(false) }
     var showExitConfirm by remember { mutableStateOf(false) }
@@ -58,8 +65,8 @@ fun App(
     var exportProgress by remember { mutableStateOf<Float?>(null) }
     var stringsLoaded by remember { mutableStateOf(false) }
 
-    val hasUnsavedChanges by engine.hasUnsavedChanges.collectAsState()
-    val lastAutosave by engine.lastAutosaveTime.collectAsState()
+    val hasUnsavedChanges by (engine?.hasUnsavedChanges ?: remember { MutableStateFlow(false) }).collectAsState()
+    val lastAutosave by (engine?.lastAutosaveTime ?: remember { MutableStateFlow(0L) }).collectAsState()
     var showAutosaveToast by remember { mutableStateOf(false) }
     var exportError by remember { mutableStateOf<String?>(null) }
 
@@ -76,18 +83,22 @@ fun App(
     // Сайд-эффект для обработки действий с файлами, не требующих диалога
     LaunchedEffect(pendingFileAction) {
         val action = pendingFileAction ?: return@LaunchedEffect
+        val currentEngine = engine
         when {
-            action == "save" || action == "save_and_close_tab" -> {
-                val currentPath = engine.filePath.value
+            (action == "save" || action == "save_and_close_tab") && currentEngine != null -> {
+                val currentPath = currentEngine.filePath.value
                 if (currentPath != null) {
-                    val data = ProjectSerializer.serializeToBytes(engine.project.value)
+                    val data = ProjectSerializer.serializeToBytes(currentEngine.project.value)
                     if (fileHandler.saveToPath(currentPath, data)) {
-                        engine.markAsSaved(currentPath)
+                        currentEngine.markAsSaved(currentPath)
                         if (action == "save_and_close_tab") {
                             val idx = closingTabIndex
                             if (idx != null) {
                                 projectManager.closeProject(idx)
                                 closingTabIndex = null
+                                if (projectManager.engines.value.isEmpty()) {
+                                    currentScreen = AppScreen.START
+                                }
                             }
                         }
                     }
@@ -99,7 +110,6 @@ fun App(
                 if (dirtyEngines.isEmpty()) {
                     onExitConfirm()
                 } else {
-                    // Сначала сохраняем все, у которых уже есть путь
                     dirtyEngines.forEach { eng ->
                         val path = eng.filePath.value
                         if (path != null) {
@@ -110,7 +120,6 @@ fun App(
                             }
                         }
                     }
-                    // Теперь проверяем, остались ли "грязные" проекты без пути
                     val remaining = projectManager.engines.value.filter { it.hasUnsavedChanges.value && it.filePath.value == null }
                     if (remaining.isEmpty()) {
                         onExitConfirm()
@@ -165,7 +174,6 @@ fun App(
         }
     }
 
-    // Этап 2: Поиск автосохранений при запуске
     LaunchedEffect(stringsLoaded) {
         if (stringsLoaded) {
             val cacheDir = fileHandler.getCacheDirectory()
@@ -207,43 +215,100 @@ fun App(
                 Box(modifier = Modifier.fillMaxSize()) {
                     Surface(modifier = Modifier.fillMaxSize(), color = EditorColors.background) {
                         if (stringsLoaded) {
-                            EditorScreen(
-                                engine = engine,
-                                projectManager = projectManager,
-                                uiScale = effectiveScale,
-                                onSave = { pendingFileAction = "save" },
-                                onLoad = { pendingFileAction = "open" },
-                                onExport = { format -> pendingExportFormat = format },
-                                onNewProject = { showNewProject = true },
-                                onSettings = { showSettings = true },
-                                onImportImage = { pendingFileAction = "import_image" },
-                                currentTheme = currentTheme,
-                                onThemeChange = { currentTheme = it },
-                                onCloseTab = { index ->
-                                    val targetEngine = projectManager.engines.value[index]
-                                    if (targetEngine.hasUnsavedChanges.value) {
-                                        closingTabIndex = index
-                                    } else {
-                                        projectManager.closeProject(index)
+                            Crossfade(targetState = currentScreen) { screen ->
+                                when (screen) {
+                                    AppScreen.START -> {
+                                        StartScreen(
+                                            onNewProject = { showNewProject = true },
+                                            onOpenProject = { pendingFileAction = "open" },
+                                            onOpenRecent = { path ->
+                                                scope.launch {
+                                                    val data = fileHandler.readFromPath(path)
+                                                    if (data != null) {
+                                                        try {
+                                                            val proj = ProjectSerializer.deserializeFromBytes(data)
+                                                            projectManager.addProject(proj, path)
+                                                            AppSettingsManager.addRecentProject(path, proj.name)
+                                                            currentScreen = AppScreen.EDITOR
+                                                        } catch (e: Exception) { e.printStackTrace() }
+                                                    }
+                                                }
+                                            },
+                                            uiScale = effectiveScale
+                                        )
+                                    }
+                                    AppScreen.EDITOR -> {
+                                        engine?.let { currentEngine ->
+                                            EditorScreen(
+                                                engine = currentEngine,
+                                                projectManager = projectManager,
+                                                uiScale = effectiveScale,
+                                                onSave = { pendingFileAction = "save" },
+                                                onLoad = { pendingFileAction = "open" },
+                                                onExport = { format -> pendingExportFormat = format },
+                                                onNewProject = { showNewProject = true },
+                                                onSettings = { showSettings = true },
+                                                onImportImage = { pendingFileAction = "import_image" },
+                                                currentTheme = currentTheme,
+                                                onThemeChange = { currentTheme = it },
+                                                onCloseTab = { index ->
+                                                    val targetEngine = projectManager.engines.value[index]
+                                                    if (targetEngine.hasUnsavedChanges.value) {
+                                                        closingTabIndex = index
+                                                    } else {
+                                                        projectManager.closeProject(index)
+                                                        if (projectManager.engines.value.isEmpty()) {
+                                                            currentScreen = AppScreen.START
+                                                        }
+                                                    }
+                                                },
+                                                onCloseProject = {
+                                                    val activeIndex = projectManager.activeEngineIndex.value
+                                                    val targetEngine = projectManager.engines.value[activeIndex]
+                                                    if (targetEngine.hasUnsavedChanges.value) {
+                                                        closingTabIndex = activeIndex
+                                                    } else {
+                                                        projectManager.closeProject(activeIndex)
+                                                        if (projectManager.engines.value.isEmpty()) {
+                                                            currentScreen = AppScreen.START
+                                                        }
+                                                    }
+                                                }
+                                            )
+                                        }
                                     }
                                 }
-                            )
+                            }
 
-                            if (showSettings) {
-                                SettingsDialog(
-                                    engine = engine,
-                                    uiScale = effectiveScale,
-                                    currentTheme = currentTheme,
-                                    onUiScaleChange = { 
-                                        savedUiScale = it
-                                        AppSettingsManager.setUiScale(it)
-                                    },
-                                    onThemeChange = { 
-                                        currentTheme = it
-                                        AppSettingsManager.setTheme(it.name)
-                                    },
-                                    onClose = { showSettings = false }
-                                )
+                            engine?.let { currentEngine ->
+                                if (showSettings) {
+                                    SettingsDialog(
+                                        engine = currentEngine,
+                                        uiScale = effectiveScale,
+                                        currentTheme = currentTheme,
+                                        onUiScaleChange = { 
+                                            savedUiScale = it
+                                            AppSettingsManager.setUiScale(it)
+                                        },
+                                        onThemeChange = { 
+                                            currentTheme = it
+                                            AppSettingsManager.setTheme(it.name)
+                                        },
+                                        onClose = { showSettings = false }
+                                    )
+                                }
+
+                                if (pendingExportFormat != null) {
+                                    ExportDialog(
+                                        engine = currentEngine,
+                                        format = pendingExportFormat!!,
+                                        onCancel = { pendingExportFormat = null },
+                                        onExport = { name, w, h, fmt ->
+                                            pendingFileAction = "export|$name|$w|$h|$fmt"
+                                            pendingExportFormat = null
+                                        }
+                                    )
+                                }
                             }
 
                             if (showNewProject) {
@@ -252,6 +317,7 @@ fun App(
                                     onCreate = { project -> 
                                         projectManager.addProject(project)
                                         showNewProject = false 
+                                        currentScreen = AppScreen.EDITOR
                                     }
                                 )
                             }
@@ -277,24 +343,14 @@ fun App(
                                     onExitWithoutSaving = { 
                                         projectManager.closeProject(idx)
                                         closingTabIndex = null 
+                                        if (projectManager.engines.value.isEmpty()) {
+                                            currentScreen = AppScreen.START
+                                        }
                                     },
                                     onDismiss = { closingTabIndex = null }
                                 )
                             }
 
-                            if (pendingExportFormat != null) {
-                                ExportDialog(
-                                    engine = engine,
-                                    format = pendingExportFormat!!,
-                                    onCancel = { pendingExportFormat = null },
-                                    onExport = { name, w, h, fmt ->
-                                        pendingFileAction = "export|$name|$w|$h|$fmt"
-                                        pendingExportFormat = null
-                                    }
-                                )
-                            }
-
-                            // Этап 2: Диалог восстановления автосохранения
                             if (showAutosaveRestoreDialog) {
                                 AlertDialog(
                                     onDismissRequest = { showAutosaveRestoreDialog = false },
@@ -315,6 +371,7 @@ fun App(
                                                         fileHandler.deleteFile(path)
                                                     }
                                                     showAutosaveRestoreDialog = false
+                                                    currentScreen = AppScreen.EDITOR
                                                 }
                                             },
                                             colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent)
@@ -337,7 +394,6 @@ fun App(
                                 )
                             }
 
-                            // Этап 2: Последовательное сохранение при выходе для проектов без пути
                             if (projectsToSaveOnExit.isNotEmpty()) {
                                 val currentToSave = projectsToSaveOnExit.first()
                                 FileManagerDialog(FileDialogMode.SAVE, currentToSave.project.value.name, "maryme") { path ->
@@ -355,18 +411,21 @@ fun App(
                                 }
                             }
 
-                            // Диалоги выбора файлов
+                            val currentEngine = engine
                             when {
-                                (pendingFileAction == "save" || pendingFileAction == "save_and_close_tab") && engine.filePath.value == null -> {
-                                    FileManagerDialog(FileDialogMode.SAVE, engine.project.value.name, "maryme") { path ->
+                                (pendingFileAction == "save" || pendingFileAction == "save_and_close_tab") && currentEngine != null && currentEngine.filePath.value == null -> {
+                                    FileManagerDialog(FileDialogMode.SAVE, currentEngine.project.value.name, "maryme") { path ->
                                         if (path != null) {
-                                            val data = ProjectSerializer.serializeToBytes(engine.project.value)
+                                            val data = ProjectSerializer.serializeToBytes(currentEngine.project.value)
                                             if (fileHandler.saveToPath(path, data)) {
-                                                engine.markAsSaved(path)
-                                                AppSettingsManager.addRecentProject(path, engine.project.value.name)
+                                                currentEngine.markAsSaved(path)
+                                                AppSettingsManager.addRecentProject(path, currentEngine.project.value.name)
                                                 if (pendingFileAction == "save_and_close_tab") {
                                                     closingTabIndex?.let { projectManager.closeProject(it) }
                                                     closingTabIndex = null
+                                                    if (projectManager.engines.value.isEmpty()) {
+                                                        currentScreen = AppScreen.START
+                                                    }
                                                 }
                                             }
                                         }
@@ -382,21 +441,22 @@ fun App(
                                                     val proj = ProjectSerializer.deserializeFromBytes(data)
                                                     projectManager.addProject(proj, path)
                                                     AppSettingsManager.addRecentProject(path, proj.name)
+                                                    currentScreen = AppScreen.EDITOR
                                                 } catch (e: Exception) { e.printStackTrace() }
                                             }
                                         }
                                         pendingFileAction = null
                                     }
                                 }
-                                pendingFileAction == "import_image" -> {
+                                pendingFileAction == "import_image" && currentEngine != null -> {
                                     FileManagerDialog(FileDialogMode.OPEN, "", "png") { path ->
                                         if (path != null) {
-                                            engine.importImageFromPath(path)
+                                            currentEngine.importImageFromPath(path)
                                         }
                                         pendingFileAction = null
                                     }
                                 }
-                                pendingFileAction?.startsWith("export") == true -> {
+                                pendingFileAction?.startsWith("export") == true && currentEngine != null -> {
                                     val parts = pendingFileAction!!.split("|")
                                     val name = parts[1]
                                     val w = parts[2].toInt()
@@ -406,10 +466,9 @@ fun App(
                                     FileManagerDialog(FileDialogMode.SAVE, name, fmt) { path ->
                                         if (path != null) {
                                             if (fmt == "png" || fmt == "jpg" || fmt == "jpeg" || fmt == "webp") {
-                                                // Одиночный кадр
                                                 val data = ExportManager.exportFrame(
-                                                    project = engine.project.value,
-                                                    frameIndex = engine.currentFrameIndex.value,
+                                                    project = currentEngine.project.value,
+                                                    frameIndex = currentEngine.currentFrameIndex.value,
                                                     width = w,
                                                     height = h,
                                                     density = density,
@@ -421,16 +480,16 @@ fun App(
                                                 }
                                                 pendingFileAction = null
                                             } else {
-                                                // Видео или анимация через FFmpeg
                                                 scope.launch {
                                                     exportProgress = 0f
+                                                    val fps = currentEngine.project.value.fps
                                                     val ok = fileHandler.exportAnimation(
-                                                        project = engine.project.value,
+                                                        project = currentEngine.project.value,
                                                         outputPath = path,
                                                         format = fmt,
                                                         width = w,
                                                         height = h,
-                                                        fps = engine.project.value.fps,
+                                                        fps = fps,
                                                         density = density,
                                                         onProgress = { exportProgress = it }
                                                     )

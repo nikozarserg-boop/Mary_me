@@ -112,4 +112,7 @@ object EditorIcons {
 
     val iconRotateLeft: ImageVector = Icons.AutoMirrored.Filled.RotateLeft
     val iconRotateRight: ImageVector = Icons.AutoMirrored.Filled.RotateRight
+
+    val iconHistory: ImageVector = Icons.Filled.History
+    val iconImage: ImageVector = Icons.Filled.Image
 }

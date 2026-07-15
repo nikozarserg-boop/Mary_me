@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.zIndex
+import org.example.AppScreen
 import org.example.animation.engine.AnimationEngine
 import org.example.animation.engine.ProjectManager
 import org.example.animation.io.AppSettingsManager
@@ -106,7 +107,10 @@ fun EditorScreen(
     onImportImage: () -> Unit = {},
     currentTheme: ThemeType,
     onThemeChange: (ThemeType) -> Unit,
-    onCloseTab: (Int) -> Unit
+    onCloseTab: (Int) -> Unit,
+    onCloseProject: () -> Unit,
+    closingTabIndex: Int? = null,
+    currentScreen: AppScreen = AppScreen.START
 ) {
     val project by engine.project.collectAsState()
     val isPlaying by engine.isPlaying.collectAsState()
@@ -154,6 +158,7 @@ fun EditorScreen(
                 onLoad = onLoad,
                 onExport = onExport,
                 onSettings = onSettings,
+                onCloseProject = onCloseProject,
                 isCompact = isCompactLayout,
                 isToolsVisible = toolsVisible,
                 isLayersVisible = layersVisible,
@@ -446,6 +451,7 @@ private fun EditorMenuBar(
     onLoad: () -> Unit,
     onExport: (String) -> Unit,
     onSettings: () -> Unit,
+    onCloseProject: () -> Unit,
     isCompact: Boolean,
     isToolsVisible: Boolean,
     isLayersVisible: Boolean,
@@ -502,6 +508,8 @@ private fun EditorMenuBar(
             Spacer(Modifier.width(UiDimensions.PaddingMedium.scaled()))
 
             DropdownMenuButton(title = EditorStrings.observeString("menu.file"), items = listOf(
+                MenuItemData.Action(EditorStrings.observeString("file.closeProject"), onCloseProject),
+                MenuItemData.Divider,
                 MenuItemData.Action(EditorStrings.observeString("file.new"), onNew),
                 MenuItemData.Action(EditorStrings.observeString("file.open"), onLoad),
                 MenuItemData.Divider,

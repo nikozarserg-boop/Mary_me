@@ -6,14 +6,14 @@ import kotlinx.coroutines.flow.asStateFlow
 import org.example.animation.model.AnimationProject
 
 class ProjectManager {
-    private val _engines = MutableStateFlow<List<AnimationEngine>>(listOf(AnimationEngine()))
+    private val _engines = MutableStateFlow<List<AnimationEngine>>(emptyList())
     val engines: StateFlow<List<AnimationEngine>> = _engines.asStateFlow()
 
-    private val _activeEngineIndex = MutableStateFlow(0)
+    private val _activeEngineIndex = MutableStateFlow(-1)
     val activeEngineIndex: StateFlow<Int> = _activeEngineIndex.asStateFlow()
 
-    private val _activeEngine = MutableStateFlow(_engines.value[0])
-    val activeEngine: StateFlow<AnimationEngine> = _activeEngine.asStateFlow()
+    private val _activeEngine = MutableStateFlow<AnimationEngine?>(null)
+    val activeEngine: StateFlow<AnimationEngine?> = _activeEngine.asStateFlow()
 
     fun addProject(project: AnimationProject = AnimationProject(), filePath: String? = null) {
         val newEngine = AnimationEngine(project)
@@ -29,6 +29,9 @@ class ProjectManager {
         if (index in _engines.value.indices) {
             _activeEngineIndex.value = index
             _activeEngine.value = _engines.value[index]
+        } else if (_engines.value.isEmpty()) {
+            _activeEngineIndex.value = -1
+            _activeEngine.value = null
         }
     }
 
@@ -38,20 +41,21 @@ class ProjectManager {
             val removed = list.removeAt(index)
             removed.cleanup()
             
-            if (list.isEmpty()) {
-                list.add(AnimationEngine())
-            }
-            
             _engines.value = list
-            val nextIndex = if (_activeEngineIndex.value >= list.size) list.size - 1 else _activeEngineIndex.value
-            setActiveProject(nextIndex.coerceAtLeast(0))
+            if (list.isEmpty()) {
+                _activeEngineIndex.value = -1
+                _activeEngine.value = null
+            } else {
+                val nextIndex = if (_activeEngineIndex.value >= list.size) list.size - 1 else _activeEngineIndex.value
+                setActiveProject(nextIndex.coerceAtLeast(0))
+            }
         }
     }
 
     fun moveProject(from: Int, to: Int) {
         val list = _engines.value.toMutableList()
         if (from in list.indices && to in list.indices) {
-            val activeId = _engines.value[_activeEngineIndex.value].id
+            val activeId = _engines.value.getOrNull(_activeEngineIndex.value)?.id
             val item = list.removeAt(from)
             list.add(to, item)
             _engines.value = list

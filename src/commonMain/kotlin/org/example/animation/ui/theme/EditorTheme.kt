@@ -151,6 +151,10 @@ object EditorShapes {
 
 object EditorTypography {
     @Composable
+    fun h1() = TextStyle(fontSize = 24.sp.scaled(), fontWeight = FontWeight.Black, color = EditorColors.textPrimary)
+    @Composable
+    fun h2() = TextStyle(fontSize = 18.sp.scaled(), fontWeight = FontWeight.Bold, color = EditorColors.textPrimary)
+    @Composable
     fun toolText() = TextStyle(fontSize = 9.sp.scaled(), fontWeight = FontWeight.Normal, color = EditorColors.textPrimary)
     @Composable
     fun panelTitle() = TextStyle(fontSize = 10.sp.scaled(), fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp.scaled(), color = EditorColors.textSecondary)

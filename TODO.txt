@@ -151,3 +151,6 @@
   - Артефакты: build/compose/binaries/main-release/ → actions/upload-artifact@v4.
 - Job Android (ubuntu-latest): `./gradlew assembleRelease bundleRelease` (APK + AAB).
   - ПОДПИСЬ: в android { } (build.gradle.kts ~110-143) НЕТ signingConfigs/buildTypes — assembleRelease даст неподписанный APK. Добавь signingConfigs(release) и buildTypes.release.signingConfig, читая storeFile/storePassword/keyAlias/keyPassword из env/gradle-свойств. В workflow восстанавливай keystore из secrets: RELE
+
+
+так же приложение должно сохранять все свои настройки

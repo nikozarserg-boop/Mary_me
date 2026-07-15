@@ -10,15 +10,14 @@ import androidx.compose.ui.graphics.asSkiaBitmap
 import androidx.compose.ui.unit.Density
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import org.example.animation.engine.ExportManager
 import org.example.animation.model.AnimationProject
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.EncodedImageFormat
 import ws.schild.jave.process.ffmpeg.DefaultFFMPEGLocator
 
-/**
- * JVM реализация платформенно-зависимого файлового ввода/вывода
- */
 actual fun createPlatformFileHandler(): PlatformFileHandler = JvmPlatformFileHandler()
 
 actual fun decodeImage(data: ByteArray): ImageBitmap? {
@@ -172,15 +171,28 @@ class JvmPlatformFileHandler : PlatformFileHandler {
         tempDir.mkdirs()
 
         try {
-            // 1. Рендерим кадры (всегда PNG как промежуточный)
             ExportManager.exportSequenceToPngs(project, width, height, density) { index, data ->
                 File(tempDir, "frame_%04d.png".format(index)).writeBytes(data)
                 onProgress(0.1f + (index.toFloat() / project.maxFrames) * 0.4f)
             }
 
-            // 2. Используем встроенный FFmpeg (JAVE извлекает нужный бинарник под ОС)
             val locator = DefaultFFMPEGLocator()
             val ffmpegExecutable = locator.executablePath
+
+            val gifFinal = File(tempDir, "palette.png").absolutePath
+            val paletteCmd = mutableListOf<String>().apply {
+                add(ffmpegExecutable)
+                add("-y")
+                add("-framerate")
+                add(fps.toString())
+                add("-i")
+                add(File(tempDir, "frame_%04d.png").absolutePath)
+                add("-vf")
+                add("palettegen=max_colors=128")
+                add(gifFinal)
+            }
+            val paletteProcess = ProcessBuilder(paletteCmd).inheritIO().start()
+            if (paletteProcess.waitFor() != 0) return@withContext false
 
             val cmd = mutableListOf<String>().apply {
                 add(ffmpegExecutable)
@@ -189,59 +201,27 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 add(fps.toString())
                 add("-i")
                 add(File(tempDir, "frame_%04d.png").absolutePath)
-
-                when (format.lowercase()) {
-                    "gif" -> {
-                        add("-vf")
-                        add("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse")
-                    }
-                    "apng" -> {
-                        add("-plays")
-                        add("0")
-                    }
-                    "mp4" -> {
-                        add("-c:v")
-                        add("libx264")
-                        add("-pix_fmt")
-                        add("yuv420p")
-                        add("-crf")
-                        add("23")
-                    }
-                    "webm" -> {
-                        add("-c:v")
-                        add("libvpx-vp9")
-                        add("-pix_fmt")
-                        add("yuv420p")
-                        add("-crf")
-                        add("30")
-                        add("-b:v")
-                        add("0")
-                    }
-                    "mov" -> {
-                        add("-c:v")
-                        add("prores_ks")
-                        add("-pix_fmt")
-                        add("yuv420p")
-                    }
-                    "mkv" -> {
-                        add("-c:v")
-                        add("libx264")
-                        add("-pix_fmt")
-                        add("yuv420p")
-                    }
-                    "avi" -> {
-                        add("-c:v")
-                        add("mpeg4")
-                        add("-q:v")
-                        add("5")
-                    }
-                }
+                add("-i")
+                add(gifFinal)
+                add("-filter_complex")
+                add("paletteuse")
+                add("-loop")
+                add("0")
                 add(outputPath)
             }
 
             val process = ProcessBuilder(cmd).inheritIO().start()
-            onProgress(0.9f)
-            process.waitFor() == 0
+            
+            val updateJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                while (process.isAlive) {
+                    delay(200)
+                    onProgress(0.9f)
+                }
+            }
+            
+            val success = process.waitFor() == 0
+            updateJob.cancel()
+            success
         } catch (e: Exception) {
             e.printStackTrace()
             false
