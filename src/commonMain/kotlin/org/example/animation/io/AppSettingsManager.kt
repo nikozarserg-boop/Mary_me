@@ -20,7 +20,17 @@ data class AppSettings(
     var recentProjects: MutableList<RecentProject> = mutableListOf(),
     var autoSaveEnabled: Boolean = true,
     var autoSaveIntervalMin: Int = 2,
-    var ghostFramesColor: ULong = 0xFF0099FFuL
+    var ghostFramesColor: ULong = 0xFF0099FFuL,
+    var ghostFramesEnabled: Boolean = true,
+    var ghostFramesBefore: Int = 2,
+    var ghostFramesAfter: Int = 1,
+    var brushSize: Float = 4f,
+    var smoothingLevel: Int = 1,
+    var antiAliasingEnabled: Boolean = true,
+    var lastActiveTool: String = "BRUSH",
+    var currentColor: ULong = 0xFF000000uL,
+    var currentOpacity: Float = 1.0f,
+    var currentBrushIndex: Int = 0
 )
 
 object AppSettingsManager {
@@ -75,7 +85,6 @@ object AppSettingsManager {
     fun getLanguage() = settings.language
     fun setLanguage(code: String) { settings.language = code; save() }
 
-    // Получение/сохранение выбранной темы оформления
     fun getTheme(): String = settings.theme
     fun setTheme(theme: String) { settings.theme = theme; save() }
     fun isAutoSaveEnabled() = settings.autoSaveEnabled
@@ -85,6 +94,36 @@ object AppSettingsManager {
 
     fun getGhostFramesColor() = settings.ghostFramesColor
     fun setGhostFramesColor(color: ULong) { settings.ghostFramesColor = color; save() }
+    
+    fun getGhostFramesEnabled() = settings.ghostFramesEnabled
+    fun setGhostFramesEnabled(enabled: Boolean) { settings.ghostFramesEnabled = enabled; save() }
+    
+    fun getGhostFramesBefore() = settings.ghostFramesBefore
+    fun setGhostFramesBefore(count: Int) { settings.ghostFramesBefore = count; save() }
+    
+    fun getGhostFramesAfter() = settings.ghostFramesAfter
+    fun setGhostFramesAfter(count: Int) { settings.ghostFramesAfter = count; save() }
+
+    fun getBrushSize() = settings.brushSize
+    fun setBrushSize(size: Float) { settings.brushSize = size; save() }
+
+    fun getSmoothingLevel() = settings.smoothingLevel
+    fun setSmoothingLevel(level: Int) { settings.smoothingLevel = level; save() }
+
+    fun isAntiAliasingEnabled() = settings.antiAliasingEnabled
+    fun setAntiAliasingEnabled(enabled: Boolean) { settings.antiAliasingEnabled = enabled; save() }
+
+    fun getLastActiveTool() = settings.lastActiveTool
+    fun setLastActiveTool(tool: String) { settings.lastActiveTool = tool; save() }
+
+    fun getCurrentColor() = settings.currentColor
+    fun setCurrentColor(color: ULong) { settings.currentColor = color; save() }
+
+    fun getCurrentOpacity() = settings.currentOpacity
+    fun setCurrentOpacity(opacity: Float) { settings.currentOpacity = opacity; save() }
+
+    fun getCurrentBrushIndex() = settings.currentBrushIndex
+    fun setCurrentBrushIndex(index: Int) { settings.currentBrushIndex = index; save() }
 
     fun addRecentProject(path: String, name: String) {
         settings.recentProjects.removeAll { it.path == path }
@@ -94,7 +133,6 @@ object AppSettingsManager {
     }
 
     fun getRecentProjects(): List<RecentProject> {
-        // Синхронизация с диском
         val existing = settings.recentProjects.filter { handler.fileExists(it.path) }
         if (existing.size != settings.recentProjects.size) {
             settings.recentProjects.clear()

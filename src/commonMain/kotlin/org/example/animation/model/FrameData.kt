@@ -166,6 +166,7 @@ class AnimationProject(
 
     fun addLayer(name: String = "Слой ${layers.size + 1}"): LayerData {
         val layer = LayerData(name = name)
+        layer.frames.clear() // remove default frame
         for (i in 0 until totalFrames) {
             layer.frames.add(FrameData())
         }
@@ -186,31 +187,57 @@ class AnimationProject(
         }
     }
 
-    fun addFrame(layerIndex: Int) {
-        if (layerIndex in layers.indices) {
-            layers[layerIndex].frames.add(FrameData())
+    /**
+     * Добавить новый кадр во все слои
+     */
+    fun addFrameGlobal(insertAt: Int = -1) {
+        for (layer in layers) {
+            val idx = if (insertAt == -1) layer.frames.size else insertAt.coerceIn(0, layer.frames.size)
+            layer.frames.add(idx, FrameData())
         }
     }
 
-    fun removeFrame(layerIndex: Int, frameIndex: Int) {
-        if (layerIndex in layers.indices) {
-            val layer = layers[layerIndex]
-            if (layer.frames.size > 1 && frameIndex in layer.frames.indices) {
-                layer.frames.removeAt(frameIndex)
+    /**
+     * Удалить кадр из всех слоев
+     */
+    fun removeFrameGlobal(frameIndex: Int) {
+        if (totalFrames > 1) {
+            for (layer in layers) {
+                if (frameIndex in layer.frames.indices) {
+                    layer.frames.removeAt(frameIndex)
+                }
             }
         }
     }
 
-    fun duplicateFrame(layerIndex: Int, frameIndex: Int): Int {
-        if (layerIndex in layers.indices) {
-            val layer = layers[layerIndex]
+    /**
+     * Дублировать кадр во всех слоях
+     */
+    fun duplicateFrameGlobal(frameIndex: Int): Int {
+        val insertAt = frameIndex + 1
+        for (layer in layers) {
             if (frameIndex in layer.frames.indices) {
-                val newFrame = layer.frames[frameIndex].copy()
-                layer.frames.add(frameIndex + 1, newFrame)
-                return frameIndex + 1
+                val copy = layer.frames[frameIndex].copy()
+                layer.frames.add(insertAt, copy)
+            } else {
+                layer.frames.add(FrameData()) // For sync if it wasn't
             }
         }
-        return frameIndex
+        return insertAt
+    }
+
+    fun moveFrameGlobal(from: Int, to: Int) {
+        if (from == to) return
+        val count = totalFrames
+        if (from !in 0 until count || to !in 0 until count) return
+        
+        for (layer in layers) {
+            if (from < layer.frames.size) {
+                val item = layer.frames.removeAt(from)
+                val insertAt = to.coerceIn(0, layer.frames.size)
+                layer.frames.add(insertAt, item)
+            }
+        }
     }
 
     val maxFrames: Int

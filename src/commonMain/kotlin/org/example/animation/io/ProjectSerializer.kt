@@ -92,6 +92,11 @@ object ProjectSerializer {
 
         try {
             val clean = jsonString.trim()
+            if (clean.isEmpty() || clean == "{}") {
+                project.layers.add(LayerData(EditorStrings["layer.defaultName"] + " 1"))
+                return project
+            }
+
             project.name = extractString(clean, "name") ?: EditorStrings["project.defaultName"]
             project.canvasWidth = extractInt(clean, "canvasWidth") ?: 800
             project.canvasHeight = extractInt(clean, "canvasHeight") ?: 600
@@ -103,81 +108,85 @@ object ProjectSerializer {
             project.createdTimestamp = extractLong(clean, "createdTimestamp") ?: 0
             project.lastModifiedTimestamp = extractLong(clean, "lastModifiedTimestamp") ?: 0
 
-            val layersArray = extractArray(clean, "layers") ?: return project.apply { 
-                layers.add(LayerData(EditorStrings["layer.defaultName"] + " 1")) 
-            }
-            val layerObjects = splitTopLevel(layersArray, '{', '}')
-
-            for (layerJson in layerObjects) {
-                val layer = LayerData(
-                    name = extractString(layerJson, "name") ?: EditorStrings["layer.defaultName"],
-                    isVisible = extractBoolean(layerJson, "isVisible") ?: true,
-                    opacity = extractFloat(layerJson, "opacity") ?: 1f,
-                    isLocked = extractBoolean(layerJson, "isLocked") ?: false
-                )
-                layer.frames.clear()
-
-                val framesArray = extractArray(layerJson, "frames") ?: continue
-                val frameObjects = splitTopLevel(framesArray, '{', '}')
-                for (frameJson in frameObjects) {
-                    val frame = FrameData(
-                        durationMs = extractInt(frameJson, "durationMs") ?: 83,
-                        name = extractString(frameJson, "name") ?: ""
+            val layersArray = extractArray(clean, "layers")
+            if (layersArray == null) {
+                project.layers.add(LayerData(EditorStrings["layer.defaultName"] + " 1"))
+            } else {
+                val layerObjects = splitTopLevel(layersArray, '{', '}')
+                for (layerJson in layerObjects) {
+                    val layer = LayerData(
+                        name = extractString(layerJson, "name") ?: EditorStrings["layer.defaultName"],
+                        isVisible = extractBoolean(layerJson, "isVisible") ?: true,
+                        opacity = extractFloat(layerJson, "opacity") ?: 1f,
+                        isLocked = extractBoolean(layerJson, "isLocked") ?: false
                     )
-                    frame.strokes.clear()
-                    frame.images.clear()
+                    layer.frames.clear()
 
-                    // Чтение штрихов
-                    val strokesArray = extractArray(frameJson, "strokes")
-                    if (strokesArray != null) {
-                        val strokeObjects = splitTopLevel(strokesArray, '{', '}')
-                        for (strokeJson in strokeObjects) {
-                            val toolTypeName = extractString(strokeJson, "toolType") ?: "PEN"
-                            val toolType = try { ToolType.valueOf(toolTypeName) } catch (e: Exception) { ToolType.PEN }
-                            val stroke = Stroke(
-                                color = hexToColor(extractString(strokeJson, "color") ?: "FF000000"),
-                                strokeWidth = extractFloat(strokeJson, "strokeWidth") ?: 4f,
-                                isEraser = extractBoolean(strokeJson, "isEraser") ?: false,
-                                toolType = toolType,
-                                opacity = extractFloat(strokeJson, "opacity") ?: 1f
+                    val framesArray = extractArray(layerJson, "frames")
+                    if (framesArray == null) {
+                        layer.frames.add(FrameData())
+                    } else {
+                        val frameObjects = splitTopLevel(framesArray, '{', '}')
+                        for (frameJson in frameObjects) {
+                            val frame = FrameData(
+                                durationMs = extractInt(frameJson, "durationMs") ?: 83,
+                                name = extractString(frameJson, "name") ?: ""
                             )
+                            frame.strokes.clear()
+                            frame.images.clear()
 
-                            val pointsArray = extractArray(strokeJson, "points") ?: continue
-                            val pointObjects = splitTopLevel(pointsArray, '{', '}')
-                            for (ptJson in pointObjects) {
-                                val x = extractFloat(ptJson, "x") ?: 0f
-                                val y = extractFloat(ptJson, "y") ?: 0f
-                                stroke.points.add(androidx.compose.ui.geometry.Offset(x, y))
+                            // Чтение штрихов
+                            val strokesArray = extractArray(frameJson, "strokes")
+                            if (strokesArray != null) {
+                                val strokeObjects = splitTopLevel(strokesArray, '{', '}')
+                                for (strokeJson in strokeObjects) {
+                                    val toolTypeName = extractString(strokeJson, "toolType") ?: "PEN"
+                                    val toolType = try { ToolType.valueOf(toolTypeName) } catch (e: Exception) { ToolType.PEN }
+                                    val stroke = Stroke(
+                                        color = hexToColor(extractString(strokeJson, "color") ?: "FF000000"),
+                                        strokeWidth = extractFloat(strokeJson, "strokeWidth") ?: 4f,
+                                        isEraser = extractBoolean(strokeJson, "isEraser") ?: false,
+                                        toolType = toolType,
+                                        opacity = extractFloat(strokeJson, "opacity") ?: 1f
+                                    )
+
+                                    val pointsArray = extractArray(strokeJson, "points") ?: continue
+                                    val pointObjects = splitTopLevel(pointsArray, '{', '}')
+                                    for (ptJson in pointObjects) {
+                                        val x = extractFloat(ptJson, "x") ?: 0f
+                                        val y = extractFloat(ptJson, "y") ?: 0f
+                                        stroke.points.add(androidx.compose.ui.geometry.Offset(x, y))
+                                    }
+                                    frame.strokes.add(stroke)
+                                }
                             }
-                            frame.strokes.add(stroke)
+
+                            // Чтение изображений
+                            val imagesArray = extractArray(frameJson, "images")
+                            if (imagesArray != null) {
+                                val imageObjects = splitTopLevel(imagesArray, '{', '}')
+                                for (imgJson in imageObjects) {
+                                    val base64Data = extractString(imgJson, "data") ?: ""
+                                    val imageData = decodeBase64(base64Data)
+                                    if (imageData.isNotEmpty()) {
+                                        val image = ImageElement(
+                                            data = imageData,
+                                            x = extractFloat(imgJson, "x") ?: 0f,
+                                            y = extractFloat(imgJson, "y") ?: 0f,
+                                            scale = extractFloat(imgJson, "scale") ?: 1f,
+                                            rotation = extractFloat(imgJson, "rotation") ?: 0f,
+                                            id = extractLong(imgJson, "id") ?: Clock.System.now().toEpochMilliseconds()
+                                        )
+                                        frame.images.add(image)
+                                    }
+                                }
+                            }
+                            layer.frames.add(frame)
                         }
                     }
-
-                    // Чтение изображений
-                    val imagesArray = extractArray(frameJson, "images")
-                    if (imagesArray != null) {
-                        val imageObjects = splitTopLevel(imagesArray, '{', '}')
-                        for (imgJson in imageObjects) {
-                            val base64Data = extractString(imgJson, "data") ?: ""
-                            val imageData = decodeBase64(base64Data)
-                            if (imageData.isNotEmpty()) {
-                                val image = ImageElement(
-                                    data = imageData,
-                                    x = extractFloat(imgJson, "x") ?: 0f,
-                                    y = extractFloat(imgJson, "y") ?: 0f,
-                                    scale = extractFloat(imgJson, "scale") ?: 1f,
-                                    rotation = extractFloat(imgJson, "rotation") ?: 0f,
-                                    id = extractLong(imgJson, "id") ?: Clock.System.now().toEpochMilliseconds()
-                                )
-                                frame.images.add(image)
-                            }
-                        }
-                    }
-
-                    layer.frames.add(frame)
+                    if (layer.frames.isEmpty()) layer.frames.add(FrameData())
+                    project.layers.add(layer)
                 }
-                if (layer.frames.isEmpty()) layer.frames.add(FrameData())
-                project.layers.add(layer)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -186,6 +195,7 @@ object ProjectSerializer {
         if (project.layers.isEmpty()) {
             project.layers.add(LayerData(EditorStrings["layer.defaultName"] + " 1"))
         }
+        project.ensureFrameCount(project.maxFrames)
         return project
     }
 
@@ -193,8 +203,8 @@ object ProjectSerializer {
     fun deserializeFromBytes(bytes: ByteArray): AnimationProject = deserialize(bytes.decodeToString())
 
     private fun extractString(json: String, key: String): String? {
-        val regex = "\"$key\"\\s*:\\s*\"([^\"]*)\"".toRegex()
-        return regex.find(json)?.groupValues?.getOrNull(1)
+        val regex = "\"$key\"\\s*:\\s*\"((?:[^\"\\\\]|\\\\.)*)\"".toRegex()
+        return regex.find(json)?.groupValues?.getOrNull(1)?.let { unescapeJson(it) }
     }
 
     private fun extractInt(json: String, key: String): Int? {
@@ -224,21 +234,25 @@ object ProjectSerializer {
         val startIdx = match.range.last + 1
         var depth = 1
         var idx = startIdx
+        var inString = false
+        var escaped = false
         while (idx < json.length && depth > 0) {
-            when (json[idx]) {
-                '[' -> depth++
-                ']' -> depth--
-                '"' -> {
-                    idx++
-                    while (idx < json.length && json[idx] != '"') {
-                        if (json[idx] == '\\') idx++
-                        idx++
-                    }
+            val c = json[idx]
+            if (escaped) {
+                escaped = false
+            } else if (c == '\\') {
+                escaped = true
+            } else if (c == '"') {
+                inString = !inString
+            } else if (!inString) {
+                when (c) {
+                    '[' -> depth++
+                    ']' -> depth--
                 }
             }
             idx++
         }
-        return json.substring(startIdx - 1, idx)
+        return if (depth == 0) json.substring(startIdx - 1, idx) else null
     }
 
     private fun splitTopLevel(array: String, open: Char, close: Char): List<String> {
@@ -246,17 +260,28 @@ object ProjectSerializer {
         var depth = 0
         var start = -1
         var i = 0
+        var inString = false
+        var escaped = false
         while (i < array.length) {
-            when (array[i]) {
-                open -> {
-                    if (depth == 0) start = i
-                    depth++
-                }
-                close -> {
-                    depth--
-                    if (depth == 0 && start >= 0) {
-                        results.add(array.substring(start, i + 1))
-                        start = -1
+            val c = array[i]
+            if (escaped) {
+                escaped = false
+            } else if (c == '\\') {
+                escaped = true
+            } else if (c == '"') {
+                inString = !inString
+            } else if (!inString) {
+                when (c) {
+                    open -> {
+                        if (depth == 0) start = i
+                        depth++
+                    }
+                    close -> {
+                        depth--
+                        if (depth == 0 && start >= 0) {
+                            results.add(array.substring(start, i + 1))
+                            start = -1
+                        }
                     }
                 }
             }
@@ -271,6 +296,14 @@ object ProjectSerializer {
             .replace("\n", "\\n")
             .replace("\r", "\\r")
             .replace("\t", "\\t")
+    }
+
+    private fun unescapeJson(s: String): String {
+        return s.replace("\\\\", "\\")
+            .replace("\\\"", "\"")
+            .replace("\\n", "\n")
+            .replace("\\r", "\r")
+            .replace("\\t", "\t")
     }
 
     private fun colorToHex(color: ULong): String {
@@ -290,7 +323,7 @@ object ProjectSerializer {
         return if (rounded == rounded.toInt().toFloat()) rounded.toInt().toString() else rounded.toString()
     }
 
-    // Простой Base64 для кроссплатформенности без зависимостей
+    // Base64 для кроссплатформенности
     private const val BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
 
     private fun encodeBase64(data: ByteArray): String {
@@ -322,20 +355,22 @@ object ProjectSerializer {
 
     private fun decodeBase64(base64: String): ByteArray {
         if (base64.isEmpty()) return byteArrayOf()
-        val clean = base64.replace("=", "").replace("\n", "").replace("\r", "")
+        val clean = base64.replace("=", "").replace("\n", "").replace("\r", "").replace(" ", "")
         val result = mutableListOf<Byte>()
         var i = 0
         while (i < clean.length) {
             val c1 = BASE64_ALPHABET.indexOf(clean[i])
-            val c2 = if (i + 1 < clean.length) BASE64_ALPHABET.indexOf(clean[i + 1]) else 0
+            val c2 = if (i + 1 < clean.length) BASE64_ALPHABET.indexOf(clean[i + 1]) else -1
             val c3 = if (i + 2 < clean.length) BASE64_ALPHABET.indexOf(clean[i + 2]) else -1
             val c4 = if (i + 3 < clean.length) BASE64_ALPHABET.indexOf(clean[i + 3]) else -1
 
-            result.add(((c1 shl 2) or (c2 shr 4)).toByte())
-            if (c3 != -1) {
-                result.add(((c2 shl 4) or (c3 shr 2)).toByte())
-                if (c4 != -1) {
-                    result.add(((c3 shl 6) or c4).toByte())
+            if (c1 != -1 && c2 != -1) {
+                result.add(((c1 shl 2) or (c2 shr 4)).toByte())
+                if (c3 != -1) {
+                    result.add(((c2 shl 4) or (c3 shr 2)).toByte())
+                    if (c4 != -1) {
+                        result.add(((c3 shl 6) or c4).toByte())
+                    }
                 }
             }
             i += 4

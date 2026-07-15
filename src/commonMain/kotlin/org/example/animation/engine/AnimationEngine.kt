@@ -38,7 +38,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _activeStroke = MutableStateFlow<Stroke?>(null)
     val activeStroke: StateFlow<Stroke?> = _activeStroke.asStateFlow()
 
-    // Видимость панелей UI (можно сделать глобальными, но для гибкости оставим тут)
+    // Видимость панелей UI
     private val _isToolsVisible = MutableStateFlow(true)
     val isToolsVisible = _isToolsVisible.asStateFlow()
     private val _isLayersVisible = MutableStateFlow(true)
@@ -69,19 +69,24 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     val currentLayerIndex: StateFlow<Int> = _currentLayerIndex.asStateFlow()
     private val _isPlaying = MutableStateFlow(false)
     val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
-    private val _currentTool = MutableStateFlow(ToolType.BRUSH)
+    
+    private val _currentTool = MutableStateFlow(try { ToolType.valueOf(AppSettingsManager.getLastActiveTool()) } catch(e: Exception) { ToolType.BRUSH })
     val currentTool: StateFlow<ToolType> = _currentTool.asStateFlow()
+    
     private val _currentColor = MutableStateFlow(0xFF000000uL)
     val currentColor: StateFlow<ULong> = _currentColor.asStateFlow()
-    private val _brushSize = MutableStateFlow(4f)
+    
+    private val _brushSize = MutableStateFlow(AppSettingsManager.getBrushSize())
     val brushSize: StateFlow<Float> = _brushSize.asStateFlow()
+    
     private val _opacity = MutableStateFlow(1f)
     val opacity: StateFlow<Float> = _opacity.asStateFlow()
     
     // Сглаживание штрихов
-    private val _smoothingLevel = MutableStateFlow(1)
+    private val _smoothingLevel = MutableStateFlow(AppSettingsManager.getSmoothingLevel())
     val smoothingLevel: StateFlow<Int> = _smoothingLevel.asStateFlow()
-    private val _antiAliasingEnabled = MutableStateFlow(true)
+    
+    private val _antiAliasingEnabled = MutableStateFlow(AppSettingsManager.isAntiAliasingEnabled())
     val antiAliasingEnabled: StateFlow<Boolean> = _antiAliasingEnabled.asStateFlow()
 
     // Наборы кистей
@@ -98,13 +103,16 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _rotation = MutableStateFlow(0f) // В градусах
     val rotation: StateFlow<Float> = _rotation.asStateFlow()
 
-    // Призрачные кадры (показ предыдущих/следующих кадров)
-    private val _ghostFramesEnabled = MutableStateFlow(true)
+    // Призрачные кадры
+    private val _ghostFramesEnabled = MutableStateFlow(AppSettingsManager.getGhostFramesEnabled())
     val ghostFramesEnabled: StateFlow<Boolean> = _ghostFramesEnabled.asStateFlow()
-    private val _ghostFramesBefore = MutableStateFlow(2)
+    
+    private val _ghostFramesBefore = MutableStateFlow(AppSettingsManager.getGhostFramesBefore())
     val ghostFramesBefore: StateFlow<Int> = _ghostFramesBefore.asStateFlow()
-    private val _ghostFramesAfter = MutableStateFlow(1)
+    
+    private val _ghostFramesAfter = MutableStateFlow(AppSettingsManager.getGhostFramesAfter())
     val ghostFramesAfter: StateFlow<Int> = _ghostFramesAfter.asStateFlow()
+    
     private val _ghostFramesColor = MutableStateFlow(AppSettingsManager.getGhostFramesColor())
     val ghostFramesColor: StateFlow<ULong> = _ghostFramesColor.asStateFlow()
 
@@ -217,28 +225,46 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
 
     fun setCurrentFrame(index: Int) { if (index in 0 until _project.value.maxFrames) _currentFrameIndex.value = index }
     fun setCurrentLayer(index: Int) { if (index in _project.value.layers.indices) _currentLayerIndex.value = index }
-    fun setTool(tool: ToolType) { _currentTool.value = tool }
+    fun setTool(tool: ToolType) { 
+        _currentTool.value = tool 
+        AppSettingsManager.setLastActiveTool(tool.name)
+    }
     fun setCurrentColor(color: ULong) { _currentColor.value = color }
-    fun setBrushSize(size: Float) { _brushSize.value = size.coerceIn(1f, 100f) }
+    fun setBrushSize(size: Float) { 
+        _brushSize.value = size.coerceIn(1f, 100f) 
+        AppSettingsManager.setBrushSize(_brushSize.value)
+    }
     fun setOpacity(opacity: Float) { _opacity.value = opacity.coerceIn(0f, 1f) }
-    fun setSmoothingLevel(level: Int) { _smoothingLevel.value = level.coerceIn(0, 3) }
-    fun setAntiAliasingEnabled(enabled: Boolean) { _antiAliasingEnabled.value = enabled }
+    fun setSmoothingLevel(level: Int) { 
+        _smoothingLevel.value = level.coerceIn(0, 3) 
+        AppSettingsManager.setSmoothingLevel(_smoothingLevel.value)
+    }
+    fun setAntiAliasingEnabled(enabled: Boolean) { 
+        _antiAliasingEnabled.value = enabled 
+        AppSettingsManager.setAntiAliasingEnabled(enabled)
+    }
     
     fun setZoom(zoom: Float) { _zoom.value = zoom.coerceIn(0.001f, 1000f) }
-    
     fun setPanOffset(offset: Offset) { _panOffset.value = offset }
     fun setRotation(deg: Float) {
-        // Нормализуем в диапазон (-180°, 180°], чтобы при полном обороте
-        // значение сбрасывалось к 0 вместо накопления 360/720/...
         var normalized = deg % 360f
         if (normalized > 180f) normalized -= 360f
         if (normalized <= -180f) normalized += 360f
         _rotation.value = normalized
     }
 
-    fun setGhostFramesEnabled(enabled: Boolean) { _ghostFramesEnabled.value = enabled }
-    fun setGhostFramesFramesBefore(count: Int) { _ghostFramesBefore.value = count }
-    fun setGhostFramesFramesAfter(count: Int) { _ghostFramesAfter.value = count }
+    fun setGhostFramesEnabled(enabled: Boolean) { 
+        _ghostFramesEnabled.value = enabled 
+        AppSettingsManager.setGhostFramesEnabled(enabled)
+    }
+    fun setGhostFramesFramesBefore(count: Int) { 
+        _ghostFramesBefore.value = count 
+        AppSettingsManager.setGhostFramesBefore(count)
+    }
+    fun setGhostFramesFramesAfter(count: Int) { 
+        _ghostFramesAfter.value = count 
+        AppSettingsManager.setGhostFramesAfter(count)
+    }
     fun setGhostFramesColor(color: ULong) {
         _ghostFramesColor.value = color
         AppSettingsManager.setGhostFramesColor(color)
@@ -255,14 +281,14 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         val layer = _project.value.layers.getOrNull(_currentLayerIndex.value) ?: return
         if (layer.isLocked || !layer.isVisible) return
         
-    _activeStroke.value = Stroke(
-        points = mutableListOf(point),
-        color = _currentColor.value,
-        strokeWidth = _brushSize.value,
-        isEraser = _currentTool.value.name.contains("ERASER"),
-        toolType = _currentTool.value,
-        opacity = _opacity.value
-    )
+        _activeStroke.value = Stroke(
+            points = mutableListOf(point),
+            color = _currentColor.value,
+            strokeWidth = _brushSize.value,
+            isEraser = _currentTool.value.name.contains("ERASER"),
+            toolType = _currentTool.value,
+            opacity = _opacity.value
+        )
     }
 
     fun continueStroke(point: Offset) {
@@ -306,7 +332,6 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         _hasUnsavedChanges.value = true
     }
 
-    // --- Геометрические фигуры (линия, прямоугольник, эллипс) ---
     fun addShapeStroke(toolType: ToolType, start: Offset, end: Offset) {
         val layer = _project.value.layers.getOrNull(_currentLayerIndex.value) ?: return
         if (layer.isLocked || !layer.isVisible) return
@@ -385,7 +410,6 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         return out
     }
 
-    // --- Заливка областей ---
     fun floodFillAt(point: Offset, fillColor: ULong) {
         val w = _project.value.canvasWidth
         val h = _project.value.canvasHeight
@@ -407,7 +431,6 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         }
     }
 
-    // --- Пипетка ---
     fun pickColorAt(point: Offset): ULong? {
         val w = _project.value.canvasWidth
         val h = _project.value.canvasHeight
@@ -422,14 +445,6 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
                 frameIndex = frameIndex
             )
         } catch (e: Exception) { null }
-    }
-
-    private fun ulongToColor(color: ULong): Color {
-        val a = ((color shr 24) and 0xFFuL).toInt() / 255f
-        val r = ((color shr 16) and 0xFFuL).toInt() / 255f
-        val g = ((color shr 8) and 0xFFuL).toInt() / 255f
-        val b = (color and 0xFFuL).toInt() / 255f
-        return Color(r, g, b, a)
     }
 
     fun importImage() {
@@ -455,12 +470,17 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     }
 
     fun addLayer() { 
-        saveUndoState(); _project.value.addLayer(); _project.value = _project.value.copy()
-        _currentLayerIndex.value = _project.value.layers.size - 1; _hasUnsavedChanges.value = true 
+        saveUndoState()
+        _project.value.addLayer()
+        _project.value = _project.value.copy()
+        _currentLayerIndex.value = _project.value.layers.size - 1
+        _hasUnsavedChanges.value = true 
     }
     fun removeLayer(index: Int) {
         if (index in _project.value.layers.indices && _project.value.layers.size > 1) {
-            saveUndoState(); _project.value.removeLayer(index); _project.value = _project.value.copy()
+            saveUndoState()
+            _project.value.removeLayer(index)
+            _project.value = _project.value.copy()
             _currentLayerIndex.value = (_project.value.layers.size - 1).coerceAtLeast(0)
             _hasUnsavedChanges.value = true
         }
@@ -493,13 +513,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         saveUndoState()
         val currentProject = _project.value
         val insertAt = _currentFrameIndex.value + 1
-        for (layer in currentProject.layers) {
-            if (insertAt <= layer.frames.size) {
-                layer.frames.add(insertAt, FrameData())
-            } else {
-                layer.frames.add(FrameData())
-            }
-        }
+        currentProject.addFrameGlobal(insertAt)
         _project.value = currentProject.copy()
         _currentFrameIndex.value = insertAt.coerceAtMost(_project.value.maxFrames - 1)
         _hasUnsavedChanges.value = true
@@ -507,21 +521,25 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     fun duplicateFrame() {
         saveUndoState()
         val currentProject = _project.value
-        val insertAt = _currentFrameIndex.value + 1
-        for (layer in currentProject.layers) {
-            val src = layer.frames.getOrNull(_currentFrameIndex.value)
-            if (src != null && insertAt <= layer.frames.size) {
-                layer.frames.add(insertAt, src.copy())
-            }
-        }
+        val insertAt = currentProject.duplicateFrameGlobal(_currentFrameIndex.value)
         _project.value = currentProject.copy()
         _currentFrameIndex.value = insertAt.coerceAtMost(_project.value.maxFrames - 1)
         _hasUnsavedChanges.value = true
     }
-    fun removeFrame() { saveUndoState(); _project.value.removeFrame(_currentLayerIndex.value, _currentFrameIndex.value); _project.value = _project.value.copy(); _currentFrameIndex.value = (_project.value.maxFrames - 1).coerceAtLeast(0); _hasUnsavedChanges.value = true }
-    fun clearFrame() { saveUndoState(); _project.value.layers.getOrNull(_currentLayerIndex.value)?.frames?.getOrNull(_currentFrameIndex.value)?.clear(); _project.value = _project.value.copy(); _hasUnsavedChanges.value = true }
+    fun removeFrame() { 
+        saveUndoState()
+        _project.value.removeFrameGlobal(_currentFrameIndex.value)
+        _project.value = _project.value.copy()
+        _currentFrameIndex.value = (_currentFrameIndex.value).coerceAtMost(_project.value.maxFrames - 1)
+        _hasUnsavedChanges.value = true 
+    }
+    fun clearFrame() { 
+        saveUndoState()
+        _project.value.layers.getOrNull(_currentLayerIndex.value)?.frames?.getOrNull(_currentFrameIndex.value)?.clear()
+        _project.value = _project.value.copy()
+        _hasUnsavedChanges.value = true 
+    }
 
-    // Буфер обмена для кадра (копирование/вставка)
     private var clipboardFrame: FrameData? = null
 
     fun copyFrame() {
@@ -529,23 +547,19 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         clipboardFrame = frame?.copy()
     }
 
-    // Вставить скопированный кадр ПОСЛЕ текущего, во все слои (для каждого слоя — свой кадр,
-    // но содержимое вставляется только на активном слое; остальные получают пустые кадры
-    // чтобы сохранить синхронизацию длины по всем слоям)
     fun pasteFrame() {
         val src = clipboardFrame ?: return
         saveUndoState()
         val currentProject = _project.value
         val insertAt = _currentFrameIndex.value + 1
+        
         for (layer in currentProject.layers) {
             val isCurrent = layer == currentProject.layers.getOrNull(_currentLayerIndex.value)
             val content = if (isCurrent) src.copy() else FrameData()
-            if (insertAt <= layer.frames.size) {
-                layer.frames.add(insertAt, content)
-            } else {
-                layer.frames.add(content)
-            }
+            layer.frames.add(insertAt.coerceIn(0, layer.frames.size), content)
         }
+        
+        currentProject.ensureFrameCount(currentProject.maxFrames)
         _project.value = currentProject.copy()
         _currentFrameIndex.value = insertAt.coerceAtMost(_project.value.maxFrames - 1)
         _hasUnsavedChanges.value = true
@@ -553,47 +567,40 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
 
     fun moveFrame(from: Int, to: Int) {
         if (from == to) return
-        if (from !in 0 until _project.value.maxFrames || to !in 0 until _project.value.maxFrames) return
         saveUndoState()
-        val currentProject = _project.value
-        for (layer in currentProject.layers) {
-            if (from < layer.frames.size) {
-                val item = layer.frames.removeAt(from)
-                val insertAt = to.coerceIn(0, layer.frames.size)
-                layer.frames.add(insertAt, item)
-            }
-        }
-        _project.value = currentProject.copy()
+        _project.value.moveFrameGlobal(from, to)
+        _project.value = _project.value.copy()
         _currentFrameIndex.value = to
         _hasUnsavedChanges.value = true
     }
 
-    // Перемещение кадра между слоями и позициями (перетаскивание).
-    // Работает между любыми кадрами и слоями.
     fun moveFrameToLayer(fromLayer: Int, fromFrame: Int, toLayer: Int, toFrame: Int) {
         val layers = _project.value.layers
         if (fromLayer !in layers.indices || toLayer !in layers.indices) return
-        val fromLayerData = layers[fromLayer]
+        
+        saveUndoState()
+        val currentProject = _project.value
+        val fromLayerData = currentProject.layers[fromLayer]
         if (fromFrame !in fromLayerData.frames.indices) return
 
-        saveUndoState()
-        val frame = fromLayerData.frames.removeAt(fromFrame)
-        val toLayerData = layers[toLayer]
-        // Если перетаскиваем в тот же слой и цель правее источника — корректируем индекс,
-        // т.к. после удаления исходного кадра позиции сместились на -1.
-        val rawInsert = if (fromLayer == toLayer && fromFrame < toFrame) toFrame - 1 else toFrame
-        val insertAt = rawInsert.coerceIn(0, toLayerData.frames.size)
-        toLayerData.frames.add(insertAt, frame)
-
-        // Синхронизируем длину всех слоёв (добиваем пустыми кадрами)
-        val newMax = layers.maxOf { it.frames.size }
-        for (layer in layers) {
-            while (layer.frames.size < newMax) layer.frames.add(FrameData())
+        val frameContent = fromLayerData.frames[fromFrame].copy()
+        fromLayerData.frames[fromFrame].clear() 
+        
+        val toLayerData = currentProject.layers[toLayer]
+        if (toFrame in toLayerData.frames.indices) {
+             toLayerData.frames.add(toFrame, frameContent)
+             for (layer in currentProject.layers) {
+                 if (layer != toLayerData) {
+                     layer.frames.add(toFrame.coerceIn(0, layer.frames.size), FrameData())
+                 }
+             }
+             currentProject.removeFrameGlobal(fromFrame)
         }
 
-        _project.value = _project.value.copy()
+        currentProject.ensureFrameCount(currentProject.maxFrames)
+        _project.value = currentProject.copy()
         _currentLayerIndex.value = toLayer
-        _currentFrameIndex.value = insertAt
+        _currentFrameIndex.value = if (toFrame > fromFrame) toFrame - 1 else toFrame
         _hasUnsavedChanges.value = true
     }
 

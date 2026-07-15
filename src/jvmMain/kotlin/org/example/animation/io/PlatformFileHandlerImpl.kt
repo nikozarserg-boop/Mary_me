@@ -2,6 +2,9 @@ package org.example.animation.io
 
 import java.io.File
 import java.awt.Desktop
+import java.awt.Toolkit
+import java.awt.datatransfer.DataFlavor
+import java.awt.datatransfer.Transferable
 import javax.swing.JFileChooser
 import javax.swing.filechooser.FileNameExtensionFilter
 import androidx.compose.ui.graphics.ImageBitmap
@@ -178,21 +181,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
 
             val locator = DefaultFFMPEGLocator()
             val ffmpegExecutable = locator.executablePath
-
-            val gifFinal = File(tempDir, "palette.png").absolutePath
-            val paletteCmd = mutableListOf<String>().apply {
-                add(ffmpegExecutable)
-                add("-y")
-                add("-framerate")
-                add(fps.toString())
-                add("-i")
-                add(File(tempDir, "frame_%04d.png").absolutePath)
-                add("-vf")
-                add("palettegen=max_colors=128")
-                add(gifFinal)
-            }
-            val paletteProcess = ProcessBuilder(paletteCmd).inheritIO().start()
-            if (paletteProcess.waitFor() != 0) return@withContext false
+            val inputPattern = File(tempDir, "frame_%04d.png").absolutePath
 
             val cmd = mutableListOf<String>().apply {
                 add(ffmpegExecutable)
@@ -200,19 +189,69 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 add("-framerate")
                 add(fps.toString())
                 add("-i")
-                add(File(tempDir, "frame_%04d.png").absolutePath)
-                add("-i")
-                add(gifFinal)
-                add("-filter_complex")
-                add("paletteuse")
-                add("-loop")
-                add("0")
+                add(inputPattern)
+                
+                when (format.lowercase()) {
+                    "gif" -> {
+                        val palettePath = File(tempDir, "palette.png").absolutePath
+                        // Generate palette
+                        val pCmd = listOf(ffmpegExecutable, "-y", "-framerate", fps.toString(), "-i", inputPattern, "-vf", "palettegen", palettePath)
+                        ProcessBuilder(pCmd).start().waitFor()
+                        
+                        add("-i")
+                        add(palettePath)
+                        add("-filter_complex")
+                        add("paletteuse")
+                        add("-loop")
+                        add("0")
+                    }
+                    "apng" -> {
+                        add("-plays")
+                        add("0")
+                    }
+                    "mp4" -> {
+                        add("-c:v")
+                        add("libx264")
+                        add("-pix_fmt")
+                        add("yuv420p")
+                        add("-crf")
+                        add("23")
+                    }
+                    "webm" -> {
+                        add("-c:v")
+                        add("libvpx-vp9")
+                        add("-pix_fmt")
+                        add("yuv420p")
+                        add("-crf")
+                        add("30")
+                        add("-b:v")
+                        add("0")
+                    }
+                    "mov" -> {
+                        add("-c:v")
+                        add("prores_ks")
+                        add("-pix_fmt")
+                        add("yuva444p10le")
+                    }
+                    "mkv" -> {
+                        add("-c:v")
+                        add("libx264")
+                        add("-pix_fmt")
+                        add("yuv420p")
+                    }
+                    "avi" -> {
+                        add("-c:v")
+                        add("mpeg4")
+                        add("-q:v")
+                        add("5")
+                    }
+                }
                 add(outputPath)
             }
 
-            val process = ProcessBuilder(cmd).inheritIO().start()
+            val process = ProcessBuilder(cmd).start()
             
-            val updateJob = kotlinx.coroutines.GlobalScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val progressJob = launch {
                 while (process.isAlive) {
                     delay(200)
                     onProgress(0.9f)
@@ -220,7 +259,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
             }
             
             val success = process.waitFor() == 0
-            updateJob.cancel()
+            progressJob.cancel()
             success
         } catch (e: Exception) {
             e.printStackTrace()
