@@ -14,7 +14,7 @@ class SutBrushImporter : BrushImporter {
             // As a best-effort, we search for PNG signatures in the raw bytes.
             
             var i = 0
-            val pngSignature = byteArrayOf(0x89.toByte(), 'P'.toByte(), 'N'.toByte(), 'G'.toByte())
+            val pngSignature = byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte())
             
             while (i < bytes.size - 8) {
                 if (bytes[i] == pngSignature[0] && 
@@ -24,7 +24,7 @@ class SutBrushImporter : BrushImporter {
                     
                     // Found a PNG! Try to find its end. 
                     // PNG ends with IEND chunk (4 bytes name + 4 bytes CRC)
-                    val iendSignature = byteArrayOf('I'.toByte(), 'E'.toByte(), 'N'.toByte(), 'D'.toByte())
+                    val iendSignature = byteArrayOf('I'.code.toByte(), 'E'.code.toByte(), 'N'.code.toByte(), 'D'.code.toByte())
                     var j = i + 4
                     var foundEnd = false
                     while (j < bytes.size - 4) {
