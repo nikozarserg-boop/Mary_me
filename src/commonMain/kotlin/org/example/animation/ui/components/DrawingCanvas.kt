@@ -90,6 +90,8 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                     var previousPan = Offset.Zero
                     var previousZoom = 1f
                     var previousRotation = 0f
+                    var previousPinchDistance = 0f
+                    var previousPinchAngle = 0f
                     var activePointerId: PointerId? = null
                     var strokeStarted = false
                     var startCanvasPos = Offset.Zero
@@ -173,15 +175,20 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                 }
                                 shapePreview = null
 
-                                // Центр между пальцами
-                                val centroid = activeChanges.map { it.position }
-                                    .let { positions ->
-                                        Offset(
-                                            positions.sumOf { it.x.toDouble() }.toFloat() / positions.size,
-                                            positions.sumOf { it.y.toDouble() }.toFloat() / positions.size
-                                        )
-                                    }
+                                val positions = activeChanges.map { it.position }
+                                val centroid = Offset(
+                                    positions.sumOf { it.x.toDouble() }.toFloat() / positions.size,
+                                    positions.sumOf { it.y.toDouble() }.toFloat() / positions.size
+                                )
                                 previousPan = centroid
+
+                                if (positions.size >= 2) {
+                                    previousPinchDistance = (positions[1] - positions[0]).getDistance()
+                                    previousPinchAngle = atan2(
+                                        (positions[1].y - positions[0].y).toDouble(),
+                                        (positions[1].x - positions[0].x).toDouble()
+                                    ).toFloat()
+                                }
 
                                 // Потребляем все изменения
                                 activeChanges.forEach { it.consume() }
@@ -197,13 +204,10 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                 )
 
                                 // Масштаб — по расстоянию между пальцами
-                                if (positions.size >= 2) {
+                                if (positions.size >= 2 && previousPinchDistance > 0f) {
                                     val dist = (positions[1] - positions[0]).getDistance()
-                                    val prevDist = ((positions[1] - centroid) - (positions[0] - centroid)).getDistance() * 2f
-                                    if (prevDist > 0f) {
-                                        val zoomChange = dist / prevDist
-                                        engine.setZoom(previousZoom * zoomChange)
-                                    }
+                                    val zoomChange = dist / previousPinchDistance
+                                    engine.setZoom(previousZoom * zoomChange)
                                 }
 
                                 // Поворот — по углу между пальцами
@@ -212,18 +216,14 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                         (positions[1].y - positions[0].y).toDouble(),
                                         (positions[1].x - positions[0].x).toDouble()
                                     ).toFloat()
-                                    val prevAngle = atan2(
-                                        ((positions[1] - centroid).y - (positions[0] - centroid).y).toDouble(),
-                                        ((positions[1] - centroid).x - (positions[0] - centroid).x).toDouble()
-                                    ).toFloat()
-                                    engine.setRotation(previousRotation + Math.toDegrees((angle - prevAngle).toDouble()).toFloat())
+                                    val deltaDeg = Math.toDegrees((angle - previousPinchAngle).toDouble()).toFloat()
+                                    engine.setRotation(previousRotation + deltaDeg)
                                 }
 
                                 // Панорамирование
                                 val panDelta = centroid - previousPan
                                 engine.setPanOffset(engine.panOffset.value + panDelta)
                                 previousPan = centroid
-                                previousZoom = engine.zoom.value
 
                                 activeChanges.forEach { it.consume() }
                                 continue
