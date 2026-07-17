@@ -22,6 +22,7 @@ import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.ExperimentalComposeUiApi
+import org.example.animation.model.BrushPreset
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -119,6 +120,7 @@ fun EditorScreen(
     val rotation by engine.rotation.collectAsState()
     val canUndo by engine.canUndo.collectAsState()
     val canRedo by engine.canRedo.collectAsState()
+    val showBrushStore by engine.showBrushStore.collectAsState()
 
     val toolsVisible by engine.isToolsVisible.collectAsState()
     val layersVisible by engine.isLayersVisible.collectAsState()
@@ -278,34 +280,33 @@ fun EditorScreen(
                         timelineHeight = (timelineHeight - delta.dp).coerceIn(UiDimensions.MinTimelineHeight.scaledNonReactive(), UiDimensions.MaxTimelineHeight.scaledNonReactive())
                     }
                 }
-                
-                Box(modifier = Modifier.fillMaxWidth().height(if (timelineCollapsed) 30.dp.scaled() else timelineHeight)) {
-                    Column(Modifier.fillMaxSize()) {
-                        val isGlass = LocalThemeType.current == ThemeType.GLASS
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(30.dp.scaled())
-                                .background(if (isGlass) EditorColors.panelHeader.copy(alpha = 0.6f) else EditorColors.panelHeader)
-                                .then(if (isGlass) Modifier.border(0.5.dp.scaled(), EditorColors.glassBorder) else Modifier),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            PanelStyledIconButton(
-                                icon = if (timelineCollapsed) EditorIcons.iconKeyboardArrowUp else EditorIcons.iconKeyboardArrowDown,
-                                onClick = { engine.setTimelineCollapsed(!timelineCollapsed) },
-                                modifier = Modifier.padding(horizontal = 4.dp.scaled()),
-                                tooltip = if (timelineCollapsed) EditorStrings.observeString("view.expand") else EditorStrings.observeString("view.collapse")
-                            )
-                            Text(EditorStrings.observeString("panel.timeline").uppercase(), style = EditorTypography.panelTitle())
-                            Spacer(Modifier.weight(1f))
-                            PanelStyledIconButton(
-                                icon = EditorIcons.iconClose,
-                                onClick = { engine.setTimelineVisible(false) },
-                                modifier = Modifier.padding(horizontal = 4.dp.scaled()),
-                                tooltip = EditorStrings.observeString("close")
-                            )
-                        }
-                        if (!timelineCollapsed) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    val isGlass = LocalThemeType.current == ThemeType.GLASS
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(30.dp.scaled())
+                            .background(if (isGlass) EditorColors.panelHeader.copy(alpha = 0.6f) else EditorColors.panelHeader)
+                            .then(if (isGlass) Modifier.border(0.5.dp.scaled(), EditorColors.glassBorder) else Modifier),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        PanelStyledIconButton(
+                            icon = if (timelineCollapsed) EditorIcons.iconKeyboardArrowUp else EditorIcons.iconKeyboardArrowDown,
+                            onClick = { engine.setTimelineCollapsed(!timelineCollapsed) },
+                            modifier = Modifier.padding(horizontal = 4.dp.scaled()),
+                            tooltip = if (timelineCollapsed) EditorStrings.observeString("view.expand") else EditorStrings.observeString("view.collapse")
+                        )
+                        Text(EditorStrings.observeString("panel.timeline").uppercase(), style = EditorTypography.panelTitle())
+                        Spacer(Modifier.weight(1f))
+                        PanelStyledIconButton(
+                            icon = EditorIcons.iconClose,
+                            onClick = { engine.setTimelineVisible(false) },
+                            modifier = Modifier.padding(horizontal = 4.dp.scaled()),
+                            tooltip = EditorStrings.observeString("close")
+                        )
+                    }
+                    if (!timelineCollapsed) {
+                        Box(modifier = Modifier.fillMaxWidth().height((timelineHeight - 30.dp.scaled()).coerceAtLeast(0.dp))) {
                             TimelinePanel(engine = engine, modifier = Modifier.fillMaxSize())
                         }
                     }
@@ -328,6 +329,16 @@ fun EditorScreen(
 
             EditorStatusBar(project.name, "${project.canvasWidth}×${project.canvasHeight}", currentFrameIndex + 1, project.maxFrames, project.fps, isPlaying)
         }
+    }
+
+    if (showBrushStore) {
+        BrushStoreDialog(
+            onDismiss = { engine.closeBrushStore() },
+            onBrushInstalled = { preset ->
+                engine.importBrushesFromPath("")
+                engine.closeBrushStore()
+            }
+        )
     }
 }
 

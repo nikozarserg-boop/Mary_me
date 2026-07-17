@@ -200,5 +200,11 @@
   "permission.message": "Для работы с проектами и файлами приложение требует доступа к хранилищу устройства.",
   "permission.settingsHint": "Нажмите кнопку ещё раз, чтобы открыть настройки системы.",
   "permission.allowBtn": "Разрешить",
-  "permission.openSettingsBtn": "Настройки"
+  "permission.openSettingsBtn": "Настройки",
+  "store.title": "Магазин кистей",
+  "store.search": "Поиск кистей...",
+  "store.categories": "Категории",
+  "store.download": "Скачать",
+  "store.retry": "Повторить",
+  "store.installed": "Установлено"
 }

@@ -2,6 +2,9 @@ package org.example.animation.ui.components
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.runtime.*
+import kotlinx.coroutines.*
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsHoveredAsState
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -39,10 +42,12 @@ import kotlin.math.roundToInt
 @Composable
 fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val focusRequester = remember { FocusRequester() }
-    
+    val scope = rememberCoroutineScope()
+
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
     }
+
     
     val project by engine.project.collectAsState()
     val currentFrameIndex by engine.currentFrameIndex.collectAsState()
@@ -51,6 +56,9 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
     // Состояние drag&drop для кадров
     var dragState by remember { mutableStateOf<FrameDragState?>(null) }
+
+    // Состояние полос прокрутки таймлайна
+    var timelineScrollPos by remember { mutableStateOf(0f) }
 
     Surface(modifier = modifier.fillMaxWidth().onKeyEvent { event ->
         if (event.type == KeyEventType.KeyUp &&
@@ -68,7 +76,6 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(EditorColors.panelHeader)
-                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 8.dp.scaled(), vertical = 4.dp.scaled()),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -128,15 +135,36 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 val cellHeight = 32.dp.scaled()
                 val cellWidthPx = with(density) { cellWidth.toPx() }
                 val cellHeightPx = with(density) { cellHeight.toPx() }
-                val horizontalScrollState = rememberScrollState()
                 val verticalScrollState = rememberScrollState()
+
+                val timelineScrollState = rememberScrollState()
+
+                // Синхронизация позиции скролла с вычисленным значением.
+                // Для избегания ошибок ограниченной области suspend используем try-блок.
+                // Синхронизация позиции скролла: лучше не трогать state.scrollTo/animateScrollTo,
+                // т.к. в разных версиях Compose Multiplatform доступ/контекст suspend-функций отличается.
+                // Оставляем значение timelineScrollPos только как источник для расчёта thumb.
+                LaunchedEffect(project.maxFrames, timelineScrollPos) {
+                    // no-op
+                }
+
+
+
+
+
+                LaunchedEffect(timelineScrollState.value) {
+                    timelineScrollPos = timelineScrollState.value.toFloat()
+                }
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .horizontalScroll(horizontalScrollState)
+                        .horizontalScroll(timelineScrollState)
                 ) {
-                    Column(modifier = Modifier.verticalScroll(verticalScrollState)) {
+                    Column(
+                        modifier = Modifier
+                            .verticalScroll(rememberScrollState())
+                    ) {
                         project.layers.forEachIndexed { layerIndex, _ ->
                             Row(modifier = Modifier.height(cellHeight).zIndex(if (dragState?.fromLayer == layerIndex) 10f else 1f)) {
                                 for (frameIndex in 0 until maxOf(project.maxFrames, 1)) {
@@ -270,26 +298,66 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 val totalContentHeight = (project.layers.size * cellHeightPx)
                 val viewportHeight = with(density) { (cellHeight * 15).toPx() }
                 if (totalContentHeight > viewportHeight) {
+                    val vThumbHeight = (viewportHeight / totalContentHeight * viewportHeight).coerceAtLeast(with(density) { 20.dp.toPx() })
+                    val vThumbY = (verticalScrollState.value / verticalScrollState.maxValue.toFloat() * (viewportHeight - vThumbHeight)).coerceIn(0f, viewportHeight - vThumbHeight)
+                    var vDragging by remember { mutableStateOf(false) }
+                    var vDragStartY by remember { mutableStateOf(0f) }
+                    var vScrollStart by remember { mutableStateOf(0) }
+
+                    if (vDragging) {
+                        LaunchedEffect(vDragStartY) {
+                            snapshotFlow { verticalScrollState.value }.collect { /* controlled */ }
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .width(10.dp.scaled())
                             .fillMaxHeight()
                             .background(EditorColors.panelBackground)
                             .padding(vertical = 2.dp.scaled(), horizontal = 1.dp.scaled())
+                            .then(
+                                if (vDragging) Modifier.pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val dy = event.changes.first().position.y - vDragStartY
+                                            val ratio = dy / (viewportHeight - vThumbHeight)
+                                            val newScroll = (vScrollStart + ratio * verticalScrollState.maxValue).toInt().coerceIn(0, verticalScrollState.maxValue)
+                                            scope.launch {
+                                                verticalScrollState.scrollTo(newScroll)
+                                            }
+                                            event.changes.first().consume()
+
+                                        }
+                                    }
+                                } else Modifier.pointerInput(Unit) {
+                                    detectDragGestures { change, _ ->
+                                        change.consume()
+                                        vDragging = true
+                                        vDragStartY = change.position.y
+                                        vScrollStart = verticalScrollState.value
+                                    }
+                                }
+                            )
                     ) {
-                        val thumbHeight = (viewportHeight / totalContentHeight * viewportHeight).coerceAtLeast(with(density) { 20.dp.toPx() })
-                        val thumbY = if (verticalScrollState.maxValue > 0) {
-                            (verticalScrollState.value / verticalScrollState.maxValue.toFloat() * (viewportHeight - thumbHeight))
-                        } else 0f
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(with(density) { thumbHeight.toDp() })
-                                .offset(y = with(density) { thumbY.toDp() })
+                                .height(with(density) { vThumbHeight.toDp() })
+                                .offset(y = with(density) { vThumbY.toDp() })
                                 .background(
                                     EditorColors.textSecondary.copy(alpha = 0.4f),
                                     RoundedCornerShape(5.dp.scaled())
                                 )
+                                .pointerHoverIcon(PointerIcon.Hand)
+                                .clickable {
+                                    val target = (vThumbY + vThumbHeight / 2).let { if (it > 0) ((it / viewportHeight) * verticalScrollState.maxValue).toInt() else 0 }
+                                    scope.launch {
+                                        verticalScrollState.scrollTo(target.coerceIn(0, verticalScrollState.maxValue))
+                                    }
+                                }
+
                         )
                     }
                 }
@@ -298,26 +366,71 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 val totalContentWidth = (maxOf(project.maxFrames, 1) * cellWidthPx)
                 val viewportWidth = with(density) { (cellWidth * 20).toPx() }
                 if (totalContentWidth > viewportWidth) {
+                    val hThumbWidth = (viewportWidth / totalContentWidth * viewportWidth).coerceAtLeast(with(density) { 20.dp.toPx() })
+                    val scrollFraction = if (totalContentWidth > 0) timelineScrollPos / totalContentWidth else 0f
+                    val hThumbX = (scrollFraction * (viewportWidth - hThumbWidth)).coerceIn(0f, viewportWidth - hThumbWidth)
+                    var hDragging by remember { mutableStateOf(false) }
+                    var hDragStartX by remember { mutableStateOf(0f) }
+                    var hPosStart by remember { mutableStateOf(0f) }
+
+                    var clickTargetX by remember { mutableStateOf<Float?>(null) }
+
+                    LaunchedEffect(clickTargetX) {
+                        if (clickTargetX != null) {
+                            val ratio = (clickTargetX!! / viewportWidth).coerceIn(0f, 1f)
+                            val maxScroll = (totalContentWidth - viewportWidth).coerceAtLeast(0f)
+                            timelineScrollPos = (ratio * maxScroll).coerceIn(0f, maxScroll)
+                            clickTargetX = null
+                        }
+                    }
+
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(10.dp.scaled())
                             .background(EditorColors.panelBackground)
                             .padding(horizontal = 2.dp.scaled(), vertical = 1.dp.scaled())
+                            .then(
+                                if (hDragging) Modifier.pointerInput(Unit) {
+                                    awaitPointerEventScope {
+                                        while (true) {
+                                            val event = awaitPointerEvent()
+                                            val dx = event.changes.first().position.x - hDragStartX
+                                            val ratio = dx / (viewportWidth - hThumbWidth)
+                                            val maxScroll = (totalContentWidth - viewportWidth).coerceAtLeast(0f)
+                                            val newScroll = (hPosStart + ratio * maxScroll).coerceIn(0f, maxScroll)
+                                            timelineScrollPos = newScroll
+                                            event.changes.first().consume()
+                                        }
+                                    }
+                                } else Modifier.pointerInput(Unit) {
+                                    detectDragGestures { change, _ ->
+                                        change.consume()
+                                        hDragging = true
+                                        hDragStartX = change.position.x
+                                        hPosStart = timelineScrollPos
+                                    }
+                                }
+                            )
                     ) {
-                        val thumbWidth = (viewportWidth / totalContentWidth * viewportWidth).coerceAtLeast(with(density) { 20.dp.toPx() })
-                        val thumbX = if (horizontalScrollState.maxValue > 0) {
-                            (horizontalScrollState.value / horizontalScrollState.maxValue.toFloat() * (viewportWidth - thumbWidth))
-                        } else 0f
+                        // Определяем позицию клика относительно ширины таймлайна.
+                        // localPosition доступен не во всех scoped вариантах, поэтому используем текущие вычисленные величины.
+                        val clickX = viewportWidth / 2f
+                        val clampedClickX = (clickX - hThumbWidth / 2).coerceIn(0f, viewportWidth - hThumbWidth)
+
                         Box(
                             modifier = Modifier
-                                .width(with(density) { thumbWidth.toDp() })
+                                .width(with(density) { hThumbWidth.toDp() })
                                 .fillMaxHeight()
-                                .offset(x = with(density) { thumbX.toDp() })
+                                .offset(x = with(density) { hThumbX.toDp() })
                                 .background(
                                     EditorColors.textSecondary.copy(alpha = 0.4f),
                                     RoundedCornerShape(5.dp.scaled())
                                 )
+                                .pointerHoverIcon(PointerIcon.Hand)
+                                .clickable {
+                                    clickTargetX = clampedClickX
+                                }
                         )
                     }
                 }

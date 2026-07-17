@@ -12,6 +12,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -179,6 +180,11 @@ private fun BrushesSection(
                 }
                 IconButton(onClick = { onExportBrush?.invoke() ?: engine.exportCurrentBrushToFile() }, modifier = Modifier.size(24.dp.scaled())) {
                     Icon(Icons.Default.FileDownload, EditorStrings.observeString("brush.export"), tint = EditorColors.accent, modifier = Modifier.size(16.dp.scaled()))
+                }
+                if (onImportBrush == null) {
+                    IconButton(onClick = { engine.openBrushStore() }, modifier = Modifier.size(24.dp.scaled())) {
+                        Icon(Icons.Default.ShoppingCart, EditorStrings.observeString("store.title"), tint = EditorColors.accent, modifier = Modifier.size(16.dp.scaled()))
+                    }
                 }
             }
         }

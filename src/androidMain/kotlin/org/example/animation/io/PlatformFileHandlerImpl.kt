@@ -68,7 +68,7 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
     }
 }
 
-class AndroidPlatformFileHandler : PlatformFileHandler {
+actual class AndroidPlatformFileHandler : PlatformFileHandler {
 
     init {
         FFmpegKit.executeAsync("-encoders") { session ->

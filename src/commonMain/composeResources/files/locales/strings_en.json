@@ -200,5 +200,11 @@
   "permission.message": "The application requires access to device storage to work with projects and files.",
   "permission.settingsHint": "Tap the button again to open system settings.",
   "permission.allowBtn": "Allow",
-  "permission.openSettingsBtn": "Settings"
+  "permission.openSettingsBtn": "Settings",
+  "store.title": "Brush Store",
+  "store.search": "Search brushes...",
+  "store.categories": "Categories",
+  "store.download": "Download",
+  "store.retry": "Retry",
+  "store.installed": "Installed"
 }

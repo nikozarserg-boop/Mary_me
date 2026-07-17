@@ -67,6 +67,10 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
                 implementation("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.10.1")
+                implementation("io.ktor:ktor-client-core:2.3.9")
+                implementation("io.ktor:ktor-client-json:2.3.9")
+                implementation("io.ktor:ktor-client-content-negotiation:2.3.9")
+                implementation("io.ktor:ktor-serialization-kotlinx-json:2.3.9")
             }
         }
         
@@ -76,6 +80,7 @@ kotlin {
                 implementation("androidx.activity:activity-compose:1.9.3")
                 // Full GPL версия для поддержки x264 и других кодеков
                 implementation("com.moizhassan.ffmpeg.ffmpegkit:ffmpegkit:6.1.1")
+                implementation("io.ktor:ktor-client-okhttp:2.3.9")
             }
         }
         
@@ -88,9 +93,10 @@ kotlin {
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.1")
                 implementation("org.xerial:sqlite-jdbc:3.46.1.3")
                 
-                // Задача 7.1: Оптимизация зависимостей FFmpeg по платформе
+                // по целевой платформе
                 if (targetOs == "all") {
                     implementation("org.bytedeco:ffmpeg-platform-gpl:$ffmpegVersion")
+                implementation("io.ktor:ktor-client-java:2.3.9")
                 } else {
                     // Включаем только бинарники для целевой ОС
                     // Допустимые значения targetOs: windows-x86_64, linux-x86_64, macosx-arm64 и т.д.

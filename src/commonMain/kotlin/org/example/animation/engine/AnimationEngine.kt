@@ -90,6 +90,10 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _antiAliasingEnabled = MutableStateFlow(AppSettingsManager.isAntiAliasingEnabled())
     val antiAliasingEnabled: StateFlow<Boolean> = _antiAliasingEnabled.asStateFlow()
 
+    // Brush store
+    private val _showBrushStore = MutableStateFlow(false)
+    val showBrushStore: StateFlow<Boolean> = _showBrushStore.asStateFlow()
+
     // Наборы кистей
     private val _brushes = MutableStateFlow(BrushManager.getPresets())
     val brushes: StateFlow<List<BrushPreset>> = _brushes.asStateFlow()
@@ -263,7 +267,10 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         _antiAliasingEnabled.value = enabled 
         AppSettingsManager.setAntiAliasingEnabled(enabled)
     }
-    
+
+    fun openBrushStore() { _showBrushStore.value = true }
+    fun closeBrushStore() { _showBrushStore.value = false }
+
     fun setZoom(zoom: Float) { _zoom.value = zoom.coerceIn(0.001f, 1000f) }
     fun setPanOffset(offset: Offset) { _panOffset.value = offset }
     fun setRotation(deg: Float) {
