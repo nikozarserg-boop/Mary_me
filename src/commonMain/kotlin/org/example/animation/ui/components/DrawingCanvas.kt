@@ -84,112 +84,213 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 .pointerInput(currentTool, isPlaying) {
                     if (isPlaying) return@pointerInput
 
-                    awaitEachGesture {
-                        val down = awaitFirstDown(requireUnconsumed = false)
-                        
-                        // Если зажато 2+ пальца — это жесты трансформации, не рисуем
-                        if (awaitPointerEvent().changes.size >= 2) {
-                            return@awaitEachGesture
-                        }
+                    // Состояние для текущего жеста
+                    var gestureActive = false
+                    var isTransformGesture = false
+                    var previousPan = Offset.Zero
+                    var previousZoom = 1f
+                    var previousRotation = 0f
+                    var activePointerId: PointerId? = null
+                    var strokeStarted = false
+                    var startCanvasPos = Offset.Zero
 
-                        val startCanvas = screenToCanvas(
-                            down.position,
-                            engine.panOffset.value,
-                            engine.zoom.value,
-                            engine.rotation.value,
-                            viewportSize,
-                            project.canvasWidth.toFloat(),
-                            project.canvasHeight.toFloat()
-                        )
-
-                        when (currentTool) {
-                            ToolType.MOVE -> {
-                                var previousPosition = down.position
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val dragChange = event.changes.firstOrNull { it.id == down.id }
-                                    if (dragChange != null) {
-                                        val delta = dragChange.position - previousPosition
-                                        engine.setPanOffset(engine.panOffset.value + delta)
-                                        previousPosition = dragChange.position
-                                        dragChange.consume()
-                                    }
-                                } while (event.changes.any { it.pressed })
-                            }
-                            ToolType.BUCKET_FILL -> {
-                                engine.floodFillAt(startCanvas, engine.currentColor.value)
-                                down.consume()
-                            }
-                            ToolType.EYEDROPPER -> {
-                                engine.pickColorAt(startCanvas)?.let { engine.setCurrentColor(it) }
-                                down.consume()
-                            }
-                            ToolType.BRUSH, ToolType.PENCIL, ToolType.PEN, ToolType.HARD_ERASER -> {
-                                engine.startStroke(startCanvas)
-                                down.consume()
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val moveChange = event.changes.firstOrNull { it.id == down.id }
-                                    if (moveChange != null) {
-                                        val currentPos = screenToCanvas(
-                                            moveChange.position,
-                                            engine.panOffset.value,
-                                            engine.zoom.value,
-                                            engine.rotation.value,
-                                            viewportSize,
-                                            project.canvasWidth.toFloat(),
-                                            project.canvasHeight.toFloat()
-                                        )
-                                        engine.continueStroke(currentPos)
-                                        moveChange.consume()
-                                    }
-                                } while (event.changes.any { it.pressed })
-                                engine.endStroke()
-                            }
-                            ToolType.LINE, ToolType.RECTANGLE, ToolType.ELLIPSE -> {
-                                shapePreview = ShapePreview(currentTool, startCanvas, startCanvas)
-                                down.consume()
-                                do {
-                                    val event = awaitPointerEvent()
-                                    val moveChange = event.changes.firstOrNull { it.id == down.id }
-                                    if (moveChange != null) {
-                                        val currentPos = screenToCanvas(
-                                            moveChange.position,
-                                            engine.panOffset.value,
-                                            engine.zoom.value,
-                                            engine.rotation.value,
-                                            viewportSize,
-                                            project.canvasWidth.toFloat(),
-                                            project.canvasHeight.toFloat()
-                                        )
-                                        shapePreview = ShapePreview(currentTool, startCanvas, currentPos)
-                                        moveChange.consume()
-                                    }
-                                } while (event.changes.any { it.pressed })
-                                shapePreview?.let { engine.addShapeStroke(it.tool, it.start, it.end) }
-                                shapePreview = null
-                            }
-                            else -> {}
-                        }
-                    }
-                }
-                .pointerInput(Unit) {
-                    // Глобальные жесты трансформации (панорамирование, масштаб, поворот)
-                    detectTransformGestures { centroid, pan, zoomChange, rotationChange ->
-                        engine.setZoom(engine.zoom.value * zoomChange)
-                        engine.setRotation(engine.rotation.value + rotationChange)
-                        engine.setPanOffset(engine.panOffset.value + pan)
-                    }
-                }
-                .pointerInput(Unit) {
                     awaitPointerEventScope {
                         while (true) {
-                            val event = awaitPointerEvent()
+                            val event = awaitPointerEvent(PointerEventPass.Main)
+
+                            // Обработка скролла (колёсико мыши)
                             if (event.type == PointerEventType.Scroll) {
-                                val change = event.changes.first()
+                                val change = event.changes.firstOrNull() ?: continue
                                 val factor = if (change.scrollDelta.y > 0) 0.9f else 1.1f
                                 engine.setZoom(engine.zoom.value * factor)
                                 change.consume()
+                                continue
+                            }
+
+                            if (event.type != PointerEventType.Move &&
+                                event.type != PointerEventType.Press &&
+                                event.type != PointerEventType.Release) continue
+
+                            val activeChanges = event.changes.filter { it.pressed }
+                            val pointerCount = activeChanges.size
+
+                            // Начало взаимодействия
+                            if (pointerCount == 1 && !gestureActive) {
+                                gestureActive = true
+                                isTransformGesture = false
+                                strokeStarted = false
+                                val change = activeChanges.first()
+                                activePointerId = change.id
+
+                                startCanvasPos = screenToCanvas(
+                                    change.position,
+                                    engine.panOffset.value,
+                                    engine.zoom.value,
+                                    engine.rotation.value,
+                                    viewportSize,
+                                    project.canvasWidth.toFloat(),
+                                    project.canvasHeight.toFloat()
+                                )
+                                previousPan = change.position
+
+                                when (currentTool) {
+                                    ToolType.MOVE -> {
+                                        engine.setPanOffset(engine.panOffset.value)
+                                        change.consume()
+                                    }
+                                    ToolType.BUCKET_FILL -> {
+                                        engine.floodFillAt(startCanvasPos, engine.currentColor.value)
+                                        change.consume()
+                                    }
+                                    ToolType.EYEDROPPER -> {
+                                        engine.pickColorAt(startCanvasPos)?.let { engine.setCurrentColor(it) }
+                                        change.consume()
+                                    }
+                                    ToolType.BRUSH, ToolType.PENCIL, ToolType.PEN, ToolType.HARD_ERASER -> {
+                                        engine.startStroke(startCanvasPos)
+                                        strokeStarted = true
+                                        change.consume()
+                                    }
+                                    ToolType.LINE, ToolType.RECTANGLE, ToolType.ELLIPSE -> {
+                                        shapePreview = ShapePreview(currentTool, startCanvasPos, startCanvasPos)
+                                        change.consume()
+                                    }
+                                    else -> {}
+                                }
+                                continue
+                            }
+
+                            // Переход с 1 пальца на 2+ — отменяем рисование, начинаем трансформацию
+                            if (pointerCount >= 2 && gestureActive && !isTransformGesture) {
+                                isTransformGesture = true
+                                previousZoom = engine.zoom.value
+                                previousRotation = engine.rotation.value
+
+                                // Отменяем текущий штрих, если он был
+                                if (strokeStarted) {
+                                    engine.endStroke()
+                                    strokeStarted = false
+                                }
+                                shapePreview = null
+
+                                // Центр между пальцами
+                                val centroid = activeChanges.map { it.position }
+                                    .let { positions ->
+                                        Offset(
+                                            positions.sumOf { it.x.toDouble() }.toFloat() / positions.size,
+                                            positions.sumOf { it.y.toDouble() }.toFloat() / positions.size
+                                        )
+                                    }
+                                previousPan = centroid
+
+                                // Потребляем все изменения
+                                activeChanges.forEach { it.consume() }
+                                continue
+                            }
+
+                            // Трансформация двумя пальцами
+                            if (isTransformGesture && pointerCount >= 2) {
+                                val positions = activeChanges.map { it.position }
+                                val centroid = Offset(
+                                    positions.sumOf { it.x.toDouble() }.toFloat() / positions.size,
+                                    positions.sumOf { it.y.toDouble() }.toFloat() / positions.size
+                                )
+
+                                // Масштаб — по расстоянию между пальцами
+                                if (positions.size >= 2) {
+                                    val dist = (positions[1] - positions[0]).getDistance()
+                                    val prevDist = ((positions[1] - centroid) - (positions[0] - centroid)).getDistance() * 2f
+                                    if (prevDist > 0f) {
+                                        val zoomChange = dist / prevDist
+                                        engine.setZoom(previousZoom * zoomChange)
+                                    }
+                                }
+
+                                // Поворот — по углу между пальцами
+                                if (positions.size >= 2) {
+                                    val angle = atan2(
+                                        (positions[1].y - positions[0].y).toDouble(),
+                                        (positions[1].x - positions[0].x).toDouble()
+                                    ).toFloat()
+                                    val prevAngle = atan2(
+                                        ((positions[1] - centroid).y - (positions[0] - centroid).y).toDouble(),
+                                        ((positions[1] - centroid).x - (positions[0] - centroid).x).toDouble()
+                                    ).toFloat()
+                                    engine.setRotation(previousRotation + Math.toDegrees((angle - prevAngle).toDouble()).toFloat())
+                                }
+
+                                // Панорамирование
+                                val panDelta = centroid - previousPan
+                                engine.setPanOffset(engine.panOffset.value + panDelta)
+                                previousPan = centroid
+                                previousZoom = engine.zoom.value
+
+                                activeChanges.forEach { it.consume() }
+                                continue
+                            }
+
+                            // Рисование/перемещение одним пальцем
+                            if (!isTransformGesture && gestureActive && pointerCount == 1) {
+                                val change = activeChanges.firstOrNull { it.id == activePointerId }
+                                if (change != null) {
+                                    when (currentTool) {
+                                        ToolType.MOVE -> {
+                                            val delta = change.position - previousPan
+                                            engine.setPanOffset(engine.panOffset.value + delta)
+                                            previousPan = change.position
+                                            change.consume()
+                                        }
+                                        ToolType.BRUSH, ToolType.PENCIL, ToolType.PEN, ToolType.HARD_ERASER -> {
+                                            if (strokeStarted) {
+                                                val currentPos = screenToCanvas(
+                                                    change.position,
+                                                    engine.panOffset.value,
+                                                    engine.zoom.value,
+                                                    engine.rotation.value,
+                                                    viewportSize,
+                                                    project.canvasWidth.toFloat(),
+                                                    project.canvasHeight.toFloat()
+                                                )
+                                                engine.continueStroke(currentPos)
+                                                change.consume()
+                                            }
+                                        }
+                                        ToolType.LINE, ToolType.RECTANGLE, ToolType.ELLIPSE -> {
+                                            val currentPos = screenToCanvas(
+                                                change.position,
+                                                engine.panOffset.value,
+                                                engine.zoom.value,
+                                                engine.rotation.value,
+                                                viewportSize,
+                                                project.canvasWidth.toFloat(),
+                                                project.canvasHeight.toFloat()
+                                            )
+                                            shapePreview = ShapePreview(currentTool, startCanvasPos, currentPos)
+                                            change.consume()
+                                        }
+                                        else -> {}
+                                    }
+                                }
+                                continue
+                            }
+
+                            // Завершение взаимодействия
+                            if (pointerCount == 0 && gestureActive) {
+                                if (strokeStarted) {
+                                    engine.endStroke()
+                                    strokeStarted = false
+                                }
+                                if (!isTransformGesture) {
+                                    shapePreview?.let {
+                                        if (currentTool in listOf(ToolType.LINE, ToolType.RECTANGLE, ToolType.ELLIPSE)) {
+                                            engine.addShapeStroke(it.tool, it.start, it.end)
+                                        }
+                                    }
+                                }
+                                shapePreview = null
+                                gestureActive = false
+                                isTransformGesture = false
+                                activePointerId = null
                             }
                         }
                     }
