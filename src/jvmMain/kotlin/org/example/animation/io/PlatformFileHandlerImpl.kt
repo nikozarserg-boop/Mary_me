@@ -395,14 +395,16 @@ actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPi
             }
             bufferedImage
         } else {
-            // RGBA изображение
+            // RGBA изображение - GBR формат: [R, G, B, A]
             val bufferedImage = java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
             for (i in 0 until width * height) {
                 val offset = i * 4
-                val argb = ((pixels[offset + 3].toInt() and 0xFF) shl 24) or
-                           ((pixels[offset + 0].toInt() and 0xFF) shl 16) or
-                           ((pixels[offset + 1].toInt() and 0xFF) shl 8) or
-                           (pixels[offset + 2].toInt() and 0xFF)
+                val r = (pixels[offset].toInt() and 0xFF)      // R в первом байте
+                val g = (pixels[offset + 1].toInt() and 0xFF)   // G во втором
+                val b = (pixels[offset + 2].toInt() and 0xFF)   // B в третьем
+                val a = (pixels[offset + 3].toInt() and 0xFF)   // A в четвёртом
+                // BufferedImage.TYPE_INT_ARGB ожидает ARGB
+                val argb = (a shl 24) or (r shl 16) or (g shl 8) or b
                 bufferedImage.setRGB(i % width, i / width, argb)
             }
             bufferedImage
