@@ -73,7 +73,6 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
 // Кодируем необработанные пиксели в PNG для Android
 actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray {
     return try {
-                // Создаём Android Bitmap с подходящей конфигурацией
         val config = if (bytesPerPixel == 1) {
             Bitmap.Config.ALPHA_8
         } else {
@@ -81,9 +80,29 @@ actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPi
         }
         val bitmap = Bitmap.createBitmap(width, height, config)
         
-        // Копируем данные пикселей
-        val buffer = java.nio.ByteBuffer.wrap(pixels)
-        bitmap.copyPixelsFromBuffer(buffer)
+        if (bytesPerPixel == 1) {
+            // Для grayscale копируем как есть
+            val buffer = java.nio.ByteBuffer.wrap(pixels)
+            bitmap.copyPixelsFromBuffer(buffer)
+        } else {
+            // Для RGBA преобразуем в формат ARGB, который ожидает Android Bitmap
+            val argbPixels = IntArray(width * height)
+            for (i in 0 until width * height) {
+                val offset = i * 4
+                // GBR формат: R, G, B, A -> Android ожидает ARGB
+                val a = (pixels[offset + 3].toInt() and 0xFF)
+                val r = (pixels[offset + 0].toInt() and 0xFF)
+                val g = (pixels[offset + 1].toInt() and 0xFF)
+                val b = (pixels[offset + 2].toInt() and 0xFF)
+                argbPixels[i] = (a shl 24) or (r shl 16) or (g shl 8) or b
+            }
+            bitmap.eraseColor(android.graphics.Color.TRANSPARENT)
+            for (i in argbPixels.indices) {
+                val x = i % width
+                val y = i / width
+                bitmap.setPixel(x, y, argbPixels[i])
+            }
+        }
         
         // Сжимаем в PNG
         val stream = ByteArrayOutputStream()
