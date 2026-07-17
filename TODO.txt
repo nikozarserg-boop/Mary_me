@@ -1,9 +1,0 @@
-- [ ] Исправить Ktor expect/actual для HttpEngine (HttpEngine.kt + платформенные реализации) — выполнено частично (HttpEngine.kt очищен)
-- [ ] Починить unresolved reference 'json' в BrushStoreService.kt — выполнено (добавлен импорт и json DSL)
-- [ ] Исправить expect/actual несоответствие PlatformFileHandler и устранить unresolved '<init>' — выполнено (добавлен expect createPlatformFileHandler в PlatformDeclarations)
-- [ ] Исправить ошибки TimelinePanel: scrollTo в корректном scope — выполнено
-- [ ] Исправить ошибки TimelinePanel: localPosition/unresolved тип параметра — частично выполнено (локальная позиция заменена)
-- [ ] Проверить файл на оставшиеся компиляционные ошибки (без запуска gradle, только аудит по коду)
-- [ ] Аудит комментариев: новые комментарии только на русском; существующие русские не менять
-- [ ] Обновить и завершить задачу после финального аудита
-
