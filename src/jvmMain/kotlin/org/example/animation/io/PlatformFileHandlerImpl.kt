@@ -385,13 +385,20 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
 }
 
 actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray {
-    val colorType = if (bytesPerPixel == 1) ColorType.GRAY_8 else ColorType.RGBA_8888
-    val imageInfo = ImageInfo(width, height, colorType, ColorAlphaType.PREMUL)
-    val bitmap = Bitmap()
-    bitmap.allocPixels(imageInfo)
-    bitmap.installPixels(pixels)
-    val image = Image.makeFromBitmap(bitmap)
-    return image.encodeToData(EncodedImageFormat.PNG, 100)?.bytes ?: ByteArray(0)
+    return try {
+        val colorType = if (bytesPerPixel == 1) ColorType.GRAY_8 else ColorType.RGBA_8888
+        // Используем OPAQUE для данных без альфа-канала или UNPREMUL для RGBA
+        val alphaType = if (bytesPerPixel == 1) ColorAlphaType.OPAQUE else ColorAlphaType.UNPREMUL
+        val imageInfo = ImageInfo(width, height, colorType, alphaType)
+        val bitmap = Bitmap()
+        bitmap.allocPixels(imageInfo)
+        bitmap.installPixels(pixels)
+        val image = Image.makeFromBitmap(bitmap)
+        image.encodeToData(EncodedImageFormat.PNG, 100)?.bytes ?: ByteArray(0)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        ByteArray(0)
+    }
 }
 
 actual fun unzip(bytes: ByteArray): Map<String, ByteArray> {
