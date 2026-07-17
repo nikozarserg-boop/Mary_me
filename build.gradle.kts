@@ -86,6 +86,7 @@ kotlin {
             dependencies {
                 implementation(compose.desktop.currentOs)
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.1")
+                implementation("org.xerial:sqlite-jdbc:3.46.1.3")
                 
                 // Задача 7.1: Оптимизация зависимостей FFmpeg по платформе
                 if (targetOs == "all") {

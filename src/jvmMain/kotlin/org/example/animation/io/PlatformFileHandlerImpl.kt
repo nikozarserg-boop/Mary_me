@@ -19,9 +19,15 @@ import org.example.animation.engine.ExportManager
 import org.example.animation.model.AnimationProject
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.EncodedImageFormat
+import org.jetbrains.skia.Bitmap
+import org.jetbrains.skia.ColorAlphaType
+import org.jetbrains.skia.ColorType
+import org.jetbrains.skia.ImageInfo
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.util.ArrayList
+import java.util.zip.ZipInputStream
+import java.io.ByteArrayInputStream
 
 actual fun createPlatformFileHandler(): PlatformFileHandler = JvmPlatformFileHandler()
 
@@ -51,6 +57,30 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
     }
 }
 
+actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray {
+    val colorType = if (bytesPerPixel == 1) ColorType.GRAY_8 else ColorType.RGBA_8888
+    val imageInfo = ImageInfo(width, height, colorType, ColorAlphaType.PREMUL)
+    val bitmap = Bitmap()
+    bitmap.allocPixels(imageInfo)
+    bitmap.installPixels(pixels)
+    val image = Image.makeFromBitmap(bitmap)
+    return image.encodeToData(EncodedImageFormat.PNG, 100)?.bytes ?: ByteArray(0)
+}
+
+actual fun unzip(bytes: ByteArray): Map<String, ByteArray> {
+    val result = mutableMapOf<String, ByteArray>()
+    ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
+        var entry = zis.nextEntry
+        while (entry != null) {
+            if (!entry.isDirectory) {
+                result[entry.name] = zis.readAllBytes()
+            }
+            entry = zis.nextEntry
+        }
+    }
+    return result
+}
+
 class JvmPlatformFileHandler : PlatformFileHandler {
     private var lastDirectory: String? = null
     private val ffmpegPath: String by lazy {
@@ -65,6 +95,7 @@ class JvmPlatformFileHandler : PlatformFileHandler {
             
             val filter = when (extension.lowercase()) {
                 "maryme" -> FileNameExtensionFilter("MaryMe Project (*.maryme)", "maryme")
+                "marybrush" -> FileNameExtensionFilter("MaryBrush Preset (*.marybrush)", "marybrush")
                 "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
                 "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
                 "jpg", "jpeg" -> FileNameExtensionFilter("JPEG Image (*.jpg)", "jpg")
@@ -102,14 +133,20 @@ class JvmPlatformFileHandler : PlatformFileHandler {
             val chooser = JFileChooser(lastDirectory ?: getDocumentsDirectory())
             chooser.dialogTitle = "Открыть файл"
 
-            val filter = when (extension.lowercase()) {
-                "maryme" -> FileNameExtensionFilter("MaryMe Project (*.maryme)", "maryme")
-                "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
-                "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
-                "brush" -> FileNameExtensionFilter("Brush Preset (*.brush)", "brush")
-                else -> FileNameExtensionFilter("All supported files", "maryme", "gif", "png", "brush")
+            val extensions = extension.split(",")
+            if (extensions.size > 1 || extension.contains("marybrush")) {
+                chooser.fileFilter = FileNameExtensionFilter("Brushes (*.marybrush, *.abr, *.gbr, *.gih, *.brush, *.brushset, *.kpp, *.sut)", 
+                    "marybrush", "abr", "gbr", "gih", "brush", "brushset", "kpp", "sut")
+            } else {
+                val filter = when (extension.lowercase()) {
+                    "maryme" -> FileNameExtensionFilter("MaryMe Project (*.maryme)", "maryme")
+                    "gif" -> FileNameExtensionFilter("GIF Animation (*.gif)", "gif")
+                    "png" -> FileNameExtensionFilter("PNG Image (*.png)", "png")
+                    "marybrush" -> FileNameExtensionFilter("Brush Preset (*.marybrush)", "marybrush")
+                    else -> FileNameExtensionFilter("All supported files", "maryme", "gif", "png", "marybrush", "abr", "gbr", "gih", "brush", "brushset", "kpp", "sut")
+                }
+                chooser.fileFilter = filter
             }
-            chooser.fileFilter = filter
 
             val result = chooser.showOpenDialog(null)
             if (result == JFileChooser.APPROVE_OPTION) {

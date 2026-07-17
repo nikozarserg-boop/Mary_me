@@ -2,13 +2,23 @@ package org.example.animation.ui.components
 
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asComposeImageBitmap
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -16,15 +26,24 @@ import org.example.animation.engine.AnimationEngine
 import org.example.animation.model.ToolType
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.*
+import org.example.animation.io.decodeImage
+import org.example.animation.model.BrushPreset
+import org.example.animation.model.BrushShape
 import kotlin.math.roundToInt
 
 @Composable
-fun ToolPropertiesPanel(engine: AnimationEngine) {
+fun ToolPropertiesPanel(
+    engine: AnimationEngine,
+    onImportBrush: (() -> Unit)? = null,
+    onExportBrush: (() -> Unit)? = null
+) {
     val currentTool by engine.currentTool.collectAsState()
     val brushSize by engine.brushSize.collectAsState()
     val opacity by engine.opacity.collectAsState()
     val smoothingLevel by engine.smoothingLevel.collectAsState()
     val antiAliasing by engine.antiAliasingEnabled.collectAsState()
+    val brushes by engine.brushes.collectAsState()
+    val currentBrushIndex by engine.currentBrushIndex.collectAsState()
 
     Column(
         modifier = Modifier
@@ -104,6 +123,11 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
                     )
                 )
             }
+            
+            Spacer(Modifier.height(UiDimensions.PaddingLarge.scaled()))
+
+            // Библиотека кистей
+            BrushesSection(engine, brushes, currentBrushIndex)
         }
 
         Spacer(Modifier.height(UiDimensions.PaddingLarge.scaled()))
@@ -127,6 +151,122 @@ fun ToolPropertiesPanel(engine: AnimationEngine) {
             )
             Spacer(Modifier.width(8.dp.scaled()))
             Text(EditorStrings.observeString("brush.antiAliasing"), style = EditorTypography.body())
+        }
+    }
+}
+
+@Composable
+private fun BrushesSection(
+    engine: AnimationEngine,
+    brushes: List<BrushPreset>,
+    currentIndex: Int,
+    onImportBrush: (() -> Unit)? = null,
+    onExportBrush: (() -> Unit)? = null
+) {
+    Column {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = EditorStrings.observeString("brush.library"),
+                style = EditorTypography.caption().copy(fontWeight = FontWeight.Bold)
+            )
+            Row {
+                IconButton(onClick = { onImportBrush?.invoke() ?: engine.importBrushesFromFile() }, modifier = Modifier.size(24.dp.scaled())) {
+                    Icon(Icons.Default.FileUpload, EditorStrings.observeString("brush.import"), tint = EditorColors.accent, modifier = Modifier.size(16.dp.scaled()))
+                }
+                IconButton(onClick = { onExportBrush?.invoke() ?: engine.exportCurrentBrushToFile() }, modifier = Modifier.size(24.dp.scaled())) {
+                    Icon(Icons.Default.FileDownload, EditorStrings.observeString("brush.export"), tint = EditorColors.accent, modifier = Modifier.size(16.dp.scaled()))
+                }
+            }
+        }
+        
+        Spacer(Modifier.height(8.dp.scaled()))
+        
+        // Сетка кистей
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 300.dp.scaled())
+                .clip(RoundedCornerShape(8.dp.scaled()))
+                .background(EditorColors.surfaceVariant)
+                .padding(4.dp.scaled())
+        ) {
+            // Используем Column + Row вместо LazyVerticalGrid внутри Scrollable Column
+            val columns = 4
+            val rows = (brushes.size + columns - 1) / columns
+            
+            for (row in 0 until rows) {
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    for (col in 0 until columns) {
+                        val index = row * columns + col
+                        if (index < brushes.size) {
+                            val brush = brushes[index]
+                            BrushItem(
+                                brush = brush,
+                                isSelected = index == currentIndex,
+                                onClick = { engine.selectBrush(index) },
+                                onDelete = if (brushes.size > 1) { { engine.removeBrush(index) } } else null,
+                                modifier = Modifier.weight(1f).padding(2.dp.scaled())
+                            )
+                        } else {
+                            Spacer(Modifier.weight(1f).padding(2.dp.scaled()))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun BrushItem(
+    brush: BrushPreset,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    onDelete: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    val borderColor = if (isSelected) EditorColors.accent else Color.Transparent
+    
+    Box(
+        modifier = modifier
+            .aspectRatio(1f)
+            .clip(RoundedCornerShape(4.dp.scaled()))
+            .background(if (isSelected) EditorColors.accent.copy(alpha = 0.1f) else EditorColors.surface)
+            .border(1.dp.scaled(), borderColor, RoundedCornerShape(4.dp.scaled()))
+            .clickable { onClick() },
+        contentAlignment = Alignment.Center
+    ) {
+        if (brush.shape == BrushShape.TEXTURE && brush.stampPng != null) {
+            val bitmap = remember(brush.stampPng) { decodeImage(brush.stampPng) }
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = brush.name,
+                    modifier = Modifier.fillMaxSize().padding(4.dp.scaled()),
+                    contentScale = ContentScale.Fit
+                )
+            }
+        } else {
+            // Заглушка для стандартных кистей
+            Box(
+                modifier = Modifier
+                    .size(24.dp.scaled())
+                    .clip(if (brush.shape == BrushShape.SQUARE) RoundedCornerShape(2.dp.scaled()) else RoundedCornerShape(12.dp.scaled()))
+                    .background(EditorColors.textPrimary.copy(alpha = 0.6f))
+            )
+        }
+        
+        if (isSelected && onDelete != null) {
+            IconButton(
+                onClick = onDelete,
+                modifier = Modifier.align(Alignment.TopEnd).size(16.dp.scaled()).background(Color.Red.copy(alpha = 0.7f), RoundedCornerShape(bottomStart = 4.dp.scaled()))
+            ) {
+                Icon(Icons.Default.Delete, null, tint = Color.White, modifier = Modifier.size(10.dp.scaled()))
+            }
         }
     }
 }

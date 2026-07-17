@@ -31,6 +31,16 @@ expect fun decodeImage(data: ByteArray): ImageBitmap?
 expect fun encodeImage(bitmap: ImageBitmap, format: String = "png"): ByteArray
 
 /**
+ * Кодирование сырых пикселей в PNG
+ */
+expect fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray
+
+/**
+ * Распаковка ZIP архива
+ */
+expect fun unzip(bytes: ByteArray): Map<String, ByteArray>
+
+/**
  * Заливка на bitmap (рендеринг текущего кадра + flood fill)
  */
 expect fun floodFillOnBitmap(

@@ -54,7 +54,16 @@ data class Stroke(
     val strokeWidth: Float = 4f,
     val isEraser: Boolean = false,
     val toolType: ToolType = ToolType.PEN,
-    val opacity: Float = 1f
+    val opacity: Float = 1f,
+    // Новые поля для штампованных кистей
+    val brushShape: BrushShape = BrushShape.CIRCLE,
+    val spacing: Float = 0.1f,
+    val hardness: Float = 1f,
+    val scatter: Float = 0f,
+    val angle: Float = 0f,
+    val roundness: Float = 1f,
+    val flow: Float = 1f,
+    val stampId: Long? = null
 ) {
     fun copy(): Stroke = Stroke(
         points = points.toMutableList(),
@@ -62,7 +71,15 @@ data class Stroke(
         strokeWidth = strokeWidth,
         isEraser = isEraser,
         toolType = toolType,
-        opacity = opacity
+        opacity = opacity,
+        brushShape = brushShape,
+        spacing = spacing,
+        hardness = hardness,
+        scatter = scatter,
+        angle = angle,
+        roundness = roundness,
+        flow = flow,
+        stampId = stampId
     )
 }
 

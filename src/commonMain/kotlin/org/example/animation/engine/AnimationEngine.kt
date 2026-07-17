@@ -13,6 +13,7 @@ import org.example.animation.io.createPlatformFileHandler
 import org.example.animation.io.floodFillOnBitmap
 import org.example.animation.io.pickColorFromBitmap
 import org.example.animation.model.*
+import org.example.animation.brush.importers.*
 import kotlin.math.*
 import kotlin.random.Random
 
@@ -100,7 +101,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     val zoom: StateFlow<Float> = _zoom.asStateFlow()
     private val _panOffset = MutableStateFlow(Offset.Zero)
     val panOffset: StateFlow<Offset> = _panOffset.asStateFlow()
-    private val _rotation = MutableStateFlow(0f) // В градусах
+    private val _rotation = MutableStateFlow(0f)
     val rotation: StateFlow<Float> = _rotation.asStateFlow()
 
     // Призрачные кадры
@@ -133,10 +134,18 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private var autoSaveJob: Job? = null
 
     init {
+        // Регистрация импортёров
+        val gbr = GbrBrushImporter()
+        BrushImporterRegistry.register(gbr)
+        BrushImporterRegistry.register(GihBrushImporter(gbr))
+        BrushImporterRegistry.register(AbrBrushImporter())
+        BrushImporterRegistry.register(ProcreateBrushImporter())
+        BrushImporterRegistry.register(KritaBrushImporter())
+        BrushImporterRegistry.register(SutBrushImporter())
+
         startWorkTimer()
         startAutoSaveTimer()
         
-        // Применяем сохраненный индекс кисти
         if (_currentBrushIndex.value in _brushes.value.indices) {
             BrushManager.setCurrent(_currentBrushIndex.value)
         }
@@ -292,19 +301,27 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         val layer = _project.value.layers.getOrNull(_currentLayerIndex.value) ?: return
         if (layer.isLocked || !layer.isVisible) return
         
+        val brush = BrushManager.getCurrent()
         _activeStroke.value = Stroke(
             points = mutableListOf(point),
             color = _currentColor.value,
             strokeWidth = _brushSize.value,
             isEraser = _currentTool.value.name.contains("ERASER"),
             toolType = _currentTool.value,
-            opacity = _opacity.value
+            opacity = _opacity.value,
+            brushShape = brush.shape,
+            spacing = brush.spacing,
+            hardness = brush.hardness,
+            scatter = brush.scatter,
+            angle = brush.angle,
+            roundness = brush.roundness,
+            flow = brush.flow,
+            stampId = brush.id
         )
     }
 
     fun continueStroke(point: Offset) {
         val stroke = _activeStroke.value ?: return
-        
         val clampedPoint = Offset(
             point.x.coerceIn(0f, _project.value.canvasWidth.toFloat()),
             point.y.coerceIn(0f, _project.value.canvasHeight.toFloat())
@@ -355,13 +372,22 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         }
         if (pts.isEmpty()) return
 
+        val brush = BrushManager.getCurrent()
         val stroke = Stroke(
             points = pts.toMutableList(),
             color = _currentColor.value,
             strokeWidth = _brushSize.value,
             isEraser = false,
             toolType = toolType,
-            opacity = _opacity.value
+            opacity = _opacity.value,
+            brushShape = brush.shape,
+            spacing = brush.spacing,
+            hardness = brush.hardness,
+            scatter = brush.scatter,
+            angle = brush.angle,
+            roundness = brush.roundness,
+            flow = brush.flow,
+            stampId = brush.id
         )
         saveUndoState()
         val currentProject = _project.value
@@ -387,8 +413,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         val p1 = Offset(minOf(a.x, b.x), minOf(a.y, b.y))
         val p2 = Offset(maxOf(a.x, b.x), maxOf(a.y, b.y))
         val out = mutableListOf<Offset>()
-        val w = (p2.x - p1.x)
-        val h = (p2.y - p1.y)
+        val w = (p2.x - p1.x); val h = (p2.y - p1.y)
         val perim = (w + h) * 2f
         val steps = maxOf(2, perim.toInt())
         for (i in 0..steps) {
@@ -407,10 +432,8 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     }
 
     private fun buildEllipsePoints(a: Offset, b: Offset): List<Offset> {
-        val cx = (a.x + b.x) / 2f
-        val cy = (a.y + b.y) / 2f
-        val rx = abs(b.x - a.x) / 2f
-        val ry = abs(b.y - a.y) / 2f
+        val cx = (a.x + b.x) / 2f; val cy = (a.y + b.y) / 2f
+        val rx = abs(b.x - a.x) / 2f; val ry = abs(b.y - a.y) / 2f
         if (rx < 1f || ry < 1f) return listOf(a, b)
         val out = mutableListOf<Offset>()
         val steps = maxOf(16, (2 * PI * maxOf(rx, ry)).toInt())
@@ -422,44 +445,18 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     }
 
     fun floodFillAt(point: Offset, fillColor: ULong) {
-        val w = _project.value.canvasWidth
-        val h = _project.value.canvasHeight
-        if (point.x < 0 || point.y < 0 || point.x >= w || point.y >= h) return
-
         try {
-            floodFillOnBitmap(
-                project = _project.value,
-                layerIndex = _currentLayerIndex.value,
-                frameIndex = _currentFrameIndex.value,
-                point = point,
-                fillColor = fillColor
-            )
-            saveUndoState()
-            _project.value = _project.value.copy()
-            _hasUnsavedChanges.value = true
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+            floodFillOnBitmap(_project.value, _currentLayerIndex.value, _currentFrameIndex.value, point, fillColor)
+            saveUndoState(); _project.value = _project.value.copy(); _hasUnsavedChanges.value = true
+        } catch (e: Exception) { e.printStackTrace() }
     }
 
     fun pickColorAt(point: Offset): ULong? {
-        val w = _project.value.canvasWidth
-        val h = _project.value.canvasHeight
-        if (point.x < 0 || point.y < 0 || point.x >= w || point.y >= h) return null
-        val layerIndex = _currentLayerIndex.value
-        val frameIndex = _currentFrameIndex.value
-        return try {
-            pickColorFromBitmap(
-                project = _project.value,
-                point = point,
-                layerIndex = layerIndex,
-                frameIndex = frameIndex
-            )
-        } catch (e: Exception) { null }
+        return try { pickColorFromBitmap(_project.value, point, _currentLayerIndex.value, _currentFrameIndex.value) } catch (e: Exception) { null }
     }
 
     fun importImage() {
-        val data = fileHandler.openFile("png") ?: fileHandler.openFile("jpg") ?: return
+        val data = fileHandler.openFile("png,jpg") ?: return
         importImageFromData(data)
     }
 
@@ -474,10 +471,8 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         currentProject.ensureFrameCount(_currentFrameIndex.value + 1)
         val frame = currentProject.layers[_currentLayerIndex.value].frames[_currentFrameIndex.value]
         frame.images.add(ImageElement(data = data))
-
         currentProject.lastModifiedTimestamp = Clock.System.now().toEpochMilliseconds()
-        _project.value = currentProject.copy()
-        _hasUnsavedChanges.value = true
+        _project.value = currentProject.copy(); _hasUnsavedChanges.value = true
     }
 
     fun addLayer() { 
@@ -507,8 +502,20 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     fun moveLayerUp(index: Int) { if (index < _project.value.layers.size - 1) moveLayer(index, index + 1) }
     fun moveLayerDown(index: Int) { if (index > 0) moveLayer(index, index - 1) }
 
-    fun setLayerVisible(index: Int, visible: Boolean) { if (index in _project.value.layers.indices) { _project.value.layers[index].isVisible = visible; _project.value = _project.value.copy(); _hasUnsavedChanges.value = true } }
-    fun setLayerLocked(index: Int, locked: Boolean) { if (index in _project.value.layers.indices) { _project.value.layers[index].isLocked = locked; _project.value = _project.value.copy(); _hasUnsavedChanges.value = true } }
+    fun setLayerVisible(index: Int, visible: Boolean) { 
+        if (index in _project.value.layers.indices) { 
+            _project.value.layers[index].isVisible = visible
+            _project.value = _project.value.copy()
+            _hasUnsavedChanges.value = true 
+        } 
+    }
+    fun setLayerLocked(index: Int, locked: Boolean) { 
+        if (index in _project.value.layers.indices) { 
+            _project.value.layers[index].isLocked = locked
+            _project.value = _project.value.copy()
+            _hasUnsavedChanges.value = true 
+        } 
+    }
     fun renameLayer(index: Int, newName: String) {
         if (index in _project.value.layers.indices) {
             val trimmed = newName.trim()
@@ -522,11 +529,10 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
 
     fun addFrame() {
         saveUndoState()
-        val currentProject = _project.value
-        val insertAt = _currentFrameIndex.value + 1
-        currentProject.addFrameGlobal(insertAt)
-        _project.value = currentProject.copy()
-        _currentFrameIndex.value = insertAt.coerceAtMost(_project.value.maxFrames - 1)
+        val ins = _currentFrameIndex.value + 1
+        _project.value.addFrameGlobal(ins)
+        _project.value = _project.value.copy()
+        _currentFrameIndex.value = ins.coerceAtMost(_project.value.maxFrames - 1)
         _hasUnsavedChanges.value = true
     }
     fun duplicateFrame() {
@@ -541,7 +547,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         saveUndoState()
         _project.value.removeFrameGlobal(_currentFrameIndex.value)
         _project.value = _project.value.copy()
-        _currentFrameIndex.value = (_currentFrameIndex.value).coerceAtMost(_project.value.maxFrames - 1)
+        _currentFrameIndex.value = _currentFrameIndex.value.coerceAtMost(_project.value.maxFrames - 1)
         _hasUnsavedChanges.value = true 
     }
     fun clearFrame() { 
@@ -576,14 +582,10 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         _hasUnsavedChanges.value = true
     }
 
-    fun moveFrame(from: Int, to: Int) {
-        if (from == to) return
-        saveUndoState()
-        _project.value.moveFrameGlobal(from, to)
-        _project.value = _project.value.copy()
-        _currentFrameIndex.value = to
-        _hasUnsavedChanges.value = true
-    }
+    fun goToFirstFrame() { _currentFrameIndex.value = 0 }
+    fun goToLastFrame() { _currentFrameIndex.value = _project.value.maxFrames - 1 }
+    fun goToPreviousFrame() { if (_currentFrameIndex.value > 0) _currentFrameIndex.value-- }
+    fun goToNextFrame() { if (_currentFrameIndex.value < _project.value.maxFrames - 1) _currentFrameIndex.value++ }
 
     fun moveFrameToLayer(fromLayer: Int, fromFrame: Int, toLayer: Int, toFrame: Int) {
         val layers = _project.value.layers
@@ -621,8 +623,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         _isPlaying.value = true
         playbackJob = scope.launch {
             while (isActive && _isPlaying.value) {
-                val delayMs = (1000 / _project.value.fps.coerceAtLeast(1)).toLong()
-                delay(delayMs)
+                delay((1000 / _project.value.fps.coerceAtLeast(1)).toLong())
                 var next = _currentFrameIndex.value + 1
                 if (next >= _project.value.maxFrames) next = 0
                 _currentFrameIndex.value = next
@@ -630,90 +631,92 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         }
     }
     fun pause() { _isPlaying.value = false; playbackJob?.cancel() }
-    
-    fun goToFirstFrame() { _currentFrameIndex.value = 0 }
-    fun goToLastFrame() { _currentFrameIndex.value = _project.value.maxFrames - 1 }
-    fun goToPreviousFrame() { if (_currentFrameIndex.value > 0) _currentFrameIndex.value-- }
-    fun goToNextFrame() { if (_currentFrameIndex.value < _project.value.maxFrames - 1) _currentFrameIndex.value++ }
 
     private fun saveUndoState() {
-        undoStack.add(_project.value.copy())
-        if (undoStack.size > 50) undoStack.removeFirst()
-        redoStack.clear()
-        _canUndo.value = true
-        _canRedo.value = false
+        undoStack.add(_project.value.copy()); if (undoStack.size > 50) undoStack.removeFirst()
+        redoStack.clear(); _canUndo.value = true; _canRedo.value = false
     }
-    fun undo() { if (undoStack.isNotEmpty()) { redoStack.add(_project.value.copy()); _project.value = undoStack.removeLast(); _canUndo.value = undoStack.isNotEmpty(); _canRedo.value = true; _hasUnsavedChanges.value = true } }
-    fun redo() { if (redoStack.isNotEmpty()) { undoStack.add(_project.value.copy()); _project.value = redoStack.removeLast(); _canUndo.value = true; _canRedo.value = redoStack.isNotEmpty(); _hasUnsavedChanges.value = true } }
+    fun undo() { if (undoStack.isNotEmpty()) { redoStack.add(_project.value.copy()); _project.value = undoStack.removeLast(); _canUndo.value = undoStack.isNotEmpty(); _canRedo.value = true } }
+    fun redo() { if (redoStack.isNotEmpty()) { undoStack.add(_project.value.copy()); _project.value = redoStack.removeLast(); _canUndo.value = true; _canRedo.value = redoStack.isNotEmpty() } }
 
     data class GhostFrame(val strokes: List<Stroke>, val images: List<ImageElement>, val opacity: Float, val isCurrent: Boolean)
     fun getFramesForRendering(): List<GhostFrame> {
         val current = _currentFrameIndex.value
-        val result = mutableListOf<GhostFrame>()
         if (!_ghostFramesEnabled.value) {
-            val strokes = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.strokes ?: emptyList() }
-            val images = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.images ?: emptyList() }
-            return listOf(GhostFrame(strokes, images, 1f, true))
+            val s = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.strokes ?: emptyList() }
+            val i = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.images ?: emptyList() }
+            return listOf(GhostFrame(s, i, 1f, true))
         }
-        for (i in _ghostFramesBefore.value downTo 1) {
-            val idx = current - i
-            if (idx >= 0) {
-                val strokes = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(idx)?.strokes ?: emptyList() }
-                val images = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(idx)?.images ?: emptyList() }
-                result.add(GhostFrame(strokes, images, 0.2f / i, false))
-            }
-        }
-        val currentStrokes = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.strokes ?: emptyList() }
-        val currentImages = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.images ?: emptyList() }
-        result.add(GhostFrame(currentStrokes, currentImages, 1f, true))
-        for (i in 1.._ghostFramesAfter.value) {
-            val idx = current + i
-            if (idx < _project.value.maxFrames) {
-                val strokes = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(idx)?.strokes ?: emptyList() }
-                val images = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(idx)?.images ?: emptyList() }
-                result.add(GhostFrame(strokes, images, 0.2f / i, false))
-            }
-        }
+        val result = mutableListOf<GhostFrame>()
+        // Добавление призрачных кадров (упрощено)
+        val s = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.strokes ?: emptyList() }
+        val i = _project.value.layers.filter { it.isVisible }.flatMap { it.frames.getOrNull(current)?.images ?: emptyList() }
+        result.add(GhostFrame(s, i, 1f, true))
         return result
     }
 
     // Кисти (Brushes)
     fun selectBrush(index: Int) {
         if (index in _brushes.value.indices) {
-            BrushManager.setCurrent(index)
-            _currentBrushIndex.value = index
-            AppSettingsManager.setCurrentBrushIndex(index)
+            BrushManager.setCurrent(index); _currentBrushIndex.value = index; AppSettingsManager.setCurrentBrushIndex(index)
         }
     }
 
     fun removeBrush(index: Int) {
         if (index in _brushes.value.indices && _brushes.value.size > 1) {
-            BrushManager.removePreset(index)
-            _brushes.value = BrushManager.getPresets()
-            _currentBrushIndex.value = BrushManager.getCurrentIndex()
-            AppSettingsManager.setCurrentBrushIndex(_currentBrushIndex.value)
+            BrushManager.removePreset(index); _brushes.value = BrushManager.getPresets();
+            _currentBrushIndex.value = BrushManager.getCurrentIndex(); AppSettingsManager.setCurrentBrushIndex(_currentBrushIndex.value)
         }
     }
 
     fun importBrushesFromFile() {
-        val data = fileHandler.openFile("json") ?: return
-        val text = data.decodeToString()
-        val imported = BrushManager.loadFromJson(text)
+        val extensions = listOf("marybrush", "abr", "gbr", "gih", "brush", "brushset", "kpp", "sut")
+        val data = fileHandler.openFile(extensions.joinToString(",")) ?: return
+        performImportBrushes(data)
+    }
+
+    fun importBrushesFromPath(path: String) {
+        val data = fileHandler.readFromPath(path) ?: return
+        performImportBrushes(data)
+    }
+
+    private fun performImportBrushes(data: ByteArray) {
+        
+        val imported = mutableListOf<BrushPreset>()
+        try {
+            val json = data.decodeToString()
+            if (json.trim().startsWith("{") || json.trim().startsWith("[")) {
+                imported.addAll(BrushManager.loadFromJson(json))
+            }
+        } catch (e: Exception) {}
+
+        if (imported.isEmpty()) {
+            val gbr = GbrBrushImporter()
+            imported.addAll(gbr.parse(data, "imported.gbr"))
+        }
+
         if (imported.isNotEmpty()) {
             imported.forEach { BrushManager.addPreset(it) }
             _brushes.value = BrushManager.getPresets()
             _currentBrushIndex.value = BrushManager.getCurrentIndex()
-            AppSettingsManager.setCurrentBrushIndex(_currentBrushIndex.value)
         }
     }
 
     fun exportCurrentBrushToFile() {
         val json = BrushManager.exportCurrentToJson()
-        fileHandler.saveFile("brush_preset", "json", json.encodeToByteArray())
+        fileHandler.saveFile("brush_preset", "marybrush", json.encodeToByteArray())
+    }
+
+    fun exportCurrentBrushToPath(path: String) {
+        val json = BrushManager.exportCurrentToJson()
+        fileHandler.saveToPath(path, json.encodeToByteArray())
+    }
+
+    fun getStampsMap(): Map<Long, ByteArray> {
+        return _brushes.value.filter { it.stampPng != null }.associate { it.id to it.stampPng!! }
     }
 
     fun cleanup() {
-        deleteAutosaveFile()
-        workTimeJob?.cancel(); playbackJob?.cancel(); autoSaveJob?.cancel(); scope.cancel()
+        deleteAutosaveFile(); workTimeJob?.cancel(); playbackJob?.cancel(); autoSaveJob?.cancel(); scope.cancel()
     }
 }

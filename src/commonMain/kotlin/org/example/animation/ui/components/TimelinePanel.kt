@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -122,17 +123,22 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 }
 
                 // Область сетки кадров
-                val cellPx = 28f
-                val layerHeaderHeightPx = 32f
+                val density = LocalDensity.current
+                val cellWidth = 28.dp.scaled()
+                val cellHeight = 32.dp.scaled()
+                val cellWidthPx = with(density) { cellWidth.toPx() }
+                val cellHeightPx = with(density) { cellHeight.toPx() }
+                val horizontalScrollState = rememberScrollState()
+                val verticalScrollState = rememberScrollState()
 
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .horizontalScroll(rememberScrollState())
+                        .horizontalScroll(horizontalScrollState)
                 ) {
-                    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                    Column(modifier = Modifier.verticalScroll(verticalScrollState)) {
                         project.layers.forEachIndexed { layerIndex, _ ->
-                            Row(modifier = Modifier.height(32.dp.scaled())) {
+                            Row(modifier = Modifier.height(cellHeight).zIndex(if (dragState?.fromLayer == layerIndex) 10f else 1f)) {
                                 for (frameIndex in 0 until maxOf(project.maxFrames, 1)) {
                                     val hasContent = layerIndex < project.layers.size &&
                                             frameIndex < project.layers[layerIndex].frames.size &&
@@ -151,10 +157,29 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
 
                                     Box(
                                         modifier = Modifier
-                                            .width(28.dp.scaled())
+                                            .zIndex(if (isDragSource) 100f else 1f)
+                                            .width(cellWidth)
                                             .fillMaxHeight()
+                                            // Сначала применяем смещение, если это перетаскиваемый объект
+                                            .then(
+                                                if (isDragSource) {
+                                                    Modifier
+                                                        .offset {
+                                                            IntOffset(
+                                                                dragState?.offsetX?.roundToInt() ?: 0,
+                                                                dragState?.offsetY?.roundToInt() ?: 0
+                                                            )
+                                                        }
+                                                        .shadow(12.dp.scaled(), RoundedCornerShape(4.dp.scaled()))
+                                                        .graphicsLayer {
+                                                            scaleX = 1.1f
+                                                            scaleY = 1.1f
+                                                            alpha = 0.9f
+                                                        }
+                                                } else Modifier
+                                            )
                                             .border(
-                                                width = if (isCurrent) 1.5.dp.scaled() else 0.5.dp.scaled(),
+                                                width = if (isCurrent || isDropTarget) 1.5.dp.scaled() else 0.5.dp.scaled(),
                                                 color = when {
                                                     isDropTarget -> EditorColors.accent
                                                     isCurrent -> EditorColors.accent
@@ -162,8 +187,8 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                                 }
                                             )
                                             .background(
-                                                if (isDragSource) EditorColors.accent.copy(alpha = 0.15f)
-                                                else if (isDropTarget) EditorColors.accent.copy(alpha = 0.3f)
+                                                if (isDragSource) EditorColors.accent.copy(alpha = 0.8f)
+                                                else if (isDropTarget) EditorColors.accent.copy(alpha = 0.4f)
                                                 else bgColor
                                             )
                                             .pointerHoverIcon(PointerIcon.Hand)
@@ -184,13 +209,21 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                                     onDrag = { change, dragAmount ->
                                                         change.consume()
                                                         dragState?.let { st ->
-                                                            val newHoverLayer = (st.hoverLayer + (dragAmount.y / layerHeaderHeightPx).roundToInt())
+                                                            val totalOffsetX = st.offsetX + dragAmount.x
+                                                            val totalOffsetY = st.offsetY + dragAmount.y
+                                                            
+                                                            // Вычисляем к какой ячейке мы ближе всего относительно старта
+                                                            val frameDiff = (totalOffsetX / cellWidthPx).roundToInt()
+                                                            val layerDiff = (totalOffsetY / cellHeightPx).roundToInt()
+                                                            
+                                                            val newHoverLayer = (st.fromLayer + layerDiff)
                                                                 .coerceIn(0, project.layers.lastIndex)
-                                                            val newHoverFrame = (st.hoverFrame + (dragAmount.x / cellPx).roundToInt())
+                                                            val newHoverFrame = (st.fromFrame + frameDiff)
                                                                 .coerceIn(0, project.maxFrames - 1)
+                                                                
                                                             dragState = st.copy(
-                                                                offsetX = st.offsetX + dragAmount.x,
-                                                                offsetY = st.offsetY + dragAmount.y,
+                                                                offsetX = totalOffsetX,
+                                                                offsetY = totalOffsetY,
                                                                 hoverLayer = newHoverLayer,
                                                                 hoverFrame = newHoverFrame
                                                             )
@@ -206,7 +239,6 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                                                     toFrame = st.hoverFrame
                                                                 )
                                                             } else {
-                                                                // отпустили на месте — просто выбираем
                                                                 engine.setCurrentFrame(st.fromFrame)
                                                                 engine.setCurrentLayer(st.fromLayer)
                                                             }
@@ -215,35 +247,78 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                                     },
                                                     onDragCancel = { dragState = null }
                                                 )
-                                            }
-                                            // Визуальный «отклеенный» кадр, который держат мышкой
-                                            .then(
-                                                if (isDragSource) {
-                                                    Modifier
-                                                        .offset {
-                                                            IntOffset(
-                                                                dragState?.offsetX?.roundToInt() ?: 0,
-                                                                dragState?.offsetY?.roundToInt() ?: 0
-                                                            )
-                                                        }
-                                                        .zIndex(10f)
-                                                        .shadow(8.dp.scaled(), RoundedCornerShape(4.dp.scaled()))
-                                                        .graphicsLayer {
-                                                            scaleX = 1.15f
-                                                            scaleY = 1.15f
-                                                            alpha = 0.9f
-                                                        }
-                                                } else Modifier
-                                            ),
+                                            },
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        if (hasContent && !isDragSource) {
-                                            Box(modifier = Modifier.size(8.dp.scaled()).background(EditorColors.accent, RoundedCornerShape(2.dp.scaled())))
+                                        if (hasContent) {
+                                            Box(modifier = Modifier
+                                                .size(8.dp.scaled())
+                                                .background(
+                                                    if (isDragSource) Color.White else EditorColors.accent, 
+                                                    RoundedCornerShape(2.dp.scaled())
+                                                )
+                                            )
                                         }
                                     }
                                 }
                             }
                         }
+                    }
+                }
+
+                // Вертикальный скроллбар
+                val totalContentHeight = (project.layers.size * cellHeightPx)
+                val viewportHeight = with(density) { (cellHeight * 15).toPx() }
+                if (totalContentHeight > viewportHeight) {
+                    Box(
+                        modifier = Modifier
+                            .width(10.dp.scaled())
+                            .fillMaxHeight()
+                            .background(EditorColors.panelBackground)
+                            .padding(vertical = 2.dp.scaled(), horizontal = 1.dp.scaled())
+                    ) {
+                        val thumbHeight = (viewportHeight / totalContentHeight * viewportHeight).coerceAtLeast(with(density) { 20.dp.toPx() })
+                        val thumbY = if (verticalScrollState.maxValue > 0) {
+                            (verticalScrollState.value / verticalScrollState.maxValue.toFloat() * (viewportHeight - thumbHeight))
+                        } else 0f
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(with(density) { thumbHeight.toDp() })
+                                .offset(y = with(density) { thumbY.toDp() })
+                                .background(
+                                    EditorColors.textSecondary.copy(alpha = 0.4f),
+                                    RoundedCornerShape(5.dp.scaled())
+                                )
+                        )
+                    }
+                }
+
+                // Горизонтальный скроллбар
+                val totalContentWidth = (maxOf(project.maxFrames, 1) * cellWidthPx)
+                val viewportWidth = with(density) { (cellWidth * 20).toPx() }
+                if (totalContentWidth > viewportWidth) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(10.dp.scaled())
+                            .background(EditorColors.panelBackground)
+                            .padding(horizontal = 2.dp.scaled(), vertical = 1.dp.scaled())
+                    ) {
+                        val thumbWidth = (viewportWidth / totalContentWidth * viewportWidth).coerceAtLeast(with(density) { 20.dp.toPx() })
+                        val thumbX = if (horizontalScrollState.maxValue > 0) {
+                            (horizontalScrollState.value / horizontalScrollState.maxValue.toFloat() * (viewportWidth - thumbWidth))
+                        } else 0f
+                        Box(
+                            modifier = Modifier
+                                .width(with(density) { thumbWidth.toDp() })
+                                .fillMaxHeight()
+                                .offset(x = with(density) { thumbX.toDp() })
+                                .background(
+                                    EditorColors.textSecondary.copy(alpha = 0.4f),
+                                    RoundedCornerShape(5.dp.scaled())
+                                )
+                        )
                     }
                 }
             }

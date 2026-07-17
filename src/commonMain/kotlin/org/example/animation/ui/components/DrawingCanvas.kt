@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.toSize
 import org.example.animation.engine.AnimationEngine
+import org.example.animation.engine.Renderer
 import org.example.animation.model.Stroke
 import org.example.animation.model.ToolType
 import org.example.animation.model.ImageElement
@@ -50,9 +51,10 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
     val isPlaying by engine.isPlaying.collectAsState()
     val ghostFramesEnabled by engine.ghostFramesEnabled.collectAsState()
     val ghostFramesColorU by engine.ghostFramesColor.collectAsState()
-    val ghostFramesColor = remember(ghostFramesColorU) { ulongToColor(ghostFramesColorU).copy(alpha = 0.4f) }
+    val ghostFramesColor = remember(ghostFramesColorU) { Renderer.ulongToColor(ghostFramesColorU).copy(alpha = 0.4f) }
 
     val activeStroke by engine.activeStroke.collectAsState()
+    val stamps = remember(engine.brushes.collectAsState().value) { engine.getStampsMap() }
 
     var shapePreview by remember { mutableStateOf<ShapePreview?>(null) }
     val framesForRender = remember(project, engine.currentFrameIndex.collectAsState().value, ghostFramesEnabled) {
@@ -315,9 +317,9 @@ fun DrawingCanvas(engine: AnimationEngine, modifier: Modifier = Modifier) {
                                 for (frame in framesForRender) {
                                     val alpha = if (frame.isCurrent) 1f else frame.opacity
                                     for (image in frame.images) drawImageElement(image, alpha)
-                                    for (stroke in frame.strokes) drawStrokeWithColor(stroke, if (frame.isCurrent) null else ghostFramesColor, alpha)
+                                    for (stroke in frame.strokes) Renderer.drawStroke(this, stroke, if (frame.isCurrent) null else ghostFramesColor, alpha, stamps)
                                 }
-                                activeStroke?.let { drawStrokeWithColor(it) }
+                                activeStroke?.let { Renderer.drawStroke(this, it, null, 1f, stamps) }
                                 shapePreview?.let { preview -> drawShapePreview(preview, engine) }
                             }
                             drawRect(
@@ -400,7 +402,7 @@ private fun ZoomButton(icon: ImageVector, onClick: () -> Unit) {
 }
 
 private fun DrawScope.drawShapePreview(preview: ShapePreview, engine: AnimationEngine) {
-    val color = ulongToColor(engine.currentColor.value).copy(alpha = engine.opacity.value)
+    val color = Renderer.ulongToColor(engine.currentColor.value).copy(alpha = engine.opacity.value)
     val strokeStyle = Stroke(width = engine.brushSize.value, cap = StrokeCap.Round, join = StrokeJoin.Round)
     when (preview.tool) {
         ToolType.LINE -> drawLine(color = color, start = preview.start, end = preview.end, strokeWidth = engine.brushSize.value, cap = StrokeCap.Round)
@@ -418,22 +420,6 @@ private fun DrawScope.drawShapePreview(preview: ShapePreview, engine: AnimationE
         }
         else -> {}
     }
-}
-
-private fun DrawScope.drawStrokeWithColor(stroke: Stroke, overrideColor: Color? = null, alpha: Float = 1f) {
-    val points = stroke.points
-    if (points.isEmpty()) return
-    val effectiveAlpha = alpha * stroke.opacity
-    val color = if (stroke.isEraser) Color.White.copy(alpha = effectiveAlpha) else overrideColor ?: ulongToColor(stroke.color).copy(alpha = effectiveAlpha)
-    if (points.size == 1) {
-        drawCircle(color = color, radius = stroke.strokeWidth / 2f, center = points[0])
-        return
-    }
-    val path = Path().apply {
-        moveTo(points[0].x, points[0].y)
-        for (i in 1 until points.size) lineTo(points[i].x, points[i].y)
-    }
-    drawPath(path = path, color = color, style = Stroke(width = stroke.strokeWidth, cap = StrokeCap.Round, join = StrokeJoin.Round))
 }
 
 private fun DrawScope.drawImageElement(image: ImageElement, alpha: Float) {
@@ -458,12 +444,4 @@ private fun screenToCanvas(screenPos: Offset, panOffset: Offset, scale: Float, r
     val rx = x * cosR - y * sinR
     val ry = x * sinR + y * cosR
     return Offset(rx / scale + canvasWidth / 2f, ry / scale + canvasHeight / 2f)
-}
-
-private fun ulongToColor(color: ULong): Color {
-    val a = ((color shr 24) and 0xFFuL).toInt() / 255f
-    val r = ((color shr 16) and 0xFFuL).toInt() / 255f
-    val g = ((color shr 8) and 0xFFuL).toInt() / 255f
-    val b = (color and 0xFFuL).toInt() / 255f
-    return Color(r, g, b, a)
 }

@@ -44,6 +44,14 @@ object ProjectSerializer {
                     sb.appendLine("              \"isEraser\": ${stroke.isEraser},")
                     sb.appendLine("              \"toolType\": \"${stroke.toolType.name}\",")
                     sb.appendLine("              \"opacity\": ${formatFloat(stroke.opacity)},")
+                    sb.appendLine("              \"brushShape\": \"${stroke.brushShape.name}\",")
+                    sb.appendLine("              \"spacing\": ${formatFloat(stroke.spacing)},")
+                    sb.appendLine("              \"hardness\": ${formatFloat(stroke.hardness)},")
+                    sb.appendLine("              \"scatter\": ${formatFloat(stroke.scatter)},")
+                    sb.appendLine("              \"angle\": ${formatFloat(stroke.angle)},")
+                    sb.appendLine("              \"roundness\": ${formatFloat(stroke.roundness)},")
+                    sb.appendLine("              \"flow\": ${formatFloat(stroke.flow)},")
+                    sb.appendLine("              \"stampId\": ${stroke.stampId ?: "null"},")
                     sb.append("              \"points\": [")
                     for ((ptIdx, pt) in stroke.points.withIndex()) {
                         sb.append("{\"x\":${formatFloat(pt.x)},\"y\":${formatFloat(pt.y)}}")
@@ -142,12 +150,23 @@ object ProjectSerializer {
                                 for (strokeJson in strokeObjects) {
                                     val toolTypeName = extractString(strokeJson, "toolType") ?: "PEN"
                                     val toolType = try { ToolType.valueOf(toolTypeName) } catch (e: Exception) { ToolType.PEN }
+                                    val brushShapeName = extractString(strokeJson, "brushShape") ?: "CIRCLE"
+                                    val brushShape = try { BrushShape.valueOf(brushShapeName) } catch (e: Exception) { BrushShape.CIRCLE }
+                                    
                                     val stroke = Stroke(
                                         color = hexToColor(extractString(strokeJson, "color") ?: "FF000000"),
                                         strokeWidth = extractFloat(strokeJson, "strokeWidth") ?: 4f,
                                         isEraser = extractBoolean(strokeJson, "isEraser") ?: false,
                                         toolType = toolType,
-                                        opacity = extractFloat(strokeJson, "opacity") ?: 1f
+                                        opacity = extractFloat(strokeJson, "opacity") ?: 1f,
+                                        brushShape = brushShape,
+                                        spacing = extractFloat(strokeJson, "spacing") ?: 0.1f,
+                                        hardness = extractFloat(strokeJson, "hardness") ?: 1f,
+                                        scatter = extractFloat(strokeJson, "scatter") ?: 0f,
+                                        angle = extractFloat(strokeJson, "angle") ?: 0f,
+                                        roundness = extractFloat(strokeJson, "roundness") ?: 1f,
+                                        flow = extractFloat(strokeJson, "flow") ?: 1f,
+                                        stampId = extractLong(strokeJson, "stampId")
                                     )
 
                                     val pointsArray = extractArray(strokeJson, "points") ?: continue
@@ -214,7 +233,10 @@ object ProjectSerializer {
 
     private fun extractLong(json: String, key: String): Long? {
         val regex = "\"$key\"\\s*:\\s*(-?\\d+)".toRegex()
-        return regex.find(json)?.groupValues?.getOrNull(1)?.toLongOrNull()
+        val match = regex.find(json) ?: return null
+        val value = match.groupValues.getOrNull(1)
+        if (value == "null") return null
+        return value?.toLongOrNull()
     }
 
     private fun extractFloat(json: String, key: String): Float? {
