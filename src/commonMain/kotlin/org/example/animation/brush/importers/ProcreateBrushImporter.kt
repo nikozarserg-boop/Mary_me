@@ -12,10 +12,10 @@ class ProcreateBrushImporter : BrushImporter {
         try {
             val files = unzip(bytes)
             
-            // For .brush, it's a single brush. For .brushset, it's a folder of .brush files
+            // Для .brush это одна кисть. Для .brushset это папка файлов .brush
             if (fileName.endsWith(".brushset")) {
-                // Simplified: search for Shape.png and Grain.png in subfolders
-                // This is a bit complex as we need to group them by subfolder
+                // Упрощённый способ: ищем Shape.png и Grain.png во вложенных папках
+                // Это сложновато, так как нужно группировать их по подпапкам
                 val brushFolders = files.keys.filter { it.contains("/") }.map { it.substringBeforeLast("/") }.distinct()
                 for (folder in brushFolders) {
                     val shape = files["$folder/Shape.png"] ?: files["$folder/shape.png"]

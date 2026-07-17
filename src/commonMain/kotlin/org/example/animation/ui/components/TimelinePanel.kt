@@ -145,7 +145,7 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
                 // т.к. в разных версиях Compose Multiplatform доступ/контекст suspend-функций отличается.
                 // Оставляем значение timelineScrollPos только как источник для расчёта thumb.
                 LaunchedEffect(project.maxFrames, timelineScrollPos) {
-                    // no-op
+                    // Пустой оператор (no-op)
                 }
 
 

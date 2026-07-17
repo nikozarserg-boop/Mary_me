@@ -70,10 +70,10 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
     }
 }
 
-// Encode raw pixels to PNG for Android
+// Кодируем необработанные пиксели в PNG для Android
 actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray {
     return try {
-        // Create Android Bitmap with appropriate config
+                // Создаём Android Bitmap с подходящей конфигурацией
         val config = if (bytesPerPixel == 1) {
             Bitmap.Config.ALPHA_8
         } else {
@@ -81,11 +81,11 @@ actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPi
         }
         val bitmap = Bitmap.createBitmap(width, height, config)
         
-        // Copy pixel data
+        // Копируем данные пикселей
         val buffer = java.nio.ByteBuffer.wrap(pixels)
         bitmap.copyPixelsFromBuffer(buffer)
         
-        // Compress to PNG
+        // Сжимаем в PNG
         val stream = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
         stream.toByteArray()
@@ -95,7 +95,7 @@ actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPi
     }
 }
 
-// Unzip utility for Android
+// Утилита unzip для Android
 actual fun unzip(bytes: ByteArray): Map<String, ByteArray> {
     val result = mutableMapOf<String, ByteArray>()
     ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->

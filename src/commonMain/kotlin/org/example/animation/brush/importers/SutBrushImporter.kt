@@ -9,12 +9,12 @@ class SutBrushImporter : BrushImporter {
     override fun parse(bytes: ByteArray, fileName: String): List<BrushPreset> {
         val results = mutableListOf<BrushPreset>()
         try {
-            // .sut is an SQLite database. 
-            // Parsing it fully in commonMain without an SQLite library is hard.
-            // As a best-effort, we search for PNG signatures in the raw bytes.
-            
-            var i = 0
-            val pngSignature = byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte())
+        // .sut — это SQLite база данных.
+        // Полное парсинг в commonMain без библиотеки SQLite сложно.
+        // В качестве best-effort ищем подписи PNG в необработанных байтах.
+        
+        var i = 0
+        val pngSignature = byteArrayOf(0x89.toByte(), 'P'.code.toByte(), 'N'.code.toByte(), 'G'.code.toByte())
             
             while (i < bytes.size - 8) {
                 if (bytes[i] == pngSignature[0] && 
@@ -22,8 +22,8 @@ class SutBrushImporter : BrushImporter {
                     bytes[i+2] == pngSignature[2] && 
                     bytes[i+3] == pngSignature[3]) {
                     
-                    // Found a PNG! Try to find its end. 
-                    // PNG ends with IEND chunk (4 bytes name + 4 bytes CRC)
+                    // Найден PNG! Пытаемся найти его конец.
+                    // PNG заканчивается чанком IEND (4 байта имени + 4 байта CRC)
                     val iendSignature = byteArrayOf('I'.code.toByte(), 'E'.code.toByte(), 'N'.code.toByte(), 'D'.code.toByte())
                     var j = i + 4
                     var foundEnd = false

@@ -6,7 +6,7 @@ import androidx.compose.ui.graphics.ImageBitmap
  * Платформенно-нейтральный интерфейс файлового хендлера.
  * Реализация выбирается через createPlatformFileHandler() (expect/actual).
  */
-// File Handler
+// Файловый хендлер
 interface PlatformFileHandler {
     fun saveFile(defaultName: String, extension: String, data: ByteArray): Boolean
     fun openFile(extension: String): ByteArray?
@@ -43,7 +43,7 @@ data class FileEntry(
     val extension: String
 )
 
-// Image utilities
+// Утилиты для работы с изображениями
 expect fun decodeImage(data: ByteArray): ImageBitmap?
 
 
@@ -51,7 +51,7 @@ expect fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray
 expect fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray
 expect fun unzip(bytes: ByteArray): Map<String, ByteArray>
 
-// Graphics utilities
+// Графические утилиты
 expect fun floodFillOnBitmap(
     project: org.example.animation.model.AnimationProject,
     layerIndex: Int,

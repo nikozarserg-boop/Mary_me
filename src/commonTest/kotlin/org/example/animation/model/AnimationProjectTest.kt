@@ -202,7 +202,7 @@ class AnimationProjectTest {
     fun `addFrameGlobal inserts at correct position`() {
         val project = AnimationProject()
         project.layers[0].frames[0].strokes.add(Stroke(color = 0xFFFF0000uL))
-        project.addFrameGlobal() // appends
+        project.addFrameGlobal() // добавление кадра в конец
 
         assertEquals(2, project.totalFrames)
         // Первый кадр всё ещё должен содержать штрих

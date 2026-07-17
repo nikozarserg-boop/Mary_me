@@ -130,10 +130,10 @@ private fun drawStrokeOnGraphics(graphics: Graphics2D, stroke: Stroke) {
     // Цвет штриха
     val colorULong = stroke.color
     val awtColor = Color(
-        ((colorULong shr 16) and 0xFFuL).toInt(), // R
-        ((colorULong shr 8) and 0xFFuL).toInt(),  // G
-        (colorULong and 0xFFuL).toInt(),          // B
-        ((colorULong shr 24) and 0xFFuL).toInt()   // A
+        ((colorULong shr 16) and 0xFFuL).toInt(), // Красный
+        ((colorULong shr 8) and 0xFFuL).toInt(),  // Зелёный
+        (colorULong and 0xFFuL).toInt(),          // Синий
+        ((colorULong shr 24) and 0xFFuL).toInt()   // Альфа
     )
     graphics.color = awtColor
     graphics.stroke = java.awt.BasicStroke(stroke.strokeWidth.toFloat())

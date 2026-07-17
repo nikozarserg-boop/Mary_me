@@ -7,13 +7,13 @@ class KritaBrushImporter : BrushImporter {
     override val extensions: List<String> = listOf("kpp")
 
     override fun parse(bytes: ByteArray, fileName: String): List<BrushPreset> {
-        // .kpp is basically a PNG file with some metadata.
-        // We can use the whole PNG as the stamp.
+        // .kpp — это в основном PNG файл с некоторыми метаданными.
+        // Мы можем использовать весь PNG как штамп.
         return listOf(
             BrushPreset(
                 name = fileName.substringBeforeLast("."),
                 shape = BrushShape.TEXTURE,
-                stampPng = bytes, // The file itself is the PNG preview/stamp
+                stampPng = bytes, // Файл сам является PNG превью/штампом
                 size = 50f,
                 spacing = 0.1f
             )

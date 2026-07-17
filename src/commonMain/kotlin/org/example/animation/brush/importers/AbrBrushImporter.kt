@@ -24,8 +24,8 @@ class AbrBrushImporter : BrushImporter {
     }
 
     private fun parseV1V2(bytes: ByteArray): List<BrushPreset> {
-        // v1/v2 parser - simplified
-        return emptyList() // TODO: Implement if needed, but v6+ is more common
+        // Парсер v1/v2 — упрощённый
+        return emptyList() // TODO: Реализовать при необходимости, но v6+ более распространён
     }
 
     private fun parseV6Plus(bytes: ByteArray): List<BrushPreset> {
@@ -42,7 +42,7 @@ class AbrBrushImporter : BrushImporter {
             val tag = bytes.sliceArray(offset until offset + 4).decodeToString()
             offset += 4
             
-            // Read length (4 bytes)
+            // Читаем длину (4 байта)
             val length = ((bytes[offset].toInt() and 0xFF) shl 24) or
                          ((bytes[offset+1].toInt() and 0xFF) shl 16) or
                          ((bytes[offset+2].toInt() and 0xFF) shl 8) or
@@ -57,7 +57,7 @@ class AbrBrushImporter : BrushImporter {
             }
             
             offset = nextOffset
-            if (offset % 2 != 0) offset++ // padding
+            if (offset % 2 != 0) offset++ // выравнивание
         }
         return results
     }
@@ -67,19 +67,19 @@ class AbrBrushImporter : BrushImporter {
         var offset = 0
         
         while (offset < data.size - 10) {
-            // This is a simplified block parser
-            // In ABR v6+, samp contains several sampled brushes
-            // Each starts with a length and some ID
-            offset += 4 // Skip length of this record
-            
-            // Look for name or signature inside samp if any
-            // For now, extract what looks like a grayscale bitmap
-            // (diameter, pixels, compression)
-            
-            // This part is highly dependent on ABR's internal RLE
-            // Implementation of PackBits decoding is needed here
-            offset += 10 // skip dummy
-            break // just a placeholder for now
+            // Упрощённый парсер блока
+            // В ABR v6+ samp содержит несколько сэмплированных кистей
+            // Каждая начинается с длины и некоторого ID
+            offset += 4 // Пропускаем длину записи
+
+            // Ищем имя или подпись внутри samp при наличии
+            // Пока извлекаем то, что похоже на grayscale bitmap
+            // (диаметр, пиксели, сжатие)
+
+            // Этот раздел сильно зависит от внутреннего RLE ABR
+            // Необходимо реализовать декодирование PackBits
+            offset += 10 // пропускаем заглушку
+            break // пока заглушка
         }
         return results
     }

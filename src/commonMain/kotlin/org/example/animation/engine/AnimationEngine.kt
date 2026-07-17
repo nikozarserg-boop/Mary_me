@@ -90,7 +90,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _antiAliasingEnabled = MutableStateFlow(AppSettingsManager.isAntiAliasingEnabled())
     val antiAliasingEnabled: StateFlow<Boolean> = _antiAliasingEnabled.asStateFlow()
 
-    // Brush store
+    // Магазин кистей
     private val _showBrushStore = MutableStateFlow(false)
     val showBrushStore: StateFlow<Boolean> = _showBrushStore.asStateFlow()
 

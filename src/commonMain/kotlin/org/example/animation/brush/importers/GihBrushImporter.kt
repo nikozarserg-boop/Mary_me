@@ -8,16 +8,16 @@ class GihBrushImporter(private val gbrImporter: GbrBrushImporter) : BrushImporte
     override fun parse(bytes: ByteArray, fileName: String): List<BrushPreset> {
         val results = mutableListOf<BrushPreset>()
         try {
-            // GIH is often a text header followed by GBR blocks, 
-            // but the spec is complex. Simplified version: find GIMP signatures or just try to parse segments.
-            // A more robust way is to skip the first lines (name and params) and then find GBR headers.
+            // GIH часто содержит текстовый заголовок, за которым следуют блоки GBR,
+            // но спецификация сложна. Упрощённая версия: находим подписи GIMP или пытаемся разобрать сегменты.
+            // Более надёжный способ — пропустить первые строки (имя и параметры), затем найти заголовки GBR.
             
             var offset = 0
-            // Find first GBR block. GBR often starts with headerSize (usually 20-30 bytes in big-endian)
-            // But GIH header is usually: Name\nNumber of brushes...
-            // We can look for the "GIMP" magic or just try to find where GBR headers might be.
+            // Находим первый блок GBR. GBR обычно начинается с headerSize (обычно 20-30 байт в big-endian)
+            // Но заголовок GIH обычно: Name\nNumber of brushes...
+            // Можем искать магию "GIMP" или пытаться найти, где могут быть заголовки GBR.
             
-            // For simplicity, let's look for common GBR header sizes (20, 24, 28) in big-endian
+            // Для простоты ищем общие размеры заголовка GBR (20, 24, 28) в big-endian
             while (offset < bytes.size - 28) {
                 val headerSize = ((bytes[offset].toInt() and 0xFF) shl 24) or
                                  ((bytes[offset + 1].toInt() and 0xFF) shl 16) or
@@ -29,10 +29,10 @@ class GihBrushImporter(private val gbrImporter: GbrBrushImporter) : BrushImporte
                     val brushes = gbrImporter.parse(subBytes, fileName)
                     if (brushes.isNotEmpty()) {
                         results.addAll(brushes)
-                        // This is naive as we don't know the exact size of the GBR block without parsing it fully
-                        // But GbrBrushImporter doesn't return the consumed length.
-                        // Let's assume one brush for now or improve GbrBrushImporter to return length.
-                        break 
+                        // Наивная реализация: мы не знаем точный размер блока GBR без полного парсинга
+                        // Но GbrBrushImporter не возвращает длину прочитанных данных.
+                        // Пока предполагаем одну кисть или улучшаем GbrBrushImporter для возврата длины.
+                        break
                     }
                 }
                 offset++

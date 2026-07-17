@@ -26,7 +26,7 @@ class GbrBrushImporter : BrushImporter {
         val height = readInt()
         val bpp = readInt()
         
-        // Skip magic "GIMP" if version >= 2
+        // Пропускаем магическое "GIMP" если версия >= 2
         if (version >= 2) offset += 4
         
         val nameSize = headerSize - offset
