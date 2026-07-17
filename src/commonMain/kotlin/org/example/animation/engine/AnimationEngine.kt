@@ -73,13 +73,13 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private val _currentTool = MutableStateFlow(try { ToolType.valueOf(AppSettingsManager.getLastActiveTool()) } catch(e: Exception) { ToolType.BRUSH })
     val currentTool: StateFlow<ToolType> = _currentTool.asStateFlow()
     
-    private val _currentColor = MutableStateFlow(0xFF000000uL)
+    private val _currentColor = MutableStateFlow(AppSettingsManager.getCurrentColor())
     val currentColor: StateFlow<ULong> = _currentColor.asStateFlow()
     
     private val _brushSize = MutableStateFlow(AppSettingsManager.getBrushSize())
     val brushSize: StateFlow<Float> = _brushSize.asStateFlow()
     
-    private val _opacity = MutableStateFlow(1f)
+    private val _opacity = MutableStateFlow(AppSettingsManager.getCurrentOpacity())
     val opacity: StateFlow<Float> = _opacity.asStateFlow()
     
     // Сглаживание штрихов
@@ -92,7 +92,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     // Наборы кистей
     private val _brushes = MutableStateFlow(BrushManager.getPresets())
     val brushes: StateFlow<List<BrushPreset>> = _brushes.asStateFlow()
-    private val _currentBrushIndex = MutableStateFlow(BrushManager.getCurrentIndex())
+    private val _currentBrushIndex = MutableStateFlow(AppSettingsManager.getCurrentBrushIndex())
     val currentBrushIndex: StateFlow<Int> = _currentBrushIndex.asStateFlow()
 
     // Камера
@@ -135,6 +135,11 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     init {
         startWorkTimer()
         startAutoSaveTimer()
+        
+        // Применяем сохраненный индекс кисти
+        if (_currentBrushIndex.value in _brushes.value.indices) {
+            BrushManager.setCurrent(_currentBrushIndex.value)
+        }
     }
 
     private fun startWorkTimer() {
@@ -151,7 +156,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
     private fun startAutoSaveTimer() {
         autoSaveJob = scope.launch {
             while (isActive) {
-                val intervalMs = AppSettingsManager.getAutoSaveInterval() * 60 * 1000L
+                val intervalMs = AppSettingsManager.getAutoSaveInterval().coerceAtLeast(1) * 60 * 1000L
                 delay(intervalMs)
                 if (AppSettingsManager.isAutoSaveEnabled() && _hasUnsavedChanges.value) {
                     performAutosave()
@@ -229,12 +234,18 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         _currentTool.value = tool 
         AppSettingsManager.setLastActiveTool(tool.name)
     }
-    fun setCurrentColor(color: ULong) { _currentColor.value = color }
+    fun setCurrentColor(color: ULong) { 
+        _currentColor.value = color
+        AppSettingsManager.setCurrentColor(color)
+    }
     fun setBrushSize(size: Float) { 
         _brushSize.value = size.coerceIn(1f, 100f) 
         AppSettingsManager.setBrushSize(_brushSize.value)
     }
-    fun setOpacity(opacity: Float) { _opacity.value = opacity.coerceIn(0f, 1f) }
+    fun setOpacity(opacity: Float) { 
+        _opacity.value = opacity.coerceIn(0f, 1f)
+        AppSettingsManager.setCurrentOpacity(_opacity.value)
+    }
     fun setSmoothingLevel(level: Int) { 
         _smoothingLevel.value = level.coerceIn(0, 3) 
         AppSettingsManager.setSmoothingLevel(_smoothingLevel.value)
@@ -671,6 +682,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
         if (index in _brushes.value.indices) {
             BrushManager.setCurrent(index)
             _currentBrushIndex.value = index
+            AppSettingsManager.setCurrentBrushIndex(index)
         }
     }
 
@@ -679,6 +691,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
             BrushManager.removePreset(index)
             _brushes.value = BrushManager.getPresets()
             _currentBrushIndex.value = BrushManager.getCurrentIndex()
+            AppSettingsManager.setCurrentBrushIndex(_currentBrushIndex.value)
         }
     }
 
@@ -690,6 +703,7 @@ class AnimationEngine(initialProject: AnimationProject = AnimationProject()) {
             imported.forEach { BrushManager.addPreset(it) }
             _brushes.value = BrushManager.getPresets()
             _currentBrushIndex.value = BrushManager.getCurrentIndex()
+            AppSettingsManager.setCurrentBrushIndex(_currentBrushIndex.value)
         }
     }
 

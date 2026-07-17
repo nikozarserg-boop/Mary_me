@@ -39,6 +39,8 @@ enum class AppScreen {
     START, EDITOR
 }
 
+data class ExportResult(val path: String, val format: String)
+
 @OptIn(ExperimentalResourceApi::class)
 @Composable
 fun App(
@@ -64,6 +66,7 @@ fun App(
     var pendingFileAction by remember { mutableStateOf<String?>(null) }
     var exportProgress by remember { mutableStateOf<Float?>(null) }
     var stringsLoaded by remember { mutableStateOf(false) }
+    var exportResult by remember { mutableStateOf<ExportResult?>(null) }
 
     val hasUnsavedChanges by (engine?.hasUnsavedChanges ?: remember { MutableStateFlow(false) }).collectAsState()
     val lastAutosave by (engine?.lastAutosaveTime ?: remember { MutableStateFlow(0L) }).collectAsState()
@@ -73,14 +76,7 @@ fun App(
     var savedUiScale by remember { mutableStateOf(AppSettingsManager.getUiScale()) }
     var currentTheme by remember { mutableStateOf(ThemeType.valueOf(AppSettingsManager.getTheme())) }
 
-    // Этап 2: Состояние для массового сохранения при выходе
-    var projectsToSaveOnExit by remember { mutableStateOf<List<AnimationEngine>>(emptyList()) }
-    
-    // Этап 2: Состояние для восстановления автосохранений
-    var autosaveFilesToRestore by remember { mutableStateOf<List<String>>(emptyList()) }
-    var showAutosaveRestoreDialog by remember { mutableStateOf(false) }
-
-    // Сайд-эффект для обработки действий с файлами, не требующих диалога
+    // Сайд-эффект для обработки действий с файлами
     LaunchedEffect(pendingFileAction) {
         val action = pendingFileAction ?: return@LaunchedEffect
         val currentEngine = engine
@@ -106,11 +102,8 @@ fun App(
                 }
             }
             action == "save_all_exit" -> {
-                val dirtyEngines = projectManager.engines.value.filter { it.hasUnsavedChanges.value }
-                if (dirtyEngines.isEmpty()) {
-                    onExitConfirm()
-                } else {
-                    dirtyEngines.forEach { eng ->
+                projectManager.engines.value.forEach { eng ->
+                    if (eng.hasUnsavedChanges.value) {
                         val path = eng.filePath.value
                         if (path != null) {
                             val data = ProjectSerializer.serializeToBytes(eng.project.value)
@@ -120,13 +113,8 @@ fun App(
                             }
                         }
                     }
-                    val remaining = projectManager.engines.value.filter { it.hasUnsavedChanges.value && it.filePath.value == null }
-                    if (remaining.isEmpty()) {
-                        onExitConfirm()
-                    } else {
-                        projectsToSaveOnExit = remaining
-                    }
                 }
+                onExitConfirm()
                 pendingFileAction = null
             }
         }
@@ -160,6 +148,7 @@ fun App(
     LaunchedEffect(Unit) {
         AppSettingsManager.load()
         savedUiScale = AppSettingsManager.getUiScale()
+        currentTheme = ThemeType.valueOf(AppSettingsManager.getTheme())
         
         try {
             val ruBytes = try { Res.readBytes("files/locales/strings_ru.json") } catch (e: Exception) { try { Res.readBytes("locales/strings_ru.json") } catch (e2: Exception) { null } }
@@ -171,17 +160,6 @@ fun App(
             println("Localization loading error: ${e.message}")
         } finally {
             stringsLoaded = true
-        }
-    }
-
-    LaunchedEffect(stringsLoaded) {
-        if (stringsLoaded) {
-            val cacheDir = fileHandler.getCacheDirectory()
-            val files = fileHandler.listFiles(cacheDir).filter { it.name.startsWith("autosave_") && it.name.endsWith(".maryme") }
-            if (files.isNotEmpty()) {
-                autosaveFilesToRestore = files.map { it.path }
-                showAutosaveRestoreDialog = true
-            }
         }
     }
 
@@ -250,7 +228,10 @@ fun App(
                                                 onSettings = { showSettings = true },
                                                 onImportImage = { pendingFileAction = "import_image" },
                                                 currentTheme = currentTheme,
-                                                onThemeChange = { currentTheme = it },
+                                                onThemeChange = { 
+                                                    currentTheme = it
+                                                    AppSettingsManager.setTheme(it.name)
+                                                },
                                                 onCloseTab = { index ->
                                                     val targetEngine = projectManager.engines.value[index]
                                                     if (targetEngine.hasUnsavedChanges.value) {
@@ -311,6 +292,15 @@ fun App(
                                 }
                             }
 
+                            if (exportResult != null) {
+                                ExportResultDialog(
+                                    filePath = exportResult!!.path,
+                                    format = exportResult!!.format,
+                                    fileHandler = fileHandler,
+                                    onClose = { exportResult = null }
+                                )
+                            }
+
                             if (showNewProject) {
                                 NewProjectDialog(
                                     onCancel = { showNewProject = false },
@@ -349,66 +339,6 @@ fun App(
                                     },
                                     onDismiss = { closingTabIndex = null }
                                 )
-                            }
-
-                            if (showAutosaveRestoreDialog) {
-                                AlertDialog(
-                                    onDismissRequest = { showAutosaveRestoreDialog = false },
-                                    title = { Text(EditorStrings.observeString("autosave.restoreTitle"), color = EditorColors.textPrimary, fontWeight = FontWeight.Bold) },
-                                    text = { Text(EditorStrings.observeString("autosave.restoreDesc"), color = EditorColors.textSecondary) },
-                                    confirmButton = {
-                                        Button(
-                                            onClick = {
-                                                scope.launch {
-                                                    autosaveFilesToRestore.forEach { path ->
-                                                        val data = fileHandler.readFromPath(path)
-                                                        if (data != null) {
-                                                            try {
-                                                                val proj = ProjectSerializer.deserializeFromBytes(data)
-                                                                projectManager.addProject(proj)
-                                                            } catch (e: Exception) { e.printStackTrace() }
-                                                        }
-                                                        fileHandler.deleteFile(path)
-                                                    }
-                                                    showAutosaveRestoreDialog = false
-                                                    currentScreen = AppScreen.EDITOR
-                                                }
-                                            },
-                                            colors = ButtonDefaults.buttonColors(backgroundColor = EditorColors.accent)
-                                        ) {
-                                            Text(EditorStrings.observeString("autosave.restoreBtn"), color = Color.White)
-                                        }
-                                    },
-                                    dismissButton = {
-                                        TextButton(onClick = {
-                                            scope.launch {
-                                                autosaveFilesToRestore.forEach { fileHandler.deleteFile(it) }
-                                                showAutosaveRestoreDialog = false
-                                            }
-                                        }) {
-                                            Text(EditorStrings.observeString("autosave.ignoreBtn"), color = EditorColors.textSecondary)
-                                        }
-                                    },
-                                    backgroundColor = EditorColors.surface,
-                                    shape = RoundedCornerShape(12.dp.scaled())
-                                )
-                            }
-
-                            if (projectsToSaveOnExit.isNotEmpty()) {
-                                val currentToSave = projectsToSaveOnExit.first()
-                                FileManagerDialog(FileDialogMode.SAVE, currentToSave.project.value.name, "maryme") { path ->
-                                    if (path != null) {
-                                        val data = ProjectSerializer.serializeToBytes(currentToSave.project.value)
-                                        if (fileHandler.saveToPath(path, data)) {
-                                            currentToSave.markAsSaved(path)
-                                            AppSettingsManager.addRecentProject(path, currentToSave.project.value.name)
-                                        }
-                                    }
-                                    projectsToSaveOnExit = projectsToSaveOnExit.drop(1)
-                                    if (projectsToSaveOnExit.isEmpty()) {
-                                        onExitConfirm()
-                                    }
-                                }
                             }
 
                             val currentEngine = engine
@@ -474,16 +404,17 @@ fun App(
                                                     density = density,
                                                     format = fmt
                                                 )
-                                                when {
-                                                    data.isEmpty() -> exportError = "Не удалось сформировать изображение (${fmt.uppercase()})"
-                                                    !fileHandler.saveToPath(path, data) -> exportError = "Не удалось сохранить файл: $path"
+                                                if (data.isNotEmpty() && fileHandler.saveToPath(path, data)) {
+                                                    exportResult = ExportResult(path, fmt)
+                                                } else {
+                                                    exportError = "Ошибка при сохранении изображения"
                                                 }
                                                 pendingFileAction = null
                                             } else {
                                                 scope.launch {
                                                     exportProgress = 0f
                                                     val fps = currentEngine.project.value.fps
-                                                    val ok = fileHandler.exportAnimation(
+                                                    val exportErrorString = fileHandler.exportAnimation(
                                                         project = currentEngine.project.value,
                                                         outputPath = path,
                                                         format = fmt,
@@ -494,8 +425,10 @@ fun App(
                                                         onProgress = { exportProgress = it }
                                                     )
                                                     exportProgress = null
-                                                    if (!ok) {
-                                                        exportError = "Экспорт в ${fmt.uppercase()} не выполнен. Убедитесь, что FFmpeg поддерживает этот кодек."
+                                                    if (exportErrorString == null) {
+                                                        exportResult = ExportResult(path, fmt)
+                                                    } else {
+                                                        exportError = exportErrorString
                                                     }
                                                     pendingFileAction = null
                                                 }

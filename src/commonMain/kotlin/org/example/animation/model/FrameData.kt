@@ -166,7 +166,7 @@ class AnimationProject(
 
     fun addLayer(name: String = "Слой ${layers.size + 1}"): LayerData {
         val layer = LayerData(name = name)
-        layer.frames.clear() // remove default frame
+        layer.frames.clear() // удаляем кадр по умолчанию
         for (i in 0 until totalFrames) {
             layer.frames.add(FrameData())
         }
@@ -220,7 +220,7 @@ class AnimationProject(
                 val copy = layer.frames[frameIndex].copy()
                 layer.frames.add(insertAt, copy)
             } else {
-                layer.frames.add(FrameData()) // For sync if it wasn't
+                layer.frames.add(FrameData()) // Для синхронизации, если её не было
             }
         }
         return insertAt

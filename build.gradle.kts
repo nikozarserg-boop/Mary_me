@@ -74,22 +74,40 @@ kotlin {
             dependencies {
                 implementation(compose.preview)
                 implementation("androidx.activity:activity-compose:1.9.3")
-                // Стабильная версия из официального хранилища
-                // Всегда доступна для скачивания
+                // Full GPL версия для поддержки x264 и других кодеков
                 implementation("com.moizhassan.ffmpeg.ffmpegkit:ffmpegkit:6.1.1")
             }
         }
         
         val jvmMain by getting {
+            val targetOs = project.findProperty("targetOs") as String? ?: "all"
+            val ffmpegVersion = "6.1.1-1.5.10"
+            
             dependencies {
                 implementation(compose.desktop.currentOs)
-                // Dispatchers.Main для JVM (требуется для withContext(Dispatchers.Main))
                 implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.10.1")
-                // FFmpeg для десктопа: jave-all-deps встраивает бинарники FFmpeg под
-                // Windows/Linux/macOS прямо внутрь приложения (извлекаются в рантайме нужный
-                // для текущей ОС, без скачивания из интернета). Зависимость живёт только в
-                // jvmMain, поэтому НЕ попадает в Android-сборку.
-                implementation("ws.schild:jave-all-deps:3.3.1")
+                
+                // Задача 7.1: Оптимизация зависимостей FFmpeg по платформе
+                if (targetOs == "all") {
+                    implementation("org.bytedeco:ffmpeg-platform-gpl:$ffmpegVersion")
+                } else {
+                    // Включаем только бинарники для целевой ОС
+                    // Допустимые значения targetOs: windows-x86_64, linux-x86_64, macosx-arm64 и т.д.
+                    implementation("org.bytedeco:ffmpeg:$ffmpegVersion:$targetOs-gpl")
+                    implementation("org.bytedeco:javacpp:$ffmpegVersion:$targetOs")
+                }
+            }
+        }
+        
+        val commonTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+            }
+        }
+        
+        val jvmTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
             }
         }
     }
@@ -99,12 +117,29 @@ compose.desktop {
     application {
         mainClass = "org.example.MainKt"
         nativeDistributions {
+            // Задача 7.2: Расширенный список форматов дистрибуции
             targetFormats(
                 org.jetbrains.compose.desktop.application.dsl.TargetFormat.Dmg,
-                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Exe,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Msi,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Deb,
+                org.jetbrains.compose.desktop.application.dsl.TargetFormat.Rpm
             )
             packageName = "MaryMe"
             packageVersion = appVersion
+            
+            linux {
+                shortcut = true
+                appRelease = "1"
+                appCategory = "Graphics"
+                menuGroup = "Graphics"
+            }
+            
+            windows {
+                shortcut = true
+                menu = true
+                upgradeUuid = " MaryMe-UUID-12345" // Замените на реальный UUID при необходимости
+            }
         }
     }
 }
@@ -124,6 +159,22 @@ android {
             abiFilters.add("armeabi-v7a")
             abiFilters.add("arm64-v8a")
             abiFilters.add("x86_64")
+        }
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file(System.getenv("RELEASE_KEYSTORE_FILE") ?: "keystore.jks")
+            storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD") ?: ""
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: ""
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: ""
+        }
+    }
+
+    buildTypes {
+        getByName("release") {
+            isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 

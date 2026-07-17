@@ -1,6 +1,7 @@
 package org.example.animation.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -11,11 +12,14 @@ import androidx.compose.material.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import org.example.animation.engine.AnimationEngine
+import org.example.animation.engine.Renderer
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.theme.EditorColors
 import org.example.animation.ui.theme.scaled
@@ -33,15 +37,30 @@ fun ExportDialog(
     var exportHeight by remember { mutableStateOf(project.canvasHeight.toString()) }
     var selectedFormat by remember { mutableStateOf(format) }
 
+    // Анимация предпросмотра
+    var previewFrame by remember { mutableStateOf(0) }
+    val isVideoFormat = selectedFormat.lowercase() in listOf("gif", "apng", "mp4", "webm", "mov", "mkv", "avi")
+    
+    LaunchedEffect(project.fps, isVideoFormat) {
+        if (isVideoFormat) {
+            while (true) {
+                delay(1000L / (project.fps.coerceIn(1, 120)))
+                previewFrame = if (project.maxFrames > 0) (previewFrame + 1) % project.maxFrames else 0
+            }
+        } else {
+            previewFrame = engine.currentFrameIndex.value
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.6f)).clickable { onCancel() },
         contentAlignment = Alignment.Center
     ) {
         Surface(
             modifier = Modifier
-                .widthIn(max = 480.dp.scaled()) // Увеличено с 420 до 480 для лучшей вместимости
+                .widthIn(max = 500.dp.scaled())
                 .fillMaxWidth(0.9f)
-                .wrapContentHeight() // Позволяем окну адаптироваться под контент
+                .wrapContentHeight()
                 .clickable(enabled = false) {},
             color = EditorColors.surface,
             shape = RoundedCornerShape(12.dp.scaled()),
@@ -64,6 +83,39 @@ fun ExportDialog(
                         .verticalScroll(rememberScrollState())
                         .padding(horizontal = 20.dp.scaled())
                 ) {
+                    // Область предпросмотра (Задача 5.5)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(200.dp.scaled())
+                            .clip(RoundedCornerShape(8.dp.scaled()))
+                            .background(EditorColors.background),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val aspectRatio = project.canvasWidth.toFloat() / project.canvasHeight.toFloat()
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight(0.9f)
+                                .aspectRatio(aspectRatio)
+                                .background(Color.White)
+                        ) {
+                            Canvas(modifier = Modifier.fillMaxSize()) {
+                                Renderer.renderFrame(this, project, previewFrame)
+                            }
+                        }
+                        
+                        if (isVideoFormat) {
+                            Text(
+                                "Frame: ${previewFrame + 1} / ${project.maxFrames}",
+                                modifier = Modifier.align(Alignment.BottomEnd).padding(8.dp.scaled()),
+                                color = Color.Gray,
+                                fontSize = 10.sp.scaled()
+                            )
+                        }
+                    }
+
+                    Spacer(Modifier.height(16.dp.scaled()))
+
                     Text(EditorStrings.observeString("project.name"), color = EditorColors.textSecondary, fontSize = 11.sp.scaled())
                     OutlinedTextField(
                         value = fileName,
@@ -124,7 +176,6 @@ fun ExportDialog(
                     
                     Text(EditorStrings.observeString("export.format") ?: "Format", color = EditorColors.textSecondary, fontSize = 11.sp.scaled())
                     
-                    // Используем FlowRow для автоматического переноса кнопок форматов
                     FlowRow(
                         modifier = Modifier.padding(top = 8.dp.scaled()).fillMaxWidth(),
                         mainAxisSpacing = 8.dp.scaled(),

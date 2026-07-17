@@ -23,7 +23,7 @@ actual fun floodFillOnBitmap(
     val h = project.canvasHeight
     if (point.x < 0 || point.y < 0 || point.x >= w || point.y >= h) return
 
-    // Создаем BufferedImage
+    // Создаём BufferedImage
     val bufferedImage = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val graphics = bufferedImage.createGraphics()
 
@@ -33,13 +33,13 @@ actual fun floodFillOnBitmap(
     val px = point.x.toInt().coerceIn(0, w - 1)
     val py = point.y.toInt().coerceIn(0, h - 1)
 
-    // Цвет замены (из ULong в AWT int)
+    // Цвет замены (из ULong в int AWT)
     val replacement = ((fillColor shr 24) and 0xFFuL).toInt() shl 24 or
                       ((fillColor shr 16) and 0xFFuL).toInt() shl 16 or
                       ((fillColor shr 8) and 0xFFuL).toInt() shl 8 or
                       (fillColor and 0xFFuL).toInt()
 
-    // Заполнение области (flood fill)
+    // Заливка области (flood fill)
     val target = bufferedImage.getRGB(px, py)
     if (target == replacement) {
         graphics.dispose()
@@ -74,7 +74,7 @@ actual fun pickColorFromBitmap(
     val h = project.canvasHeight
     if (point.x < 0 || point.y < 0 || point.x >= w || point.y >= h) return null
 
-    // Создаем BufferedImage
+    // Создаём BufferedImage
     val bufferedImage = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
     val graphics = bufferedImage.createGraphics()
 
@@ -111,7 +111,7 @@ private fun renderCurrentFrameToBufferedImage(
     graphics.color = Color.WHITE
     graphics.fillRect(0, 0, w, h)
 
-    // Рендерим только один слой и один кадр (без ghost frames)
+    // Рендерим только один слой и один кадр (без призрачных кадров)
     val layer = project.layers.getOrNull(layerIndex) ?: return
     val frame = layer.frames.getOrNull(frameIndex) ?: return
     

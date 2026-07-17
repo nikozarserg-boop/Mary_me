@@ -71,7 +71,7 @@ interface PlatformFileHandler {
 
     /**
      * Экспорт анимации в видео или GIF.
-     * Реализуется через FFmpeg на каждой платформе.
+     * Возвращает null при успехе, иначе строку с текстом ошибки.
      */
     suspend fun exportAnimation(
         project: AnimationProject,
@@ -82,5 +82,20 @@ interface PlatformFileHandler {
         fps: Int,
         density: Density,
         onProgress: (Float) -> Unit
-    ): Boolean
+    ): String?
+
+    /**
+     * Извлечение кадров из видеофайла.
+     */
+    suspend fun extractVideoFrames(path: String, fps: Int, maxFrames: Int): List<ByteArray>
+
+    /**
+     * Поделиться файлом (Android Intent / Desktop - открытие)
+     */
+    fun shareFile(path: String)
+
+    /**
+     * Копировать файл в буфер обмена
+     */
+    fun copyFileToClipboard(path: String)
 }

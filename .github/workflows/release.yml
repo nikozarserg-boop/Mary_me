@@ -1,0 +1,167 @@
+name: Release
+
+on:
+  push:
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  desktop-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      
+      - name: Build Windows packages (Exe + Msi)
+        run: ./gradlew packageReleaseExe packageReleaseMsi -PtargetOs=windows
+      
+      - name: Upload Exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-Windows-Exe
+          path: build/compose/binaries/main-release/exe/
+      
+      - name: Upload Msi artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-Windows-Msi
+          path: build/compose/binaries/main-release/msi/
+
+  desktop-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      
+      - name: Build macOS package (Dmg)
+        run: ./gradlew packageReleaseDmg -PtargetOs=macos
+      
+      - name: Upload Dmg artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-macOS-Dmg
+          path: build/compose/binaries/main-release/dmg/
+
+  desktop-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      
+      - name: Build Linux packages (Deb + Rpm)
+        run: |
+          ./gradlew packageReleaseDeb packageReleaseRpm -PtargetOs=linux
+      
+      - name: Upload Deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-Linux-Deb
+          path: build/compose/binaries/main-release/deb/
+      
+      - name: Upload Rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-Linux-Rpm
+          path: build/compose/binaries/main-release/rpm/
+      
+      - name: Build AppImage
+        shell: bash
+        run: |
+          set -e
+          APP_VERSION=$(grep APP_VERSION version.txt | cut -d= -f2 | tr -d '[:space:]')
+          ./gradlew createReleaseDistributable -PtargetOs=linux
+          
+          mkdir -p AppDir/usr
+          cp -r build/compose/binaries/main-release/app/MaryMe AppDir/usr/
+          
+          echo '#!/bin/bash
+          HERE="$(dirname "$(readlink -f "$0")")"
+          exec "$HERE/usr/MaryMe/bin/MaryMe" "$@"' > AppDir/AppRun
+          chmod +x AppDir/AppRun
+          
+          echo '[Desktop Entry]
+          Name=MaryMe
+          Exec=MaryMe
+          Icon=maryme
+          Categories=Graphics;
+          Type=Application
+          Terminal=false' > AppDir/maryme.desktop
+          
+          if [ -f "src/androidMain/res/drawable/icon.png" ]; then
+            cp src/androidMain/res/drawable/icon.png AppDir/maryme.png
+          fi
+          
+          wget -q -O appimagetool.AppImage "https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+          chmod +x appimagetool.AppImage
+          export ARCH=x86_64
+          APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool.AppImage AppDir "MaryMe-${APP_VERSION}.AppImage"
+      
+      - name: Upload AppImage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-Linux-AppImage
+          path: MaryMe-*.AppImage
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: 21
+          distribution: temurin
+      
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      
+      - name: Decode Keystore
+        env:
+          RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
+        if: env.RELEASE_KEYSTORE_BASE64 != ''
+        run: echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
+      
+      - name: Build Android release APK and AAB
+        run: ./gradlew assembleRelease bundleRelease
+        env:
+          RELEASE_KEYSTORE_FILE: ${{ github.workspace }}/keystore.jks
+          RELEASE_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
+          RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
+          RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
+      
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-Android-APK
+          path: build/outputs/apk/release/*.apk
+      
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MaryMe-Android-AAB
+          path: build/outputs/bundle/release/*.aab

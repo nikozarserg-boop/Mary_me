@@ -15,7 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.*
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -32,10 +32,17 @@ import org.example.animation.engine.AnimationEngine
 import org.example.animation.localization.EditorStrings
 import org.example.animation.ui.components.tooltip.tooltipAnchor
 import org.example.animation.ui.theme.*
+import androidx.compose.ui.input.key.*
 import kotlin.math.roundToInt
 
 @Composable
 fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
+    val focusRequester = remember { FocusRequester() }
+    
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+    
     val project by engine.project.collectAsState()
     val currentFrameIndex by engine.currentFrameIndex.collectAsState()
     val currentLayerIndex by engine.currentLayerIndex.collectAsState()
@@ -44,7 +51,17 @@ fun TimelinePanel(engine: AnimationEngine, modifier: Modifier = Modifier) {
     // Состояние drag&drop для кадров
     var dragState by remember { mutableStateOf<FrameDragState?>(null) }
 
-    Surface(modifier = modifier.fillMaxWidth(), color = EditorColors.timelineBackground, elevation = 4.dp.scaled()) {
+    Surface(modifier = modifier.fillMaxWidth().onKeyEvent { event ->
+        if (event.type == KeyEventType.KeyUp &&
+            (event.key == Key.DirectionLeft || event.key == Key.DirectionRight)) {
+            when (event.key) {
+                Key.DirectionLeft -> engine.goToPreviousFrame()
+                Key.DirectionRight -> engine.goToNextFrame()
+                else -> {}
+            }
+            true
+        } else false
+    }.focusRequester(focusRequester).focusable(), color = EditorColors.timelineBackground, elevation = 4.dp.scaled()) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
                 modifier = Modifier

@@ -19,7 +19,9 @@ import org.example.animation.engine.ExportManager
 import org.example.animation.model.AnimationProject
 import org.jetbrains.skia.Image
 import org.jetbrains.skia.EncodedImageFormat
-import ws.schild.jave.process.ffmpeg.DefaultFFMPEGLocator
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.util.ArrayList
 
 actual fun createPlatformFileHandler(): PlatformFileHandler = JvmPlatformFileHandler()
 
@@ -51,6 +53,9 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
 
 class JvmPlatformFileHandler : PlatformFileHandler {
     private var lastDirectory: String? = null
+    private val ffmpegPath: String by lazy {
+        org.bytedeco.javacpp.Loader.load(org.bytedeco.ffmpeg.ffmpeg::class.java)
+    }
 
     override fun saveFile(defaultName: String, extension: String, data: ByteArray): Boolean {
         return try {
@@ -169,22 +174,19 @@ class JvmPlatformFileHandler : PlatformFileHandler {
         fps: Int,
         density: Density,
         onProgress: (Float) -> Unit
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): String? = withContext(Dispatchers.IO) {
         val tempDir = File(getCacheDirectory(), "export_${System.currentTimeMillis()}")
         tempDir.mkdirs()
 
         try {
             ExportManager.exportSequenceToPngs(project, width, height, density) { index, data ->
                 File(tempDir, "frame_%04d.png".format(index)).writeBytes(data)
-                onProgress(0.1f + (index.toFloat() / project.maxFrames) * 0.4f)
+                onProgress(0.1f + (index.toFloat() / (project.maxFrames.takeIf { it > 0 } ?: 1)) * 0.4f)
             }
 
-            val locator = DefaultFFMPEGLocator()
-            val ffmpegExecutable = locator.executablePath
             val inputPattern = File(tempDir, "frame_%04d.png").absolutePath
-
             val cmd = mutableListOf<String>().apply {
-                add(ffmpegExecutable)
+                add(ffmpegPath)
                 add("-y")
                 add("-framerate")
                 add(fps.toString())
@@ -193,17 +195,8 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 
                 when (format.lowercase()) {
                     "gif" -> {
-                        val palettePath = File(tempDir, "palette.png").absolutePath
-                        // Generate palette
-                        val pCmd = listOf(ffmpegExecutable, "-y", "-framerate", fps.toString(), "-i", inputPattern, "-vf", "palettegen", palettePath)
-                        ProcessBuilder(pCmd).start().waitFor()
-                        
-                        add("-i")
-                        add(palettePath)
-                        add("-filter_complex")
-                        add("paletteuse")
-                        add("-loop")
-                        add("0")
+                        add("-vf")
+                        add("split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse")
                     }
                     "apng" -> {
                         add("-plays")
@@ -249,7 +242,11 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 add(outputPath)
             }
 
-            val process = ProcessBuilder(cmd).start()
+            val process = ProcessBuilder(cmd).redirectErrorStream(true).start()
+            
+            val reader = BufferedReader(InputStreamReader(process.inputStream))
+            var line: String?
+            val log = StringBuilder()
             
             val progressJob = launch {
                 while (process.isAlive) {
@@ -258,15 +255,67 @@ class JvmPlatformFileHandler : PlatformFileHandler {
                 }
             }
             
-            val success = process.waitFor() == 0
+            while (reader.readLine().also { line = it } != null) {
+                log.append(line).append("\n")
+            }
+            
+            val exitCode = process.waitFor()
             progressJob.cancel()
-            success
+            
+            if (exitCode == 0) null else log.toString()
         } catch (e: Exception) {
-            e.printStackTrace()
-            false
+            e.message ?: "Unknown error"
         } finally {
             tempDir.deleteRecursively()
             onProgress(1.0f)
+        }
+    }
+
+    override suspend fun extractVideoFrames(path: String, fps: Int, maxFrames: Int): List<ByteArray> = withContext(Dispatchers.IO) {
+        val tempDir = File(getCacheDirectory(), "extract_${System.currentTimeMillis()}")
+        tempDir.mkdirs()
+        val result = mutableListOf<ByteArray>()
+        try {
+            val outputPattern = File(tempDir, "frame_%04d.png").absolutePath
+            val cmd = listOf(ffmpegPath, "-y", "-i", path, "-vf", "fps=$fps", "-vframes", maxFrames.toString(), outputPattern)
+            val process = ProcessBuilder(cmd).start()
+            if (process.waitFor() == 0) {
+                tempDir.listFiles()?.sortedBy { it.name }?.forEach {
+                    result.add(it.readBytes())
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            tempDir.deleteRecursively()
+        }
+        result
+    }
+
+    override fun shareFile(path: String) {
+        try {
+            Desktop.getDesktop().open(File(path))
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    override fun copyFileToClipboard(path: String) {
+        try {
+            val file = File(path)
+            val selection = object : Transferable {
+                override fun getTransferDataFlavors(): Array<DataFlavor> = arrayOf(DataFlavor.javaFileListFlavor)
+                override fun isDataFlavorSupported(flavor: DataFlavor): Boolean = flavor == DataFlavor.javaFileListFlavor
+                override fun getTransferData(flavor: DataFlavor): Any {
+                    if (flavor != DataFlavor.javaFileListFlavor) throw Exception("Unsupported flavor")
+                    val list = ArrayList<File>()
+                    list.add(file)
+                    return list
+                }
+            }
+            Toolkit.getDefaultToolkit().systemClipboard.setContents(selection, null)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 }
