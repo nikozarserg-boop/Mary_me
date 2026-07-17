@@ -386,15 +386,31 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
 
 actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray {
     return try {
-        val colorType = if (bytesPerPixel == 1) ColorType.GRAY_8 else ColorType.RGBA_8888
-        // Используем OPAQUE для данных без альфа-канала или UNPREMUL для RGBA
-        val alphaType = if (bytesPerPixel == 1) ColorAlphaType.OPAQUE else ColorAlphaType.UNPREMUL
-        val imageInfo = ImageInfo(width, height, colorType, alphaType)
-        val bitmap = Bitmap()
-        bitmap.allocPixels(imageInfo)
-        bitmap.installPixels(pixels)
-        val image = Image.makeFromBitmap(bitmap)
-        image.encodeToData(EncodedImageFormat.PNG, 100)?.bytes ?: ByteArray(0)
+        val image = if (bytesPerPixel == 1) {
+            // Grayscale изображение
+            val bufferedImage = java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_BYTE_GRAY)
+            val raster = bufferedImage.getRaster()
+            for (i in pixels.indices) {
+                raster.setSample(i % width, i / width, 0, pixels[i].toInt() and 0xFF)
+            }
+            bufferedImage
+        } else {
+            // RGBA изображение
+            val bufferedImage = java.awt.image.BufferedImage(width, height, java.awt.image.BufferedImage.TYPE_INT_ARGB)
+            for (i in 0 until width * height) {
+                val offset = i * 4
+                val argb = ((pixels[offset + 3].toInt() and 0xFF) shl 24) or
+                           ((pixels[offset + 0].toInt() and 0xFF) shl 16) or
+                           ((pixels[offset + 1].toInt() and 0xFF) shl 8) or
+                           (pixels[offset + 2].toInt() and 0xFF)
+                bufferedImage.setRGB(i % width, i / width, argb)
+            }
+            bufferedImage
+        }
+        
+        val outputStream = java.io.ByteArrayOutputStream()
+        javax.imageio.ImageIO.write(image, "PNG", outputStream)
+        outputStream.toByteArray()
     } catch (e: Exception) {
         e.printStackTrace()
         ByteArray(0)
