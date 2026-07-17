@@ -26,12 +26,14 @@ import org.example.animation.engine.ExportManager
 import org.example.animation.model.AnimationProject
 import java.io.ByteArrayOutputStream
 import java.io.File
-
+import java.io.ByteArrayInputStream
+import java.util.zip.ZipInputStream
+ 
 /**
  * Android реализация платформенно-зависимого файлового ввода/вывода
  */
 actual fun createPlatformFileHandler(): PlatformFileHandler = AndroidPlatformFileHandler()
-
+ 
 /**
  * Декодирование изображения для Android
  */
@@ -66,6 +68,46 @@ actual fun encodeImage(bitmap: ImageBitmap, format: String): ByteArray {
         e.printStackTrace()
         ByteArray(0)
     }
+}
+
+// Encode raw pixels to PNG for Android
+actual fun encodeRawToPng(pixels: ByteArray, width: Int, height: Int, bytesPerPixel: Int): ByteArray {
+    return try {
+        // Create Android Bitmap with appropriate config
+        val config = if (bytesPerPixel == 1) {
+            Bitmap.Config.ALPHA_8
+        } else {
+            Bitmap.Config.ARGB_8888
+        }
+        val bitmap = Bitmap.createBitmap(width, height, config)
+        
+        // Copy pixel data
+        val buffer = java.nio.ByteBuffer.wrap(pixels)
+        bitmap.copyPixelsFromBuffer(buffer)
+        
+        // Compress to PNG
+        val stream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+        stream.toByteArray()
+    } catch (e: Exception) {
+        e.printStackTrace()
+        ByteArray(0)
+    }
+}
+
+// Unzip utility for Android
+actual fun unzip(bytes: ByteArray): Map<String, ByteArray> {
+    val result = mutableMapOf<String, ByteArray>()
+    ZipInputStream(ByteArrayInputStream(bytes)).use { zis ->
+        var entry = zis.nextEntry
+        while (entry != null) {
+            if (!entry.isDirectory) {
+                result[entry.name] = zis.readAllBytes()
+            }
+            entry = zis.nextEntry
+        }
+    }
+    return result
 }
 
 class AndroidPlatformFileHandler : PlatformFileHandler {
